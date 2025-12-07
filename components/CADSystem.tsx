@@ -13,6 +13,46 @@ const DEPARTMENTS = [
 ];
 
 const CADSystem = () => {
+  // Helper function to format time in PST
+  const formatPSTTime = (isoString: string) => {
+    const date = new Date(isoString);
+    return date.toLocaleTimeString('en-US', { 
+      timeZone: 'America/Los_Angeles',
+      hour12: true,
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  // Helper function to format date and time in PST
+  const formatPSTDateTime = (isoString: string) => {
+    const date = new Date(isoString);
+    const dateStr = date.toLocaleDateString('en-US', { 
+      timeZone: 'America/Los_Angeles',
+      month: '2-digit',
+      day: '2-digit',
+      year: 'numeric'
+    });
+    const timeStr = date.toLocaleTimeString('en-US', { 
+      timeZone: 'America/Los_Angeles',
+      hour12: true,
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    return `${dateStr} ${timeStr}`;
+  };
+
+  // Helper function to format date only in PST
+  const formatPSTDate = (isoString: string) => {
+    const date = new Date(isoString);
+    return date.toLocaleDateString('en-US', { 
+      timeZone: 'America/Los_Angeles',
+      month: '2-digit',
+      day: '2-digit',
+      year: 'numeric'
+    });
+  };
+
   const [selectedRole, setSelectedRole] = useState(null);
   const [activeTab, setActiveTab] = useState('dispatch');
   const [userRole, setUserRole] = useState('dispatcher');
@@ -26,12 +66,37 @@ const CADSystem = () => {
   const [showUnitInfo, setShowUnitInfo] = useState(false);
   const [showRoleMenu, setShowRoleMenu] = useState(false);
   const [showExportImport, setShowExportImport] = useState(false);
+  const [loggedInOfficer, setLoggedInOfficer] = useState(null);
+  const [showLogin, setShowLogin] = useState(false);
   
   // Permission settings - can be controlled by admin
   const [permissions, setPermissions] = useState({
     canAccessDispatch: true,
     canAccessPolice: true
   });
+
+  // Officer login credentials - each officer has their own login
+  // In production, this would be stored in a database with hashed passwords
+  const [officerCredentials, setOfficerCredentials] = useState([
+    { 
+      username: 'johnson', 
+      password: 'deputy123', 
+      unitId: 'Unit-1',
+      displayName: 'Deputy Johnson'
+    },
+    { 
+      username: 'smith', 
+      password: 'deputy123', 
+      unitId: 'Unit-2',
+      displayName: 'Deputy Smith'
+    },
+    { 
+      username: 'davis', 
+      password: 'deputy123', 
+      unitId: 'Unit-3',
+      displayName: 'Deputy Davis'
+    }
+  ]);
   
   // Initialize data on mount
   useEffect(() => {
@@ -175,6 +240,7 @@ const CADSystem = () => {
       calls,
       units,
       callIdCounter,
+      officerCredentials,
       exportDate: new Date().toISOString()
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -196,6 +262,7 @@ const CADSystem = () => {
           if (data.calls) setCalls(data.calls);
           if (data.units) setUnits(data.units);
           if (data.callIdCounter) setCallIdCounter(data.callIdCounter);
+          if (data.officerCredentials) setOfficerCredentials(data.officerCredentials);
           setShowExportImport(false);
           alert('Data imported successfully!');
         } catch (error) {
@@ -286,7 +353,12 @@ const CADSystem = () => {
 
             <div className="relative">
               <button
-                onClick={() => permissions.canAccessPolice && setSelectedRole('police')}
+                onClick={() => {
+                  if (permissions.canAccessPolice) {
+                    setSelectedRole('police');
+                    setShowLogin(true);
+                  }
+                }}
                 disabled={!permissions.canAccessPolice}
                 className={`w-full bg-gray-800 rounded-lg p-8 border-4 transition transform hover:scale-105 ${
                   permissions.canAccessPolice 
@@ -318,6 +390,116 @@ const CADSystem = () => {
               <span className={permissions.canAccessPolice ? 'text-green-400' : 'text-red-400'}>
                 Police: {permissions.canAccessPolice ? 'Enabled' : 'Disabled'}
               </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const PoliceLogin = () => {
+    const [credentials, setCredentials] = useState({ username: '', password: '' });
+    const [error, setError] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+
+    const handleLogin = () => {
+      const officer = officerCredentials.find(
+        cred => cred.username.toLowerCase() === credentials.username.toLowerCase() && 
+                cred.password === credentials.password
+      );
+
+      if (officer) {
+        setLoggedInOfficer(officer);
+        setSelectedUnit(officer.unitId);
+        setShowLogin(false);
+        setError('');
+      } else {
+        setError('Invalid username or password');
+      }
+    };
+
+    const handleKeyPress = (e) => {
+      if (e.key === 'Enter') {
+        handleLogin();
+      }
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
+        <div className="bg-gray-800 rounded-lg p-8 w-full max-w-md border-4 border-yellow-500">
+          <div className="text-center mb-6">
+            <Shield size={64} className="text-yellow-500 mx-auto mb-4" />
+            <h2 className="text-3xl font-bold text-white mb-2">Officer Login</h2>
+            <p className="text-gray-400">Los Santos Sheriff Office</p>
+          </div>
+
+          {error && (
+            <div className="bg-red-900 border border-red-500 rounded p-3 mb-4 text-red-200 text-sm">
+              {error}
+            </div>
+          )}
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm text-gray-300 mb-2">Username</label>
+              <input
+                type="text"
+                value={credentials.username}
+                onChange={(e) => setCredentials({...credentials, username: e.target.value})}
+                onKeyPress={handleKeyPress}
+                className="w-full bg-gray-700 text-white rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                placeholder="Enter your username"
+                autoFocus
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm text-gray-300 mb-2">Password</label>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={credentials.password}
+                  onChange={(e) => setCredentials({...credentials, password: e.target.value})}
+                  onKeyPress={handleKeyPress}
+                  className="w-full bg-gray-700 text-white rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                  placeholder="Enter your password"
+                />
+                <button
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+                >
+                  {showPassword ? <Lock size={20} /> : <Lock size={20} />}
+                </button>
+              </div>
+            </div>
+
+            <button
+              onClick={handleLogin}
+              className="w-full px-6 py-3 bg-yellow-600 text-white rounded-lg font-bold hover:bg-yellow-500 transition text-lg"
+            >
+              Sign In
+            </button>
+
+            <button
+              onClick={() => {
+                setSelectedRole(null);
+                setShowLogin(false);
+                setError('');
+              }}
+              className="w-full px-6 py-3 bg-gray-600 text-white rounded-lg font-semibold hover:bg-gray-500 transition"
+            >
+              Back to Role Selection
+            </button>
+          </div>
+
+          <div className="mt-6 bg-gray-700 rounded p-4">
+            <p className="text-gray-300 text-xs mb-2">
+              <strong className="text-white">Demo Credentials:</strong>
+            </p>
+            <div className="text-xs text-gray-400 space-y-1">
+              <p>• Username: <span className="text-yellow-400">johnson</span> / Password: <span className="text-yellow-400">deputy123</span></p>
+              <p>• Username: <span className="text-yellow-400">smith</span> / Password: <span className="text-yellow-400">deputy123</span></p>
+              <p>• Username: <span className="text-yellow-400">davis</span> / Password: <span className="text-yellow-400">deputy123</span></p>
             </div>
           </div>
         </div>
@@ -506,6 +688,32 @@ const CADSystem = () => {
         </div>
         
         <div className="space-y-2">
+          {selectedRole === 'police' && loggedInOfficer && (
+            <>
+              <div className="bg-gray-700 rounded p-3 mb-3">
+                <div className="text-xs text-gray-400 mb-1">Logged in as:</div>
+                <div className="text-white font-semibold">{loggedInOfficer.displayName}</div>
+                <div className="text-sm text-gray-400">{units.find(u => u.id === selectedUnit)?.callsign}</div>
+              </div>
+              
+              <button
+                onClick={() => {
+                  setLoggedInOfficer(null);
+                  setSelectedUnit(null);
+                  setSelectedRole(null);
+                  setShowRoleMenu(false);
+                }}
+                className="w-full px-4 py-2 rounded text-left transition bg-orange-700 text-white hover:bg-orange-600"
+              >
+                <div className="font-semibold flex items-center gap-2">
+                  <Lock size={16} />
+                  Sign Out
+                </div>
+                <div className="text-xs text-gray-300">Return to role selection</div>
+              </button>
+            </>
+          )}
+          
           <button
             onClick={() => setShowExportImport(true)}
             className="w-full px-4 py-2 rounded text-left transition bg-blue-700 text-white hover:bg-blue-600"
@@ -517,13 +725,15 @@ const CADSystem = () => {
             <div className="text-xs text-gray-300">Save or load your session</div>
           </button>
           
-          <button
-            onClick={() => setSelectedRole(null)}
-            className="w-full px-4 py-2 rounded text-left transition bg-red-700 text-white hover:bg-red-600"
-          >
-            <div className="font-semibold">Exit to Role Selection</div>
-            <div className="text-xs text-gray-300">Return to main menu</div>
-          </button>
+          {selectedRole !== 'police' && (
+            <button
+              onClick={() => setSelectedRole(null)}
+              className="w-full px-4 py-2 rounded text-left transition bg-red-700 text-white hover:bg-red-600"
+            >
+              <div className="font-semibold">Exit to Role Selection</div>
+              <div className="text-xs text-gray-300">Return to main menu</div>
+            </button>
+          )}
         </div>
       </div>
     );
@@ -547,8 +757,11 @@ const CADSystem = () => {
                 Export Data
               </h3>
               <p className="text-gray-400 text-sm mb-3">
-                Download all calls, units, and settings as a JSON file
+                Download all calls, units, officer credentials, and settings as a JSON file
               </p>
+              <div className="bg-blue-900 border border-blue-500 rounded p-2 mb-3 text-xs text-blue-200">
+                <strong>Note:</strong> Officer login credentials are included in the backup for admin purposes.
+              </div>
               <button
                 onClick={exportData}
                 className="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500"
@@ -584,21 +797,22 @@ const CADSystem = () => {
     if (!myUnit) {
       return (
         <div className="flex items-center justify-center h-full">
-          <div className="text-center max-w-2xl">
-            <h2 className="text-2xl font-bold text-white mb-4">Select Your Unit</h2>
-            <p className="text-gray-400 mb-6">Choose your unit to access the Deputy MDT</p>
-            <div className="grid md:grid-cols-3 gap-4">
-              {units.map(u => (
-                <button
-                  key={u.id}
-                  onClick={() => setSelectedUnit(u.id)}
-                  className="bg-gray-800 rounded-lg p-6 hover:bg-gray-700 transition border-2 border-blue-500"
-                >
-                  <h3 className="text-xl font-bold text-white mb-2">{u.callsign}</h3>
-                  <div className="text-gray-400">{u.officer}</div>
-                </button>
-              ))}
-            </div>
+          <div className="text-center max-w-2xl bg-gray-800 rounded-lg p-8 border-2 border-yellow-500">
+            <AlertCircle size={64} className="mx-auto mb-4 text-yellow-500" />
+            <h2 className="text-2xl font-bold text-white mb-4">Unit Not Found</h2>
+            <p className="text-gray-400 mb-6">
+              Your assigned unit could not be found. Please contact your supervisor or dispatch.
+            </p>
+            <button
+              onClick={() => {
+                setLoggedInOfficer(null);
+                setSelectedUnit(null);
+                setSelectedRole(null);
+              }}
+              className="px-6 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-500 transition"
+            >
+              Sign Out
+            </button>
           </div>
         </div>
       );
@@ -647,7 +861,7 @@ const CADSystem = () => {
                 <div className="text-sm text-gray-400 mb-1">Time Dispatched</div>
                 <div className="flex items-center gap-2">
                   <Clock size={18} className="text-blue-400" />
-                  <div className="text-white font-semibold">{new Date(activeCall.timestamp).toLocaleString()}</div>
+                  <div className="text-white font-semibold">{formatPSTDateTime(activeCall.timestamp)}</div>
                 </div>
               </div>
 
@@ -686,7 +900,7 @@ const CADSystem = () => {
                     {activeCall.callNotes.map((note, idx) => (
                       <div key={idx} className="bg-gray-800 rounded p-2">
                         <div className="text-xs text-gray-400 mb-1">
-                          {new Date(note.timestamp).toLocaleString()}
+                          {formatPSTDateTime(note.timestamp)}
                         </div>
                         <div className="text-white text-sm whitespace-pre-wrap">{note.text}</div>
                       </div>
@@ -736,7 +950,7 @@ const CADSystem = () => {
                       <span className="text-white font-semibold">{call.code}</span>
                       <span className="bg-gray-600 text-white px-2 py-1 rounded text-sm">CLOSED</span>
                     </div>
-                    <span className="text-gray-400 text-sm">{new Date(call.timestamp).toLocaleDateString()}</span>
+                    <span className="text-gray-400 text-sm">{formatPSTDate(call.timestamp)}</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm text-gray-400">
                     <MapPin size={16} />
@@ -890,7 +1104,7 @@ const CADSystem = () => {
                 <h3 className="font-semibold text-white mb-2">Info</h3>
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between"><span className="text-gray-400">Code:</span><span className="text-white">{call.code}</span></div>
-                  <div className="flex justify-between"><span className="text-gray-400">Time:</span><span className="text-white">{new Date(call.timestamp).toLocaleString()}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-400">Time:</span><span className="text-white">{formatPSTDateTime(call.timestamp)}</span></div>
                 </div>
               </div>
 
@@ -940,7 +1154,7 @@ const CADSystem = () => {
             <div className="space-y-2 mb-3 max-h-64 overflow-y-auto">
               {call.callNotes?.map((n, i) => (
                 <div key={i} className="bg-gray-800 rounded p-3">
-                  <div className="text-xs text-gray-400 mb-1">{new Date(n.timestamp).toLocaleString()}</div>
+                  <div className="text-xs text-gray-400 mb-1">{formatPSTDateTime(n.timestamp)}</div>
                   <div className="text-white text-sm whitespace-pre-wrap">{n.text}</div>
                 </div>
               ))}
@@ -1061,33 +1275,59 @@ const CADSystem = () => {
           <p className="text-xl text-white">Los Santos Sheriff Office</p>
         </div>
         
-        {selectedRole === 'dispatch' && (
+
+
+        {selectedRole === 'police' && selectedUnit && loggedInOfficer && (
           <div className="flex flex-wrap justify-center gap-2 mb-3">
-            <StatusButton status="busy" label="Busy" code="10-6" />
-            <StatusButton status="unavailable" label="Unavailable" code="10-7" />
-            <StatusButton status="available" label="Available" code="10-8" />
-            <StatusButton status="enroute" label="Enroute" code="10-76" />
-            <StatusButton status="onscene" label="On-Scene" code="10-23" />
             <button
-              onClick={() => selectedUnit && updateUnitStatus(selectedUnit, 'panic')}
-              disabled={!selectedUnit}
-              className={`px-4 py-2 rounded font-semibold transition ${selectedUnit ? 'bg-red-600 text-white hover:bg-red-700 animate-pulse' : 'bg-gray-800 text-gray-500 cursor-not-allowed'}`}
+              onClick={() => setShowUnitInfo(true)}
+              className="px-4 py-2 bg-yellow-600 text-white rounded font-bold hover:bg-yellow-500 transition flex items-center gap-2 border-r-2 border-gray-600 mr-2"
+            >
+              <div className="text-left">
+                <div className="text-sm font-bold">{units.find(u => u.id === selectedUnit)?.callsign}</div>
+                <div className="text-xs">
+                  <User size={12} className="inline mr-1" />
+                  {loggedInOfficer.displayName}
+                </div>
+              </div>
+            </button>
+            <button
+              onClick={() => updateUnitStatus(selectedUnit, 'busy')}
+              className="px-4 py-2 rounded font-semibold transition bg-gray-700 text-white hover:bg-gray-600"
+            >
+              Busy 10-6
+            </button>
+            <button
+              onClick={() => updateUnitStatus(selectedUnit, 'unavailable')}
+              className="px-4 py-2 rounded font-semibold transition bg-gray-700 text-white hover:bg-gray-600"
+            >
+              Unavailable 10-7
+            </button>
+            <button
+              onClick={() => updateUnitStatus(selectedUnit, 'available')}
+              className="px-4 py-2 rounded font-semibold transition bg-gray-700 text-white hover:bg-gray-600"
+            >
+              Available 10-8
+            </button>
+            <button
+              onClick={() => updateUnitStatus(selectedUnit, 'enroute')}
+              className="px-4 py-2 rounded font-semibold transition bg-gray-700 text-white hover:bg-gray-600"
+            >
+              Enroute 10-76
+            </button>
+            <button
+              onClick={() => updateUnitStatus(selectedUnit, 'onscene')}
+              className="px-4 py-2 rounded font-semibold transition bg-gray-700 text-white hover:bg-gray-600"
+            >
+              On-Scene 10-23
+            </button>
+            <button
+              onClick={() => updateUnitStatus(selectedUnit, 'panic')}
+              className="px-4 py-2 rounded font-semibold transition bg-red-600 text-white hover:bg-red-700 animate-pulse"
             >
               <AlertTriangle size={18} className="inline mr-1" />
               PANIC
             </button>
-          </div>
-        )}
-
-        {selectedRole === 'police' && selectedUnit && (
-          <div className="flex flex-wrap justify-center gap-2 mb-3">
-            <button onClick={() => setShowUnitInfo(true)} className="px-4 py-2 bg-yellow-600 text-white rounded font-bold">
-              {units.find(u => u.id === selectedUnit)?.callsign}
-            </button>
-            <button onClick={() => updateUnitStatus(selectedUnit, 'busy')} className="px-4 py-2 rounded bg-gray-700 text-white">Busy 10-6</button>
-            <button onClick={() => updateUnitStatus(selectedUnit, 'available')} className="px-4 py-2 rounded bg-gray-700 text-white">Available 10-8</button>
-            <button onClick={() => updateUnitStatus(selectedUnit, 'enroute')} className="px-4 py-2 rounded bg-gray-700 text-white">Enroute 10-76</button>
-            <button onClick={() => updateUnitStatus(selectedUnit, 'onscene')} className="px-4 py-2 rounded bg-gray-700 text-white">On-Scene 10-23</button>
           </div>
         )}
 
@@ -1133,7 +1373,7 @@ const CADSystem = () => {
                       <span className={`${getPriorityColor(call.priority)} text-white px-2 py-1 rounded text-sm`}>P{call.priority}</span>
                       <span className="text-white font-semibold">{call.code}</span>
                     </div>
-                    <span className="text-gray-400 text-sm">{new Date(call.timestamp).toLocaleTimeString()}</span>
+                    <span className="text-gray-400 text-sm">{formatPSTTime(call.timestamp)}</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm text-gray-400">
                     <MapPin size={16} />
@@ -1184,14 +1424,26 @@ const CADSystem = () => {
       <footer className="bg-gray-800 border-t border-gray-700 p-4 fixed bottom-0 left-0 right-0">
         <div className="flex justify-between items-center">
           <button onClick={() => setShowRoleMenu(!showRoleMenu)} className="bg-gray-700 px-4 py-2 rounded">
-            <div className="text-white font-mono">{selectedRole === 'dispatch' ? 'Dispatch' : 'Deputy'}</div>
+            <div className="text-gray-400 text-xs">
+              {selectedRole === 'police' && loggedInOfficer ? 'Officer' : 'Mode'}
+            </div>
+            <div className="text-white font-mono text-lg">
+              {selectedRole === 'dispatch' ? 'Dispatch' : 
+               selectedRole === 'police' && loggedInOfficer ? loggedInOfficer.displayName : 'Deputy'}
+            </div>
           </button>
           <div className="bg-gray-700 px-4 py-2 rounded">
-            <div className="text-white font-mono">{currentTime.toLocaleTimeString()}</div>
+            <div className="text-gray-400 text-xs">Current Time (PST)</div>
+            <div className="text-white font-mono text-lg">
+              {currentTime.toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles', month: '2-digit', day: '2-digit', year: 'numeric' })} {currentTime.toLocaleTimeString('en-US', { timeZone: 'America/Los_Angeles', hour12: true })}
+            </div>
           </div>
         </div>
       </footer>
 
+      {showRoleMenu && <RoleMenu />}
+      {showExportImport && <ExportImportModal />}
+      {showLogin && <PoliceLogin />}
       {showNewCall && <NewCallForm />}
       {selectedCall && <CallDetail call={selectedCall} />}
       {showUnitInfo && selectedUnit && <UnitInfoModal unit={units.find(u => u.id === selectedUnit)} />}
