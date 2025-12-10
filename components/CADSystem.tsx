@@ -15,28 +15,11 @@ const DEPARTMENTS = [
   'CSO-TOW', 'SO-COMMS', 'SO-WC', 'SO-ROAM', 'SO-HEAT'
 ];
 
-// Helper function to load saved session from localStorage
-const loadSavedSession = () => {
-  try {
-    const saved = localStorage.getItem('cadSession');
-    if (saved) {
-      const session = JSON.parse(saved);
-      // Check if version matches - if not, require re-login
-      if (session.version === APP_VERSION) {
-        return session;
-      }
-    }
-  } catch (e) {
-    console.error('Error loading saved session:', e);
-  }
-  return null;
-};
-
 const CADSystem = () => {
   // Helper function to format time in PST
   const formatPSTTime = (isoString: string) => {
     const date = new Date(isoString);
-    return date.toLocaleTimeString('en-US', { 
+    return date.toLocaleTimeString('en-US', {
       timeZone: 'America/Los_Angeles',
       hour12: true,
       hour: '2-digit',
@@ -47,13 +30,13 @@ const CADSystem = () => {
   // Helper function to format date and time in PST
   const formatPSTDateTime = (isoString: string) => {
     const date = new Date(isoString);
-    const dateStr = date.toLocaleDateString('en-US', { 
+    const dateStr = date.toLocaleDateString('en-US', {
       timeZone: 'America/Los_Angeles',
       month: '2-digit',
       day: '2-digit',
       year: 'numeric'
     });
-    const timeStr = date.toLocaleTimeString('en-US', { 
+    const timeStr = date.toLocaleTimeString('en-US', {
       timeZone: 'America/Los_Angeles',
       hour12: true,
       hour: '2-digit',
@@ -65,7 +48,7 @@ const CADSystem = () => {
   // Helper function to format date only in PST
   const formatPSTDate = (isoString: string) => {
     const date = new Date(isoString);
-    return date.toLocaleDateString('en-US', { 
+    return date.toLocaleDateString('en-US', {
       timeZone: 'America/Los_Angeles',
       month: '2-digit',
       day: '2-digit',
@@ -73,12 +56,12 @@ const CADSystem = () => {
     });
   };
 
-  // Load saved session on initial render
-  const savedSession = loadSavedSession();
+  // Track if component has mounted (client-side)
+  const [isClient, setIsClient] = useState(false);
 
-  // Authentication state - true if valid session exists
-  const [isAuthenticated, setIsAuthenticated] = useState(savedSession !== null);
-  const [selectedRole, setSelectedRole] = useState(savedSession?.role || null);
+  // Authentication state - start with false, will be updated after mount
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('dispatch');
   const [userRole, setUserRole] = useState('dispatcher');
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -87,12 +70,12 @@ const CADSystem = () => {
   const [showNewCall, setShowNewCall] = useState(false);
   const [selectedCall, setSelectedCall] = useState<any>(null);
   const [callIdCounter, setCallIdCounter] = useState(1);
-  const [selectedUnit, setSelectedUnit] = useState<string | null>(savedSession?.unitId || null);
+  const [selectedUnit, setSelectedUnit] = useState<string | null>(null);
   const [showUnitInfo, setShowUnitInfo] = useState(false);
   const [showRoleMenu, setShowRoleMenu] = useState(false);
   const [showExportImport, setShowExportImport] = useState(false);
-  const [loggedInOfficer, setLoggedInOfficer] = useState<any>(savedSession?.officer || null);
-  const [showLogin, setShowLogin] = useState(!savedSession);
+  const [loggedInOfficer, setLoggedInOfficer] = useState<any>(null);
+  const [showLogin, setShowLogin] = useState(true);
 
   // Permission settings - can be controlled by admin
   const [permissions, setPermissions] = useState({
@@ -117,6 +100,32 @@ const CADSystem = () => {
     bolo: false
   });
   const [activeRecordsPanel, setActiveRecordsPanel] = useState<string | null>(null); // 'lookup', 'records', 'bolo'
+
+  // Records Panel state
+  const [showNewReportDropdown, setShowNewReportDropdown] = useState(false);
+  const [showNewRecordDropdown, setShowNewRecordDropdown] = useState(false);
+  const [activeReportForm, setActiveReportForm] = useState<string | null>(null);
+  const [activeRecordForm, setActiveRecordForm] = useState<string | null>(null);
+  const [officerReports, setOfficerReports] = useState<any[]>([]);
+  const [officerRecords, setOfficerRecords] = useState<any[]>([]);
+  const [currentReportData, setCurrentReportData] = useState<any>({});
+  const [currentRecordData, setCurrentRecordData] = useState<any>({});
+
+  // Report and Record types
+  const REPORT_TYPES = [
+    'TRAFFIC COLLISION REPORT',
+    'SUPPLEMENTAL REPORT',
+    'USE OF FORCE REPORT',
+    'GENERAL REPORT',
+    'VEHICLE TOW/RELEASE REPORT',
+    'DETECTIVE REQUEST FORM',
+    'DETECTIVE REPORT',
+    'TRESPASS WARNING',
+    'RESTRAINING ORDER',
+    'EVIDENCE LOCKER'
+  ];
+
+  const RECORD_TYPES = ['ARREST', 'BOLO', 'WARRANT', 'CITATION'];
 
   // DMV record types
   const DMV_RECORD_TYPES = [
@@ -166,6 +175,27 @@ const CADSystem = () => {
     setSelectedUnit(null);
     setShowLogin(true);
   };
+
+  // Load saved session on client mount (prevents hydration mismatch)
+  useEffect(() => {
+    setIsClient(true);
+    try {
+      const saved = localStorage.getItem('cadSession');
+      if (saved) {
+        const session = JSON.parse(saved);
+        // Check if version matches - if not, require re-login
+        if (session.version === APP_VERSION) {
+          setIsAuthenticated(true);
+          setSelectedRole(session.role || null);
+          setSelectedUnit(session.unitId || null);
+          setLoggedInOfficer(session.officer || null);
+          setShowLogin(false);
+        }
+      }
+    } catch (e) {
+      console.error('Error loading saved session:', e);
+    }
+  }, []);
 
   // Initialize data on mount
   useEffect(() => {
@@ -3310,6 +3340,15 @@ const CADSystem = () => {
     );
   };
 
+  // Show loading state while checking for saved session (prevents hydration mismatch)
+  if (!isClient) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-white text-xl">Loading...</div>
+      </div>
+    );
+  }
+
   // Show login screen if not authenticated
   if (!isAuthenticated || showLogin) {
     return <PoliceLogin />;
@@ -3584,6 +3623,637 @@ const CADSystem = () => {
             Click the pin icon to add buttons to the toolbar
           </p>
         </div>
+      </div>
+    );
+  };
+
+  // Records Panel Component
+  const RecordsPanel = () => {
+    const formatDateTime = (isoString: string) => {
+      const date = new Date(isoString);
+      return date.toLocaleDateString('en-US', {
+        month: '2-digit',
+        day: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    };
+
+    const handleNewReport = (reportType: string) => {
+      setActiveReportForm(reportType);
+      setCurrentReportData({
+        type: reportType,
+        officer: loggedInOfficer?.displayName || '',
+        badge: loggedInOfficer?.badge || '',
+        date: new Date().toISOString(),
+        status: 'DRAFT'
+      });
+      setShowNewReportDropdown(false);
+    };
+
+    const handleNewRecord = (recordType: string) => {
+      setActiveRecordForm(recordType);
+      setCurrentRecordData({
+        type: recordType,
+        officer: loggedInOfficer?.displayName || '',
+        badge: loggedInOfficer?.badge || '',
+        date: new Date().toISOString(),
+        status: 'ACTIVE'
+      });
+      setShowNewRecordDropdown(false);
+    };
+
+    const saveReport = () => {
+      const newReport = {
+        ...currentReportData,
+        id: `RPT-${Date.now()}`,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      setOfficerReports([...officerReports, newReport]);
+      setActiveReportForm(null);
+      setCurrentReportData({});
+    };
+
+    const saveRecord = () => {
+      const newRecord = {
+        ...currentRecordData,
+        id: `REC-${Date.now()}`,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      setOfficerRecords([...officerRecords, newRecord]);
+      setActiveRecordForm(null);
+      setCurrentRecordData({});
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-gray-800 rounded-lg w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+          {/* Header */}
+          <div className="bg-gray-900 px-6 py-4 border-b border-gray-700 flex justify-between items-center">
+            <h2 className="text-xl font-bold text-purple-400 flex items-center gap-2">
+              <FileText size={24} />
+              Records Management
+            </h2>
+            <button
+              onClick={() => setActiveRecordsPanel(null)}
+              className="text-gray-400 hover:text-white transition"
+            >
+              <X size={24} />
+            </button>
+          </div>
+
+          {/* Top Button Bar */}
+          <div className="bg-gray-850 px-6 py-3 border-b border-gray-700 flex gap-2 flex-wrap">
+            {/* Search Button */}
+            <button
+              onClick={() => {/* TODO: Implement search */}}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500 transition flex items-center gap-2"
+            >
+              <Search size={18} />
+              Search
+            </button>
+
+            {/* New Report Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => {
+                  setShowNewReportDropdown(!showNewReportDropdown);
+                  setShowNewRecordDropdown(false);
+                }}
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-500 transition flex items-center gap-2"
+              >
+                <Plus size={18} />
+                New Report
+                <span className="text-xs">▼</span>
+              </button>
+              {showNewReportDropdown && (
+                <div className="absolute top-full left-0 mt-1 bg-gray-700 rounded-lg shadow-lg border border-gray-600 py-1 z-10 min-w-64">
+                  {REPORT_TYPES.map(type => (
+                    <button
+                      key={type}
+                      onClick={() => handleNewReport(type)}
+                      className="w-full px-4 py-2 text-left text-white hover:bg-gray-600 transition text-sm"
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* New Record Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => {
+                  setShowNewRecordDropdown(!showNewRecordDropdown);
+                  setShowNewReportDropdown(false);
+                }}
+                className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-500 transition flex items-center gap-2"
+              >
+                <Plus size={18} />
+                New Record
+                <span className="text-xs">▼</span>
+              </button>
+              {showNewRecordDropdown && (
+                <div className="absolute top-full left-0 mt-1 bg-gray-700 rounded-lg shadow-lg border border-gray-600 py-1 z-10 min-w-48">
+                  {RECORD_TYPES.map(type => (
+                    <button
+                      key={type}
+                      onClick={() => handleNewRecord(type)}
+                      className="w-full px-4 py-2 text-left text-white hover:bg-gray-600 transition text-sm"
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Supervisor Panel Button */}
+            <button
+              onClick={() => {/* TODO: Implement supervisor panel */}}
+              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-500 transition flex items-center gap-2"
+            >
+              <Shield size={18} />
+              Supervisor Panel
+            </button>
+          </div>
+
+          {/* Main Content Area */}
+          <div className="flex-1 overflow-y-auto p-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Reports Section */}
+              <div className="bg-gray-700 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-green-400 mb-4 flex items-center gap-2">
+                  <FileText size={20} />
+                  My Reports
+                </h3>
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {officerReports.length === 0 ? (
+                    <div className="text-gray-400 text-center py-8">
+                      <FileText size={48} className="mx-auto mb-2 opacity-50" />
+                      <p>No reports yet</p>
+                      <p className="text-sm">Click "New Report" to create one</p>
+                    </div>
+                  ) : (
+                    officerReports.map(report => (
+                      <div
+                        key={report.id}
+                        className="bg-gray-800 rounded p-3 hover:bg-gray-750 cursor-pointer transition"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="text-white font-semibold">{report.type}</div>
+                            <div className="text-gray-400 text-sm">{report.id}</div>
+                          </div>
+                          <span className={`px-2 py-1 rounded text-xs ${
+                            report.status === 'DRAFT' ? 'bg-yellow-600' :
+                            report.status === 'SUBMITTED' ? 'bg-blue-600' :
+                            report.status === 'APPROVED' ? 'bg-green-600' : 'bg-gray-600'
+                          }`}>
+                            {report.status}
+                          </span>
+                        </div>
+                        <div className="text-gray-500 text-xs mt-2">
+                          Created: {formatDateTime(report.createdAt)}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Records Section */}
+              <div className="bg-gray-700 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-orange-400 mb-4 flex items-center gap-2">
+                  <Database size={20} />
+                  My Records
+                </h3>
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {officerRecords.length === 0 ? (
+                    <div className="text-gray-400 text-center py-8">
+                      <Database size={48} className="mx-auto mb-2 opacity-50" />
+                      <p>No records yet</p>
+                      <p className="text-sm">Click "New Record" to create one</p>
+                    </div>
+                  ) : (
+                    officerRecords.map(record => (
+                      <div
+                        key={record.id}
+                        className="bg-gray-800 rounded p-3 hover:bg-gray-750 cursor-pointer transition"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="text-white font-semibold">{record.type}</div>
+                            <div className="text-gray-400 text-sm">{record.id}</div>
+                            {record.subject && (
+                              <div className="text-gray-300 text-sm mt-1">Subject: {record.subject}</div>
+                            )}
+                          </div>
+                          <span className={`px-2 py-1 rounded text-xs ${
+                            record.status === 'ACTIVE' ? 'bg-green-600' :
+                            record.status === 'PENDING' ? 'bg-yellow-600' :
+                            record.status === 'CLOSED' ? 'bg-gray-600' : 'bg-blue-600'
+                          }`}>
+                            {record.status}
+                          </span>
+                        </div>
+                        <div className="text-gray-500 text-xs mt-2">
+                          Created: {formatDateTime(record.createdAt)}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Report Form Modal */}
+        {activeReportForm && (
+          <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[60] p-4">
+            <div className="bg-gray-800 rounded-lg w-full max-w-3xl max-h-[85vh] overflow-y-auto">
+              <div className="bg-gray-900 px-6 py-4 border-b border-gray-700 flex justify-between items-center sticky top-0">
+                <h3 className="text-lg font-bold text-green-400">{activeReportForm}</h3>
+                <button
+                  onClick={() => {
+                    setActiveReportForm(null);
+                    setCurrentReportData({});
+                  }}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+              <div className="p-6 space-y-4">
+                {/* Common Fields */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-gray-300 mb-1">Officer Name</label>
+                    <input
+                      type="text"
+                      value={currentReportData.officer || ''}
+                      onChange={(e) => setCurrentReportData({...currentReportData, officer: e.target.value})}
+                      className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-300 mb-1">Badge Number</label>
+                    <input
+                      type="text"
+                      value={currentReportData.badge || ''}
+                      onChange={(e) => setCurrentReportData({...currentReportData, badge: e.target.value})}
+                      className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-gray-300 mb-1">Date</label>
+                    <input
+                      type="date"
+                      value={currentReportData.date?.split('T')[0] || ''}
+                      onChange={(e) => setCurrentReportData({...currentReportData, date: e.target.value})}
+                      className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-300 mb-1">Case Number</label>
+                    <input
+                      type="text"
+                      value={currentReportData.caseNumber || ''}
+                      onChange={(e) => setCurrentReportData({...currentReportData, caseNumber: e.target.value})}
+                      className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                      placeholder="Auto-generated if blank"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm text-gray-300 mb-1">Location/Address</label>
+                  <input
+                    type="text"
+                    value={currentReportData.location || ''}
+                    onChange={(e) => setCurrentReportData({...currentReportData, location: e.target.value})}
+                    className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm text-gray-300 mb-1">Subject/Involved Party</label>
+                  <input
+                    type="text"
+                    value={currentReportData.subject || ''}
+                    onChange={(e) => setCurrentReportData({...currentReportData, subject: e.target.value})}
+                    className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm text-gray-300 mb-1">Narrative/Details</label>
+                  <textarea
+                    value={currentReportData.narrative || ''}
+                    onChange={(e) => setCurrentReportData({...currentReportData, narrative: e.target.value})}
+                    className="w-full bg-gray-700 text-white rounded px-3 py-2 h-40"
+                    placeholder="Enter detailed narrative..."
+                  />
+                </div>
+
+                <div className="flex gap-2 justify-end pt-4 border-t border-gray-700">
+                  <button
+                    onClick={() => {
+                      setActiveReportForm(null);
+                      setCurrentReportData({});
+                    }}
+                    className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-500"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      setCurrentReportData({...currentReportData, status: 'DRAFT'});
+                      saveReport();
+                    }}
+                    className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-500"
+                  >
+                    Save as Draft
+                  </button>
+                  <button
+                    onClick={() => {
+                      setCurrentReportData({...currentReportData, status: 'SUBMITTED'});
+                      saveReport();
+                    }}
+                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-500"
+                  >
+                    Submit Report
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Record Form Modal */}
+        {activeRecordForm && (
+          <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[60] p-4">
+            <div className="bg-gray-800 rounded-lg w-full max-w-3xl max-h-[85vh] overflow-y-auto">
+              <div className="bg-gray-900 px-6 py-4 border-b border-gray-700 flex justify-between items-center sticky top-0">
+                <h3 className="text-lg font-bold text-orange-400">New {activeRecordForm}</h3>
+                <button
+                  onClick={() => {
+                    setActiveRecordForm(null);
+                    setCurrentRecordData({});
+                  }}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+              <div className="p-6 space-y-4">
+                {/* Common Fields */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-gray-300 mb-1">Officer Name</label>
+                    <input
+                      type="text"
+                      value={currentRecordData.officer || ''}
+                      onChange={(e) => setCurrentRecordData({...currentRecordData, officer: e.target.value})}
+                      className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-300 mb-1">Badge Number</label>
+                    <input
+                      type="text"
+                      value={currentRecordData.badge || ''}
+                      onChange={(e) => setCurrentRecordData({...currentRecordData, badge: e.target.value})}
+                      className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm text-gray-300 mb-1">Subject Name</label>
+                  <input
+                    type="text"
+                    value={currentRecordData.subject || ''}
+                    onChange={(e) => setCurrentRecordData({...currentRecordData, subject: e.target.value})}
+                    className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                    placeholder="Name of person this record is for"
+                  />
+                </div>
+
+                {/* ARREST specific fields */}
+                {activeRecordForm === 'ARREST' && (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm text-gray-300 mb-1">Date of Arrest</label>
+                        <input
+                          type="datetime-local"
+                          value={currentRecordData.arrestDate || ''}
+                          onChange={(e) => setCurrentRecordData({...currentRecordData, arrestDate: e.target.value})}
+                          className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-300 mb-1">Location of Arrest</label>
+                        <input
+                          type="text"
+                          value={currentRecordData.location || ''}
+                          onChange={(e) => setCurrentRecordData({...currentRecordData, location: e.target.value})}
+                          className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-300 mb-1">Charges</label>
+                      <textarea
+                        value={currentRecordData.charges || ''}
+                        onChange={(e) => setCurrentRecordData({...currentRecordData, charges: e.target.value})}
+                        className="w-full bg-gray-700 text-white rounded px-3 py-2 h-24"
+                        placeholder="List all charges..."
+                      />
+                    </div>
+                  </>
+                )}
+
+                {/* BOLO specific fields */}
+                {activeRecordForm === 'BOLO' && (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm text-gray-300 mb-1">BOLO Type</label>
+                        <select
+                          value={currentRecordData.boloType || ''}
+                          onChange={(e) => setCurrentRecordData({...currentRecordData, boloType: e.target.value})}
+                          className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        >
+                          <option value="">Select Type</option>
+                          <option value="PERSON">Person</option>
+                          <option value="VEHICLE">Vehicle</option>
+                          <option value="OTHER">Other</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-300 mb-1">Priority</label>
+                        <select
+                          value={currentRecordData.priority || ''}
+                          onChange={(e) => setCurrentRecordData({...currentRecordData, priority: e.target.value})}
+                          className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        >
+                          <option value="">Select Priority</option>
+                          <option value="HIGH">High</option>
+                          <option value="MEDIUM">Medium</option>
+                          <option value="LOW">Low</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-300 mb-1">Description</label>
+                      <textarea
+                        value={currentRecordData.description || ''}
+                        onChange={(e) => setCurrentRecordData({...currentRecordData, description: e.target.value})}
+                        className="w-full bg-gray-700 text-white rounded px-3 py-2 h-24"
+                        placeholder="Detailed description of BOLO subject..."
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-300 mb-1">Last Known Location</label>
+                      <input
+                        type="text"
+                        value={currentRecordData.lastLocation || ''}
+                        onChange={(e) => setCurrentRecordData({...currentRecordData, lastLocation: e.target.value})}
+                        className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {/* WARRANT specific fields */}
+                {activeRecordForm === 'WARRANT' && (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm text-gray-300 mb-1">Warrant Type</label>
+                        <select
+                          value={currentRecordData.warrantType || ''}
+                          onChange={(e) => setCurrentRecordData({...currentRecordData, warrantType: e.target.value})}
+                          className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        >
+                          <option value="">Select Type</option>
+                          <option value="ARREST">Arrest Warrant</option>
+                          <option value="SEARCH">Search Warrant</option>
+                          <option value="BENCH">Bench Warrant</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-300 mb-1">Issuing Court</label>
+                        <input
+                          type="text"
+                          value={currentRecordData.issuingCourt || ''}
+                          onChange={(e) => setCurrentRecordData({...currentRecordData, issuingCourt: e.target.value})}
+                          className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-300 mb-1">Charges/Reason</label>
+                      <textarea
+                        value={currentRecordData.charges || ''}
+                        onChange={(e) => setCurrentRecordData({...currentRecordData, charges: e.target.value})}
+                        className="w-full bg-gray-700 text-white rounded px-3 py-2 h-24"
+                        placeholder="Charges or reason for warrant..."
+                      />
+                    </div>
+                  </>
+                )}
+
+                {/* CITATION specific fields */}
+                {activeRecordForm === 'CITATION' && (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm text-gray-300 mb-1">Citation Type</label>
+                        <select
+                          value={currentRecordData.citationType || ''}
+                          onChange={(e) => setCurrentRecordData({...currentRecordData, citationType: e.target.value})}
+                          className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        >
+                          <option value="">Select Type</option>
+                          <option value="TRAFFIC">Traffic</option>
+                          <option value="PARKING">Parking</option>
+                          <option value="MUNICIPAL">Municipal Code</option>
+                          <option value="OTHER">Other</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-300 mb-1">Fine Amount</label>
+                        <input
+                          type="text"
+                          value={currentRecordData.fineAmount || ''}
+                          onChange={(e) => setCurrentRecordData({...currentRecordData, fineAmount: e.target.value})}
+                          className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                          placeholder="$0.00"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-300 mb-1">Violation</label>
+                      <textarea
+                        value={currentRecordData.violation || ''}
+                        onChange={(e) => setCurrentRecordData({...currentRecordData, violation: e.target.value})}
+                        className="w-full bg-gray-700 text-white rounded px-3 py-2 h-24"
+                        placeholder="Description of violation..."
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-300 mb-1">Location</label>
+                      <input
+                        type="text"
+                        value={currentRecordData.location || ''}
+                        onChange={(e) => setCurrentRecordData({...currentRecordData, location: e.target.value})}
+                        className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                      />
+                    </div>
+                  </>
+                )}
+
+                <div>
+                  <label className="block text-sm text-gray-300 mb-1">Additional Notes</label>
+                  <textarea
+                    value={currentRecordData.notes || ''}
+                    onChange={(e) => setCurrentRecordData({...currentRecordData, notes: e.target.value})}
+                    className="w-full bg-gray-700 text-white rounded px-3 py-2 h-24"
+                  />
+                </div>
+
+                <div className="flex gap-2 justify-end pt-4 border-t border-gray-700">
+                  <button
+                    onClick={() => {
+                      setActiveRecordForm(null);
+                      setCurrentRecordData({});
+                    }}
+                    className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-500"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={saveRecord}
+                    className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-500"
+                  >
+                    Create Record
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -4351,14 +5021,16 @@ const CADSystem = () => {
       <footer className="bg-gray-800 border-t border-gray-700 p-4 fixed bottom-0 left-0 right-0">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <button onClick={() => setShowRoleMenu(!showRoleMenu)} className="bg-gray-700 px-4 py-2 rounded">
-              <div className="text-gray-400 text-xs">
-                {selectedRole === 'police' && loggedInOfficer ? 'Officer' : 'Mode'}
-              </div>
-              <div className="text-white font-mono text-lg">
-                {selectedRole === 'dispatch' ? 'Dispatch' :
-                 selectedRole === 'police' && loggedInOfficer ? loggedInOfficer.displayName : 'Deputy'}
-              </div>
+            <button
+              onClick={() => setShowRoleMenu(!showRoleMenu)}
+              className="bg-gray-700 p-1 rounded hover:bg-gray-600 transition"
+              title={selectedRole === 'police' && loggedInOfficer ? loggedInOfficer.displayName : selectedRole === 'dispatch' ? 'Dispatch' : 'Menu'}
+            >
+              <img
+                src="/SLRPLogo.png"
+                alt="SLRP Menu"
+                className="w-12 h-12 rounded"
+              />
             </button>
 
             {/* Pinned Records Buttons - Only show for Police role */}
@@ -4405,6 +5077,7 @@ const CADSystem = () => {
 
       {showRoleMenu && <RoleMenu />}
       {showRecordsMenu && <RecordsManagementMenu />}
+      {activeRecordsPanel === 'records' && <RecordsPanel />}
       {showExportImport && <ExportImportModal />}
       {showNewCall && <NewCallForm />}
       {selectedCall && <CallDetail call={selectedCall} />}
