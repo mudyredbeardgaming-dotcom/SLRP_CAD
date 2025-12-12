@@ -685,20 +685,25 @@ const CADSystem = () => {
         officerRecords,
         officerCredentials
       };
+      console.log('🔴 IMMEDIATE SAVE - Calls count:', data.calls.length, 'Calls:', data.calls.map((c: any) => c.id));
       fetch('/api/save-data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
-      }).catch(e => console.error('Error saving data to server:', e));
+      })
+        .then(() => console.log('✅ IMMEDIATE SAVE SUCCESS - Calls count:', data.calls.length))
+        .catch(e => console.error('❌ Error saving data to server:', e));
     } catch (e) {
-      console.error('Error preparing data for save:', e);
+      console.error('❌ Error preparing data for save:', e);
     }
   };
 
   // Save data to server whenever it changes (debounced for non-critical updates)
   useEffect(() => {
     if (isClient) {
+      console.log('⏳ DEBOUNCED SAVE - Scheduled in 1s - Calls count:', calls.length);
       const saveTimeout = setTimeout(() => {
+        console.log('🟡 DEBOUNCED SAVE - Executing - Calls count:', calls.length);
         saveDataImmediately();
       }, 1000); // Debounce saves by 1 second
 
@@ -715,17 +720,22 @@ const CADSystem = () => {
         const canRefresh = !showLogin && !showNewCall && !selectedCall && !showUnitInfo && !isEditingCivilian && !activeReportForm && !activeRecordForm;
 
         if (canRefresh) {
+          console.log('🔵 REFRESH - Loading data from server - Current calls count:', calls.length);
           fetch('/api/load-data')
             .then(res => res.json())
             .then(data => {
+              console.log('🔵 REFRESH - Received data - Calls count:', data.calls?.length, 'Calls:', data.calls?.map((c: any) => c.id));
               if (data.units) setUnits(data.units);
               if (data.calls) setCalls(data.calls);
               if (data.civilians) setCivilians(data.civilians);
               if (data.officerReports) setOfficerReports(data.officerReports);
               if (data.officerRecords) setOfficerRecords(data.officerRecords);
               if (data.officerCredentials) setOfficerCredentials(data.officerCredentials);
+              console.log('✅ REFRESH - Complete - New calls count:', data.calls?.length);
             })
-            .catch(e => console.error('Error refreshing data:', e));
+            .catch(e => console.error('❌ Error refreshing data:', e));
+        } else {
+          console.log('⏸️ REFRESH - Skipped (modal/form open)');
         }
       }, 5000); // Refresh every 5 seconds
 
@@ -752,6 +762,7 @@ const CADSystem = () => {
       ? units.map(u => u.id === availableUnit.id ? { ...u, assignedCall: callId, status: 'enroute' } : u)
       : units;
 
+    console.log('📞 CREATE CALL - ID:', callId, '- Total calls will be:', newCalls.length);
     setCalls(newCalls);
     if (availableUnit) {
       setUnits(newUnits);
@@ -760,6 +771,7 @@ const CADSystem = () => {
     setCallIdCounter(callIdCounter + 1);
     setShowNewCall(false);
 
+    console.log('📞 CREATE CALL - Triggering immediate save with', newCalls.length, 'calls');
     // Immediately save to prevent loss during refresh
     saveDataImmediately({
       units: newUnits,
