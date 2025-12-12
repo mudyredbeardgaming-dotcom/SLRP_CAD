@@ -673,27 +673,33 @@ const CADSystem = () => {
     }
   }, [selectedRole, showLogin, showNewCall, selectedCall, showUnitInfo, civilianView]);
 
-  // Save data to server whenever it changes (debounced)
+  // Helper function to save data immediately (for critical operations)
+  const saveDataImmediately = (dataOverride?: any) => {
+    if (!isClient) return;
+    try {
+      const data = dataOverride || {
+        units,
+        calls,
+        civilians,
+        officerReports,
+        officerRecords,
+        officerCredentials
+      };
+      fetch('/api/save-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      }).catch(e => console.error('Error saving data to server:', e));
+    } catch (e) {
+      console.error('Error preparing data for save:', e);
+    }
+  };
+
+  // Save data to server whenever it changes (debounced for non-critical updates)
   useEffect(() => {
     if (isClient) {
       const saveTimeout = setTimeout(() => {
-        try {
-          const data = {
-            units,
-            calls,
-            civilians,
-            officerReports,
-            officerRecords,
-            officerCredentials
-          };
-          fetch('/api/save-data', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-          }).catch(e => console.error('Error saving data to server:', e));
-        } catch (e) {
-          console.error('Error preparing data for save:', e);
-        }
+        saveDataImmediately();
       }, 1000); // Debounce saves by 1 second
 
       return () => clearTimeout(saveTimeout);
@@ -730,7 +736,7 @@ const CADSystem = () => {
   const createCall = (callData) => {
     const callId = String(callIdCounter).padStart(6, '0');
     const availableUnit = units.find(u => u.status === 'available' && !u.assignedCall);
-    
+
     const newCall = {
       id: callId,
       ...callData,
@@ -740,45 +746,72 @@ const CADSystem = () => {
       timestamp: new Date().toISOString(),
       callNotes: []
     };
-    
-    setCalls([...calls, newCall]);
-    
+
+    const newCalls = [...calls, newCall];
+    const newUnits = availableUnit
+      ? units.map(u => u.id === availableUnit.id ? { ...u, assignedCall: callId, status: 'enroute' } : u)
+      : units;
+
+    setCalls(newCalls);
     if (availableUnit) {
-      setUnits(units.map(u => u.id === availableUnit.id ? { ...u, assignedCall: callId, status: 'enroute' } : u));
+      setUnits(newUnits);
     }
-    
+
     setCallIdCounter(callIdCounter + 1);
     setShowNewCall(false);
+
+    // Immediately save to prevent loss during refresh
+    saveDataImmediately({
+      units: newUnits,
+      calls: newCalls,
+      civilians,
+      officerReports,
+      officerRecords,
+      officerCredentials
+    });
   };
 
   const assignUnit = (callId, unitId) => {
-    setCalls(calls.map(call => {
+    const newCalls = calls.map(call => {
       if (call.id === callId) {
-        const assigned = call.assignedUnits.includes(unitId) 
+        const assigned = call.assignedUnits.includes(unitId)
           ? call.assignedUnits.filter(id => id !== unitId)
           : [...call.assignedUnits, unitId];
-        return { 
-          ...call, 
-          assignedUnits: assigned, 
+        return {
+          ...call,
+          assignedUnits: assigned,
           status: assigned.length > 0 ? 'ACTIVE' : 'PENDING',
           primaryUnit: call.primaryUnit || assigned[0] || null
         };
       }
       return call;
-    }));
-    
-    setUnits(units.map(unit => {
+    });
+
+    const newUnits = units.map(unit => {
       if (unit.id === unitId) {
         const call = calls.find(c => c.id === callId);
         const willBeAssigned = call && !call.assignedUnits.includes(unitId);
-        return { 
-          ...unit, 
-          assignedCall: willBeAssigned ? callId : null, 
-          status: willBeAssigned ? 'enroute' : 'available' 
+        return {
+          ...unit,
+          assignedCall: willBeAssigned ? callId : null,
+          status: willBeAssigned ? 'enroute' : 'available'
         };
       }
       return unit;
-    }));
+    });
+
+    setCalls(newCalls);
+    setUnits(newUnits);
+
+    // Immediately save to prevent loss during refresh
+    saveDataImmediately({
+      units: newUnits,
+      calls: newCalls,
+      civilians,
+      officerReports,
+      officerRecords,
+      officerCredentials
+    });
   };
 
   const updateUnitStatus = (unitId, newStatus) => {
@@ -791,9 +824,8 @@ const CADSystem = () => {
 
   const closeCall = (callId) => {
     const call = calls.find(c => c.id === callId);
-    setCalls(calls.map(c => c.id === callId ? { ...c, status: 'CLOSED' } : c));
-    // Save call to history for all assigned units when closing
-    setUnits(units.map(u => {
+    const newCalls = calls.map(c => c.id === callId ? { ...c, status: 'CLOSED' } : c);
+    const newUnits = units.map(u => {
       if (u.assignedCall === callId || (call && call.assignedUnits.includes(u.id))) {
         const historyEntry = {
           callId: call.id,
@@ -811,7 +843,20 @@ const CADSystem = () => {
         };
       }
       return u;
-    }));
+    });
+
+    setCalls(newCalls);
+    setUnits(newUnits);
+
+    // Immediately save to prevent loss during refresh
+    saveDataImmediately({
+      units: newUnits,
+      calls: newCalls,
+      civilians,
+      officerReports,
+      officerRecords,
+      officerCredentials
+    });
   };
 
   const unassignUnit = (callId, unitId) => {
