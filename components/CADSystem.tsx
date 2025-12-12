@@ -621,11 +621,11 @@ const CADSystem = () => {
   };
 
   const updateUnitStatus = (unitId, newStatus) => {
-    setUnits(units.map(u => u.id === unitId ? { ...u, status: newStatus } : u));
+    setUnits(prevUnits => prevUnits.map(u => u.id === unitId ? { ...u, status: newStatus } : u));
   };
 
   const updateUnitInfo = (unitId, updatedInfo) => {
-    setUnits(units.map(u => u.id === unitId ? { ...u, ...updatedInfo } : u));
+    setUnits(prevUnits => prevUnits.map(u => u.id === unitId ? { ...u, ...updatedInfo } : u));
   };
 
   const closeCall = (callId) => {
