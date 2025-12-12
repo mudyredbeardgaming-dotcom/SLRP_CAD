@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, Radio, MapPin, Clock, User, Phone, FileText, Plus, X, Check, Shield, AlertTriangle, Lock, Download, Upload, LogOut, Search, Database, Pin, PinOff, Car } from 'lucide-react';
+import { AlertCircle, Radio, MapPin, Clock, User, Phone, FileText, Plus, X, Check, Shield, AlertTriangle, Lock, Download, Upload, LogOut, Search, Database, Pin, PinOff, Car, Flame, Truck } from 'lucide-react';
 
 // App version - increment this to force re-login after updates
 const APP_VERSION = '1.2.2';
@@ -175,26 +175,67 @@ const CADSystem = () => {
   const HAIR_COLORS = ['BLACK', 'BLONDE', 'BROWN', 'RED', 'GRAY'];
   const EYE_COLORS = ['BLACK', 'BLUE', 'BROWN', 'GREEN', 'HAZEL'];
 
-  // Officer login credentials - each officer has their own login
+  // User login credentials - officers, firefighters, tow drivers
   // In production, this would be stored in a database with hashed passwords
   const [officerCredentials, setOfficerCredentials] = useState([
-    { 
-      username: 'johnson', 
-      password: 'deputy123', 
+    // Police Officers
+    {
+      username: 'johnson',
+      password: 'deputy123',
       unitId: 'Unit-1',
-      displayName: 'Deputy Johnson'
+      displayName: 'Deputy Johnson',
+      role: 'police',
+      department: 'LSSO'
     },
-    { 
-      username: 'smith', 
-      password: 'deputy123', 
+    {
+      username: 'smith',
+      password: 'deputy123',
       unitId: 'Unit-2',
-      displayName: 'Deputy Smith'
+      displayName: 'Deputy Smith',
+      role: 'police',
+      department: 'LSSO'
     },
-    { 
-      username: 'davis', 
-      password: 'deputy123', 
+    {
+      username: 'davis',
+      password: 'deputy123',
       unitId: 'Unit-3',
-      displayName: 'Deputy Davis'
+      displayName: 'Deputy Davis',
+      role: 'police',
+      department: 'LSSO'
+    },
+    // Firefighters
+    {
+      username: 'firefighter1',
+      password: 'fire123',
+      unitId: 'Engine-1',
+      displayName: 'Firefighter Anderson',
+      role: 'fire',
+      department: 'LSFD'
+    },
+    {
+      username: 'medic1',
+      password: 'medic123',
+      unitId: 'Medic-1',
+      displayName: 'Paramedic Rodriguez',
+      role: 'fire',
+      department: 'LSFD'
+    },
+    // Tow Drivers
+    {
+      username: 'tow1',
+      password: 'tow123',
+      unitId: 'Tow-1',
+      displayName: 'Mike (Towing)',
+      role: 'tow',
+      department: "Mike's Towing"
+    },
+    {
+      username: 'tow2',
+      password: 'tow123',
+      unitId: 'Tow-2',
+      displayName: 'Joe (Towing)',
+      role: 'tow',
+      department: 'Quick Tow'
     }
   ]);
 
@@ -859,24 +900,24 @@ const CADSystem = () => {
             <p className="text-gray-300 mt-2">Select Your Role</p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-5 gap-4">
             <div className="relative">
               <button
                 onClick={() => permissions.canAccessDispatch && setSelectedRole('dispatch')}
                 disabled={!permissions.canAccessDispatch}
-                className={`w-full bg-gray-800 rounded-lg p-8 border-4 transition transform hover:scale-105 ${
-                  permissions.canAccessDispatch 
-                    ? 'border-blue-500 hover:border-blue-400 cursor-pointer' 
+                className={`w-full bg-gray-800 rounded-lg p-6 border-4 transition transform hover:scale-105 ${
+                  permissions.canAccessDispatch
+                    ? 'border-blue-500 hover:border-blue-400 cursor-pointer'
                     : 'border-gray-600 opacity-50 cursor-not-allowed'
                 }`}
               >
-                <Radio size={64} className={`mx-auto mb-4 ${permissions.canAccessDispatch ? 'text-blue-500' : 'text-gray-500'}`} />
-                <h3 className="text-2xl font-bold text-white mb-2">Dispatch</h3>
-                <p className="text-gray-400 mb-4">Manage emergency calls and coordinate units</p>
+                <Radio size={48} className={`mx-auto mb-3 ${permissions.canAccessDispatch ? 'text-blue-500' : 'text-gray-500'}`} />
+                <h3 className="text-xl font-bold text-white mb-2">Dispatch</h3>
+                <p className="text-gray-400 text-sm mb-3">Manage emergency calls</p>
                 {!permissions.canAccessDispatch && (
-                  <div className="flex items-center justify-center gap-2 text-yellow-500">
-                    <Lock size={16} />
-                    <span className="text-sm">Admin Permission Required</span>
+                  <div className="flex items-center justify-center gap-1 text-yellow-500">
+                    <Lock size={14} />
+                    <span className="text-xs">Admin Required</span>
                   </div>
                 )}
               </button>
@@ -885,37 +926,88 @@ const CADSystem = () => {
             <div>
               <button
                 onClick={() => setSelectedRole('civilian')}
-                className="w-full bg-gray-800 rounded-lg p-8 border-4 border-green-500 hover:border-green-400 transition transform hover:scale-105 cursor-pointer"
+                className="w-full bg-gray-800 rounded-lg p-6 border-4 border-green-500 hover:border-green-400 transition transform hover:scale-105 cursor-pointer"
               >
-                <User size={64} className="text-green-500 mx-auto mb-4" />
-                <h3 className="text-2xl font-bold text-white mb-2">Civilian</h3>
-                <p className="text-gray-400 mb-4">Report incidents and view public information</p>
-                <div className="text-green-500 text-sm font-semibold">Open to All</div>
+                <User size={48} className="text-green-500 mx-auto mb-3" />
+                <h3 className="text-xl font-bold text-white mb-2">Civilian</h3>
+                <p className="text-gray-400 text-sm mb-3">Report incidents</p>
+                <div className="text-green-500 text-xs font-semibold">Open to All</div>
               </button>
             </div>
 
             <div className="relative">
               <button
                 onClick={() => {
-                  if (permissions.canAccessPolice) {
+                  if (permissions.canAccessPolice && loggedInOfficer?.role === 'police') {
                     setSelectedRole('police');
-                    // User is already logged in, no need to show login again
                   }
                 }}
-                disabled={!permissions.canAccessPolice}
-                className={`w-full bg-gray-800 rounded-lg p-8 border-4 transition transform hover:scale-105 ${
-                  permissions.canAccessPolice 
-                    ? 'border-yellow-500 hover:border-yellow-400 cursor-pointer' 
+                disabled={!permissions.canAccessPolice || loggedInOfficer?.role !== 'police'}
+                className={`w-full bg-gray-800 rounded-lg p-6 border-4 transition transform hover:scale-105 ${
+                  permissions.canAccessPolice && loggedInOfficer?.role === 'police'
+                    ? 'border-yellow-500 hover:border-yellow-400 cursor-pointer'
                     : 'border-gray-600 opacity-50 cursor-not-allowed'
                 }`}
               >
-                <Shield size={64} className={`mx-auto mb-4 ${permissions.canAccessPolice ? 'text-yellow-500' : 'text-gray-500'}`} />
-                <h3 className="text-2xl font-bold text-white mb-2">Police</h3>
-                <p className="text-gray-400 mb-4">Access MDT and manage your unit</p>
-                {!permissions.canAccessPolice && (
-                  <div className="flex items-center justify-center gap-2 text-yellow-500">
-                    <Lock size={16} />
-                    <span className="text-sm">Admin Permission Required</span>
+                <Shield size={48} className={`mx-auto mb-3 ${permissions.canAccessPolice && loggedInOfficer?.role === 'police' ? 'text-yellow-500' : 'text-gray-500'}`} />
+                <h3 className="text-xl font-bold text-white mb-2">Police</h3>
+                <p className="text-gray-400 text-sm mb-3">Access MDT</p>
+                {(!permissions.canAccessPolice || loggedInOfficer?.role !== 'police') && (
+                  <div className="flex items-center justify-center gap-1 text-yellow-500">
+                    <Lock size={14} />
+                    <span className="text-xs">{loggedInOfficer ? 'Police Login' : 'Login Required'}</span>
+                  </div>
+                )}
+              </button>
+            </div>
+
+            <div className="relative">
+              <button
+                onClick={() => {
+                  if (loggedInOfficer?.role === 'fire') {
+                    setSelectedRole('fire');
+                  }
+                }}
+                disabled={loggedInOfficer?.role !== 'fire'}
+                className={`w-full bg-gray-800 rounded-lg p-6 border-4 transition transform hover:scale-105 ${
+                  loggedInOfficer?.role === 'fire'
+                    ? 'border-red-500 hover:border-red-400 cursor-pointer'
+                    : 'border-gray-600 opacity-50 cursor-not-allowed'
+                }`}
+              >
+                <Flame size={48} className={`mx-auto mb-3 ${loggedInOfficer?.role === 'fire' ? 'text-red-500' : 'text-gray-500'}`} />
+                <h3 className="text-xl font-bold text-white mb-2">Fire/EMS</h3>
+                <p className="text-gray-400 text-sm mb-3">Emergency Response</p>
+                {loggedInOfficer?.role !== 'fire' && (
+                  <div className="flex items-center justify-center gap-1 text-yellow-500">
+                    <Lock size={14} />
+                    <span className="text-xs">Fire Login</span>
+                  </div>
+                )}
+              </button>
+            </div>
+
+            <div className="relative">
+              <button
+                onClick={() => {
+                  if (loggedInOfficer?.role === 'tow') {
+                    setSelectedRole('tow');
+                  }
+                }}
+                disabled={loggedInOfficer?.role !== 'tow'}
+                className={`w-full bg-gray-800 rounded-lg p-6 border-4 transition transform hover:scale-105 ${
+                  loggedInOfficer?.role === 'tow'
+                    ? 'border-orange-500 hover:border-orange-400 cursor-pointer'
+                    : 'border-gray-600 opacity-50 cursor-not-allowed'
+                }`}
+              >
+                <Truck size={48} className={`mx-auto mb-3 ${loggedInOfficer?.role === 'tow' ? 'text-orange-500' : 'text-gray-500'}`} />
+                <h3 className="text-xl font-bold text-white mb-2">Tow</h3>
+                <p className="text-gray-400 text-sm mb-3">Tow Services</p>
+                {loggedInOfficer?.role !== 'tow' && (
+                  <div className="flex items-center justify-center gap-1 text-yellow-500">
+                    <Lock size={14} />
+                    <span className="text-xs">Tow Login</span>
                   </div>
                 )}
               </button>
@@ -8032,6 +8124,82 @@ const CADSystem = () => {
           </div>
         )}
 
+        {selectedRole === 'fire' && selectedUnit && loggedInOfficer && (
+          <div className="flex flex-wrap justify-center gap-2 mb-3">
+            <button
+              className="px-4 py-2 bg-red-600 text-white rounded font-bold flex items-center gap-2 border-r-2 border-gray-600 mr-2"
+            >
+              <div className="text-left">
+                <div className="text-sm font-bold">{loggedInOfficer.unitId}</div>
+                <div className="text-xs">
+                  <User size={12} className="inline mr-1" />
+                  {loggedInOfficer.displayName}
+                </div>
+              </div>
+            </button>
+            <button
+              onClick={() => updateUnitStatus(selectedUnit, 'available')}
+              className="px-4 py-2 rounded font-semibold transition bg-gray-700 text-white hover:bg-gray-600"
+            >
+              Available
+            </button>
+            <button
+              onClick={() => updateUnitStatus(selectedUnit, 'enroute')}
+              className="px-4 py-2 rounded font-semibold transition bg-gray-700 text-white hover:bg-gray-600"
+            >
+              Enroute
+            </button>
+            <button
+              onClick={() => updateUnitStatus(selectedUnit, 'onscene')}
+              className="px-4 py-2 rounded font-semibold transition bg-gray-700 text-white hover:bg-gray-600"
+            >
+              On-Scene
+            </button>
+            <button
+              onClick={() => updateUnitStatus(selectedUnit, 'busy')}
+              className="px-4 py-2 rounded font-semibold transition bg-gray-700 text-white hover:bg-gray-600"
+            >
+              At Hospital
+            </button>
+          </div>
+        )}
+
+        {selectedRole === 'tow' && loggedInOfficer && (
+          <div className="flex flex-wrap justify-center gap-2 mb-3">
+            <button
+              className="px-4 py-2 bg-orange-600 text-white rounded font-bold flex items-center gap-2 border-r-2 border-gray-600 mr-2"
+            >
+              <div className="text-left">
+                <div className="text-sm font-bold">{loggedInOfficer.unitId}</div>
+                <div className="text-xs">
+                  <User size={12} className="inline mr-1" />
+                  {loggedInOfficer.displayName}
+                </div>
+              </div>
+            </button>
+            <button
+              className="px-4 py-2 rounded font-semibold transition bg-gray-700 text-white hover:bg-gray-600"
+            >
+              Available
+            </button>
+            <button
+              className="px-4 py-2 rounded font-semibold transition bg-gray-700 text-white hover:bg-gray-600"
+            >
+              Enroute
+            </button>
+            <button
+              className="px-4 py-2 rounded font-semibold transition bg-gray-700 text-white hover:bg-gray-600"
+            >
+              On-Scene
+            </button>
+            <button
+              className="px-4 py-2 rounded font-semibold transition bg-gray-700 text-white hover:bg-gray-600"
+            >
+              Towing
+            </button>
+          </div>
+        )}
+
         <div className="flex justify-between items-center">
           <div className="flex gap-2">
             {selectedRole === 'dispatch' && selectedUnit && (
@@ -8052,13 +8220,42 @@ const CADSystem = () => {
             {selectedRole === 'police' && (
               <button className="px-4 py-2 rounded bg-blue-600">My Unit</button>
             )}
+            {selectedRole === 'fire' && (
+              <button className="px-4 py-2 rounded bg-red-600">My Unit</button>
+            )}
+            {selectedRole === 'tow' && (
+              <button className="px-4 py-2 rounded bg-orange-600">My Unit</button>
+            )}
           </div>
         </div>
       </header>
 
       <main className="flex-1 p-6 pb-20">
         {selectedRole === 'police' && <UnitViewMode />}
-        
+        {selectedRole === 'fire' && <UnitViewMode />}
+        {selectedRole === 'tow' && (
+          <div>
+            <h2 className="text-2xl font-bold mb-6">My Tow Truck</h2>
+            <div className="bg-gray-800 rounded-lg p-6 mb-4">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-xl font-bold text-orange-400">{loggedInOfficer?.displayName}</h3>
+                  <p className="text-gray-400">{loggedInOfficer?.department}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-gray-400">Unit ID</p>
+                  <p className="text-lg font-bold text-white">{loggedInOfficer?.unitId}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gray-800 rounded-lg p-6">
+              <h3 className="text-lg font-semibold mb-4">Active Tow Requests</h3>
+              <p className="text-gray-400 text-center py-8">No active tow requests assigned to you</p>
+            </div>
+          </div>
+        )}
+
         {selectedRole === 'dispatch' && activeTab === 'dispatch' && (
           <div>
             <div className="flex justify-between mb-6">

@@ -49,19 +49,57 @@
       "username": "johnson",
       "password": "deputy123",
       "unitId": "Unit-1",
-      "displayName": "Deputy Johnson"
+      "displayName": "Deputy Johnson",
+      "role": "police",
+      "department": "LSSO"
     },
     {
       "username": "smith",
       "password": "deputy123",
       "unitId": "Unit-2",
-      "displayName": "Deputy Smith"
+      "displayName": "Deputy Smith",
+      "role": "police",
+      "department": "LSSO"
     },
     {
       "username": "davis",
       "password": "deputy123",
       "unitId": "Unit-3",
-      "displayName": "Deputy Davis"
+      "displayName": "Deputy Davis",
+      "role": "police",
+      "department": "LSSO"
+    },
+    {
+      "username": "firefighter1",
+      "password": "fire123",
+      "unitId": "Engine-1",
+      "displayName": "Firefighter Anderson",
+      "role": "fire",
+      "department": "LSFD"
+    },
+    {
+      "username": "medic1",
+      "password": "medic123",
+      "unitId": "Medic-1",
+      "displayName": "Paramedic Rodriguez",
+      "role": "fire",
+      "department": "LSFD"
+    },
+    {
+      "username": "tow1",
+      "password": "tow123",
+      "unitId": "Tow-1",
+      "displayName": "Mike (Towing)",
+      "role": "tow",
+      "department": "Mike's Towing"
+    },
+    {
+      "username": "tow2",
+      "password": "tow123",
+      "unitId": "Tow-2",
+      "displayName": "Joe (Towing)",
+      "role": "tow",
+      "department": "Quick Tow"
     }
   ]
 }
