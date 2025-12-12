@@ -477,10 +477,11 @@ const CADSystem = () => {
     }));
   };
 
-  // Load saved session on client mount (prevents hydration mismatch)
+  // Load saved session and data on client mount (prevents hydration mismatch)
   useEffect(() => {
     setIsClient(true);
     try {
+      // Load session
       const saved = localStorage.getItem('cadSession');
       if (saved) {
         const session = JSON.parse(saved);
@@ -493,8 +494,21 @@ const CADSystem = () => {
           setShowLogin(false);
         }
       }
+
+      // Load persisted data from server
+      fetch('/api/load-data')
+        .then(res => res.json())
+        .then(data => {
+          if (data.units) setUnits(data.units);
+          if (data.calls) setCalls(data.calls);
+          if (data.civilians) setCivilians(data.civilians);
+          if (data.officerReports) setOfficerReports(data.officerReports);
+          if (data.officerRecords) setOfficerRecords(data.officerRecords);
+          if (data.officerCredentials) setOfficerCredentials(data.officerCredentials);
+        })
+        .catch(e => console.error('Error loading data from server:', e));
     } catch (e) {
-      console.error('Error loading saved session:', e);
+      console.error('Error loading saved data:', e);
     }
   }, []);
 
@@ -565,6 +579,60 @@ const CADSystem = () => {
       }
     }
   }, [selectedRole, showLogin, showNewCall, selectedCall, showUnitInfo, civilianView]);
+
+  // Save data to server whenever it changes (debounced)
+  useEffect(() => {
+    if (isClient) {
+      const saveTimeout = setTimeout(() => {
+        try {
+          const data = {
+            units,
+            calls,
+            civilians,
+            officerReports,
+            officerRecords,
+            officerCredentials
+          };
+          fetch('/api/save-data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+          }).catch(e => console.error('Error saving data to server:', e));
+        } catch (e) {
+          console.error('Error preparing data for save:', e);
+        }
+      }, 1000); // Debounce saves by 1 second
+
+      return () => clearTimeout(saveTimeout);
+    }
+  }, [units, calls, civilians, officerReports, officerRecords, officerCredentials, isClient]);
+
+  // Periodic data refresh for multi-user sync (every 5 seconds)
+  useEffect(() => {
+    if (isClient && selectedRole) {
+      const refreshInterval = setInterval(() => {
+        // Only refresh when no modals or forms are open to avoid overwriting user input
+        const isEditingCivilian = civilianView === 'add' || civilianView === 'edit';
+        const canRefresh = !showLogin && !showNewCall && !selectedCall && !showUnitInfo && !isEditingCivilian && !activeReportForm && !activeRecordForm;
+
+        if (canRefresh) {
+          fetch('/api/load-data')
+            .then(res => res.json())
+            .then(data => {
+              if (data.units) setUnits(data.units);
+              if (data.calls) setCalls(data.calls);
+              if (data.civilians) setCivilians(data.civilians);
+              if (data.officerReports) setOfficerReports(data.officerReports);
+              if (data.officerRecords) setOfficerRecords(data.officerRecords);
+              if (data.officerCredentials) setOfficerCredentials(data.officerCredentials);
+            })
+            .catch(e => console.error('Error refreshing data:', e));
+        }
+      }, 5000); // Refresh every 5 seconds
+
+      return () => clearInterval(refreshInterval);
+    }
+  }, [isClient, selectedRole, showLogin, showNewCall, selectedCall, showUnitInfo, civilianView, activeReportForm, activeRecordForm]);
 
   const createCall = (callData) => {
     const callId = String(callIdCounter).padStart(6, '0');

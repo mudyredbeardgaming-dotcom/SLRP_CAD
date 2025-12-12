@@ -1,0 +1,67 @@
+{
+  "units": [
+    {
+      "id": "Unit-1",
+      "callsign": "A-101",
+      "status": "available",
+      "officer": "Officer Johnson",
+      "assignedCall": null,
+      "aop": "Area 3",
+      "agency": "LSSO",
+      "rank": "Deputy",
+      "department": "SO-AREA 3A",
+      "location": "Postal 1234",
+      "callHistory": []
+    },
+    {
+      "id": "Unit-2",
+      "callsign": "A-102",
+      "status": "available",
+      "officer": "Officer Smith",
+      "assignedCall": null,
+      "aop": "Area 4",
+      "agency": "LSSO",
+      "rank": "Deputy",
+      "department": "SO-AREA 4A",
+      "location": "Postal 5678",
+      "callHistory": []
+    },
+    {
+      "id": "Unit-3",
+      "callsign": "A-103",
+      "status": "available",
+      "officer": "Officer Davis",
+      "assignedCall": null,
+      "aop": "Area 5",
+      "agency": "LSSO",
+      "rank": "Deputy",
+      "department": "SO-AREA 5A",
+      "location": "Postal 9012",
+      "callHistory": []
+    }
+  ],
+  "calls": [],
+  "civilians": [],
+  "officerReports": [],
+  "officerRecords": [],
+  "officerCredentials": [
+    {
+      "username": "johnson",
+      "password": "deputy123",
+      "unitId": "Unit-1",
+      "displayName": "Deputy Johnson"
+    },
+    {
+      "username": "smith",
+      "password": "deputy123",
+      "unitId": "Unit-2",
+      "displayName": "Deputy Smith"
+    },
+    {
+      "username": "davis",
+      "password": "deputy123",
+      "unitId": "Unit-3",
+      "displayName": "Deputy Davis"
+    }
+  ]
+}
