@@ -8045,6 +8045,8 @@ const CADSystem = () => {
               <>
                 <button onClick={() => setActiveTab('dispatch')} className={`px-4 py-2 rounded ${activeTab === 'dispatch' ? 'bg-blue-600' : 'bg-gray-700'}`}>Dispatch</button>
                 <button onClick={() => setActiveTab('units')} className={`px-4 py-2 rounded ${activeTab === 'units' ? 'bg-blue-600' : 'bg-gray-700'}`}>Units</button>
+                <button onClick={() => setActiveTab('tow')} className={`px-4 py-2 rounded ${activeTab === 'tow' ? 'bg-blue-600' : 'bg-gray-700'}`}>Tow</button>
+                <button onClick={() => setActiveTab('fire-ems')} className={`px-4 py-2 rounded ${activeTab === 'fire-ems' ? 'bg-blue-600' : 'bg-gray-700'}`}>Fire/EMS</button>
               </>
             )}
             {selectedRole === 'police' && (
@@ -8114,6 +8116,80 @@ const CADSystem = () => {
                   <div className={`text-sm font-semibold ${u.status === 'available' ? 'text-green-400' : 'text-blue-400'}`}>{getStatusLabel(u.status)}</div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {selectedRole === 'dispatch' && activeTab === 'tow' && (
+          <div>
+            <h2 className="text-xl font-semibold mb-6">Tow Management</h2>
+
+            <div className="bg-gray-800 rounded-lg p-6 mb-4">
+              <h3 className="text-lg font-semibold mb-4">Active Tow Requests</h3>
+              <p className="text-gray-400 text-center py-8">No active tow requests</p>
+            </div>
+
+            <div className="bg-gray-800 rounded-lg p-6">
+              <h3 className="text-lg font-semibold mb-4">Available Tow Trucks</h3>
+              <div className="grid md:grid-cols-3 gap-4">
+                <div className="bg-gray-700 rounded p-4 border-l-4 border-yellow-500">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-bold">TOW-1</h4>
+                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                  </div>
+                  <div className="text-sm text-gray-400">Driver: Mike's Towing</div>
+                  <div className="text-sm text-green-400 font-semibold">Available</div>
+                </div>
+                <div className="bg-gray-700 rounded p-4 border-l-4 border-yellow-500">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-bold">TOW-2</h4>
+                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                  </div>
+                  <div className="text-sm text-gray-400">Driver: Quick Tow</div>
+                  <div className="text-sm text-green-400 font-semibold">Available</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {selectedRole === 'dispatch' && activeTab === 'fire-ems' && (
+          <div>
+            <h2 className="text-xl font-semibold mb-6">Fire/EMS Management</h2>
+
+            <div className="bg-gray-800 rounded-lg p-6 mb-4">
+              <h3 className="text-lg font-semibold mb-4">Active Fire/EMS Calls</h3>
+              <p className="text-gray-400 text-center py-8">No active fire/EMS calls</p>
+            </div>
+
+            <div className="bg-gray-800 rounded-lg p-6">
+              <h3 className="text-lg font-semibold mb-4">Available Units</h3>
+              <div className="grid md:grid-cols-3 gap-4">
+                <div className="bg-gray-700 rounded p-4 border-l-4 border-red-500">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-bold">ENGINE-1</h4>
+                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                  </div>
+                  <div className="text-sm text-gray-400">Station 1</div>
+                  <div className="text-sm text-green-400 font-semibold">Available</div>
+                </div>
+                <div className="bg-gray-700 rounded p-4 border-l-4 border-red-500">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-bold">MEDIC-1</h4>
+                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                  </div>
+                  <div className="text-sm text-gray-400">EMS Station 1</div>
+                  <div className="text-sm text-green-400 font-semibold">Available</div>
+                </div>
+                <div className="bg-gray-700 rounded p-4 border-l-4 border-red-500">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-bold">LADDER-1</h4>
+                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                  </div>
+                  <div className="text-sm text-gray-400">Station 1</div>
+                  <div className="text-sm text-green-400 font-semibold">Available</div>
+                </div>
+              </div>
             </div>
           </div>
         )}
