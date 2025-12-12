@@ -595,6 +595,58 @@ const CADSystem = () => {
           department: 'SO-AREA 5A',
           location: 'Postal 9012',
           callHistory: []
+        },
+        {
+          id: 'Engine-1',
+          callsign: 'ENGINE-1',
+          status: 'available',
+          officer: 'Firefighter Anderson',
+          assignedCall: null,
+          aop: 'Station 1',
+          agency: 'LSFD',
+          rank: 'Firefighter',
+          department: 'LSFD',
+          location: 'Fire Station 1',
+          callHistory: []
+        },
+        {
+          id: 'Medic-1',
+          callsign: 'MEDIC-1',
+          status: 'available',
+          officer: 'Paramedic Rodriguez',
+          assignedCall: null,
+          aop: 'EMS Station 1',
+          agency: 'LSFD',
+          rank: 'Paramedic',
+          department: 'LSFD',
+          location: 'EMS Station 1',
+          callHistory: []
+        },
+        {
+          id: 'Tow-1',
+          callsign: 'TOW-1',
+          status: 'available',
+          officer: 'Mike (Towing)',
+          assignedCall: null,
+          aop: 'City Wide',
+          agency: "Mike's Towing",
+          rank: 'Driver',
+          department: "Mike's Towing",
+          location: 'Sandy Shores',
+          callHistory: []
+        },
+        {
+          id: 'Tow-2',
+          callsign: 'TOW-2',
+          status: 'available',
+          officer: 'Joe (Towing)',
+          assignedCall: null,
+          aop: 'City Wide',
+          agency: 'Quick Tow',
+          rank: 'Driver',
+          department: 'Quick Tow',
+          location: 'Los Santos',
+          callHistory: []
         }
       ];
       setUnits(initialUnits);
