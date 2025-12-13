@@ -5255,7 +5255,7 @@ const CADSystem = () => {
                     {/* Supervisor Signature Section */}
                     <div className="bg-gray-700 rounded-lg p-4">
                       <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Supervisor Signature</h4>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
                           <label className="block text-xs text-gray-400 mb-1">Supervisor Name</label>
                           <input
@@ -5282,6 +5282,15 @@ const CADSystem = () => {
                             onChange={(e) => setCurrentReportData({...currentReportData, supervisorSignDate: e.target.value})}
                             className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
                           />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Report Status</label>
+                          <select value={currentReportData.reportStatus || ''} onChange={(e) => setCurrentReportData({...currentReportData, reportStatus: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                            <option value="">Select...</option>
+                            <option value="APPROVED">Approved</option>
+                            <option value="PENDING">Pending</option>
+                            <option value="DENIED">Denied/Needs Edits</option>
+                          </select>
                         </div>
                       </div>
                     </div>
@@ -5773,7 +5782,7 @@ const CADSystem = () => {
                     {/* Supervisor Signature Section */}
                     <div className="bg-gray-700 rounded-lg p-4">
                       <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Supervisor Signature</h4>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
                           <label className="block text-xs text-gray-400 mb-1">Supervisor Name</label>
                           <input type="text" value={currentReportData.supervisorName || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorName: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
@@ -5785,6 +5794,15 @@ const CADSystem = () => {
                         <div>
                           <label className="block text-xs text-gray-400 mb-1">Date Signed</label>
                           <input type="date" value={currentReportData.supervisorSignDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorSignDate: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Report Status</label>
+                          <select value={currentReportData.reportStatus || ''} onChange={(e) => setCurrentReportData({...currentReportData, reportStatus: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                            <option value="">Select...</option>
+                            <option value="APPROVED">Approved</option>
+                            <option value="PENDING">Pending</option>
+                            <option value="DENIED">Denied/Needs Edits</option>
+                          </select>
                         </div>
                       </div>
                     </div>
@@ -6087,7 +6105,7 @@ const CADSystem = () => {
                     {/* Supervisor Signature Section */}
                     <div className="bg-gray-700 rounded-lg p-4">
                       <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Supervisor Signature</h4>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
                           <label className="block text-xs text-gray-400 mb-1">Supervisor Name</label>
                           <input type="text" value={currentReportData.supervisorName || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorName: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
@@ -6099,6 +6117,15 @@ const CADSystem = () => {
                         <div>
                           <label className="block text-xs text-gray-400 mb-1">Date Signed</label>
                           <input type="date" value={currentReportData.supervisorSignDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorSignDate: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Report Status</label>
+                          <select value={currentReportData.reportStatus || ''} onChange={(e) => setCurrentReportData({...currentReportData, reportStatus: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                            <option value="">Select...</option>
+                            <option value="APPROVED">Approved</option>
+                            <option value="PENDING">Pending</option>
+                            <option value="DENIED">Denied/Needs Edits</option>
+                          </select>
                         </div>
                       </div>
                     </div>
@@ -6355,7 +6382,7 @@ const CADSystem = () => {
                     {/* Supervisor Signature Section */}
                     <div className="bg-gray-700 rounded-lg p-4">
                       <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Supervisor Signature</h4>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
                           <label className="block text-xs text-gray-400 mb-1">Supervisor Name</label>
                           <input type="text" value={currentReportData.supervisorName || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorName: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
@@ -6367,6 +6394,15 @@ const CADSystem = () => {
                         <div>
                           <label className="block text-xs text-gray-400 mb-1">Date Signed</label>
                           <input type="date" value={currentReportData.supervisorSignDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorSignDate: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Report Status</label>
+                          <select value={currentReportData.reportStatus || ''} onChange={(e) => setCurrentReportData({...currentReportData, reportStatus: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                            <option value="">Select...</option>
+                            <option value="APPROVED">Approved</option>
+                            <option value="PENDING">Pending</option>
+                            <option value="DENIED">Denied/Needs Edits</option>
+                          </select>
                         </div>
                       </div>
                     </div>
@@ -6668,7 +6704,7 @@ const CADSystem = () => {
                     {/* Supervisor Signature Section */}
                     <div className="bg-gray-700 rounded-lg p-4">
                       <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Supervisor Signature</h4>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
                           <label className="block text-xs text-gray-400 mb-1">Supervisor Name</label>
                           <input type="text" value={currentReportData.supervisorName || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorName: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
@@ -6680,6 +6716,15 @@ const CADSystem = () => {
                         <div>
                           <label className="block text-xs text-gray-400 mb-1">Date Signed</label>
                           <input type="date" value={currentReportData.supervisorSignDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorSignDate: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Report Status</label>
+                          <select value={currentReportData.reportStatus || ''} onChange={(e) => setCurrentReportData({...currentReportData, reportStatus: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                            <option value="">Select...</option>
+                            <option value="APPROVED">Approved</option>
+                            <option value="PENDING">Pending</option>
+                            <option value="DENIED">Denied/Needs Edits</option>
+                          </select>
                         </div>
                       </div>
                     </div>
@@ -6833,7 +6878,7 @@ const CADSystem = () => {
                     {/* Supervisor Signature Section */}
                     <div className="bg-gray-700 rounded-lg p-4">
                       <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Supervisor Signature</h4>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
                           <label className="block text-xs text-gray-400 mb-1">Supervisor Name</label>
                           <input type="text" value={currentReportData.supervisorName || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorName: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
@@ -6845,6 +6890,15 @@ const CADSystem = () => {
                         <div>
                           <label className="block text-xs text-gray-400 mb-1">Date Signed</label>
                           <input type="date" value={currentReportData.supervisorSignDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorSignDate: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Report Status</label>
+                          <select value={currentReportData.reportStatus || ''} onChange={(e) => setCurrentReportData({...currentReportData, reportStatus: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                            <option value="">Select...</option>
+                            <option value="APPROVED">Approved</option>
+                            <option value="PENDING">Pending</option>
+                            <option value="DENIED">Denied/Needs Edits</option>
+                          </select>
                         </div>
                       </div>
                     </div>
