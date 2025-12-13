@@ -2,7 +2,13 @@
   "permissions": {
     "allow": [
       "Bash(npm run build:*)",
-      "Bash(npx next lint)"
+      "Bash(npx next lint)",
+      "Bash(node -e:*)",
+      "Bash(wc:*)",
+      "Bash(ls:*)",
+      "Bash(curl:*)",
+      "Bash(pkill:*)",
+      "Bash(xargs:*)"
     ]
   }
 }

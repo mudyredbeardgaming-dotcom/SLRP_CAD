@@ -1,0 +1,227 @@
+{
+  "calls": [
+    {
+      "id": "call_001",
+      "callNumber": "25-001",
+      "callCode": "10-34",
+      "callCodeDescription": "Robbery in Progress",
+      "dispatchTime": "2025-12-13T10:30:00Z",
+      "location": "Pillbox Medical Center, Los Santos",
+      "description": "Armed robbery reported at medical center",
+      "priority": "HIGH",
+      "status": "ACTIVE",
+      "assignedUnits": [
+        {
+          "unitId": "Unit_101",
+          "callsign": "Adam-1",
+          "officer": "Officer Johnson",
+          "badge": "101",
+          "department": "LSSO",
+          "unitStatus": "EN_ROUTE",
+          "assignedTime": "2025-12-13T10:30:30Z"
+        },
+        {
+          "unitId": "Unit_102",
+          "callsign": "Adam-2",
+          "officer": "Officer Smith",
+          "badge": "102",
+          "department": "LSSO",
+          "unitStatus": "EN_ROUTE",
+          "assignedTime": "2025-12-13T10:30:45Z"
+        }
+      ],
+      "dispatcher": "Dispatcher Davis",
+      "notes": "Suspect possibly armed with handgun, use caution"
+    },
+    {
+      "id": "call_002",
+      "callNumber": "25-002",
+      "callCode": "10-50",
+      "callCodeDescription": "Traffic Stop",
+      "dispatchTime": "2025-12-13T10:45:00Z",
+      "location": "Maze Bank Arena, Los Santos",
+      "description": "Traffic stop for expired registration",
+      "priority": "MEDIUM",
+      "status": "ACTIVE",
+      "assignedUnits": [
+        {
+          "unitId": "Unit_103",
+          "callsign": "Adam-3",
+          "officer": "Officer Davis",
+          "badge": "103",
+          "department": "LSSO",
+          "unitStatus": "ON_SCENE",
+          "assignedTime": "2025-12-13T10:45:30Z"
+        }
+      ],
+      "dispatcher": "Dispatcher Davis",
+      "notes": "Driver cooperative, no outstanding warrants"
+    },
+    {
+      "id": "call_003",
+      "callNumber": "25-003",
+      "callCode": "10-37",
+      "callCodeDescription": "Traffic Collision",
+      "dispatchTime": "2025-12-13T11:00:00Z",
+      "location": "Del Perro Freeway, Los Santos",
+      "description": "Multi-vehicle collision with possible injuries",
+      "priority": "HIGH",
+      "status": "ACTIVE",
+      "assignedUnits": [
+        {
+          "unitId": "Unit_104",
+          "callsign": "Fire-1",
+          "officer": "Firefighter Johnson",
+          "badge": "201",
+          "department": "Fire",
+          "unitStatus": "EN_ROUTE",
+          "assignedTime": "2025-12-13T11:00:30Z"
+        },
+        {
+          "unitId": "Unit_105",
+          "callsign": "Adam-4",
+          "officer": "Officer Wilson",
+          "badge": "104",
+          "department": "LSSO",
+          "unitStatus": "EN_ROUTE",
+          "assignedTime": "2025-12-13T11:00:45Z"
+        }
+      ],
+      "dispatcher": "Dispatcher Davis",
+      "notes": "Multiple callers reporting injuries, EMS en route"
+    },
+    {
+      "id": "call_004",
+      "callNumber": "25-004",
+      "callCode": "10-39",
+      "callCodeDescription": "Welfare Check",
+      "dispatchTime": "2025-12-13T11:15:00Z",
+      "location": "123 Grove Street, Los Santos",
+      "description": "Welfare check requested by concerned family member",
+      "priority": "LOW",
+      "status": "PENDING",
+      "assignedUnits": [],
+      "dispatcher": "Dispatcher Davis",
+      "notes": "Family concerned about elderly resident"
+    },
+    {
+      "id": "call_005",
+      "callNumber": "25-005",
+      "callCode": "10-12",
+      "callCodeDescription": "Deceased Person",
+      "dispatchTime": "2025-12-13T09:30:00Z",
+      "location": "Rockford Hills Mansion, Los Santos",
+      "description": "Deceased person found in residence",
+      "priority": "HIGH",
+      "status": "CLOSED",
+      "assignedUnits": [
+        {
+          "unitId": "Unit_106",
+          "callsign": "Adam-5",
+          "officer": "Officer Martinez",
+          "badge": "107",
+          "department": "LSSO",
+          "unitStatus": "COMPLETED",
+          "assignedTime": "2025-12-13T09:30:30Z"
+        },
+        {
+          "unitId": "Unit_107",
+          "callsign": "Detective-1",
+          "officer": "Detective Garcia",
+          "badge": "301",
+          "department": "LSSO",
+          "unitStatus": "COMPLETED",
+          "assignedTime": "2025-12-13T09:45:00Z"
+        }
+      ],
+      "dispatcher": "Dispatcher Davis",
+      "notes": "Medical examiner completed assessment. Apparent natural causes."
+    }
+  ],
+  "callCodes": [
+    {
+      "code": "10-12",
+      "description": "Deceased Person"
+    },
+    {
+      "code": "10-34",
+      "description": "Robbery in Progress"
+    },
+    {
+      "code": "10-37",
+      "description": "Traffic Collision"
+    },
+    {
+      "code": "10-39",
+      "description": "Welfare Check"
+    },
+    {
+      "code": "10-50",
+      "description": "Traffic Stop"
+    },
+    {
+      "code": "10-91",
+      "description": "Impound Notice"
+    },
+    {
+      "code": "10-92",
+      "description": "Impound Confirmed"
+    },
+    {
+      "code": "10-93",
+      "description": "Tow Required"
+    },
+    {
+      "code": "10-97",
+      "description": "Arrived at Scene"
+    },
+    {
+      "code": "10-98",
+      "description": "Finished Last Assignment"
+    }
+  ],
+  "unitStatuses": [
+    {
+      "status": "AVAILABLE",
+      "description": "Unit is available for assignment"
+    },
+    {
+      "status": "EN_ROUTE",
+      "description": "Unit is en route to scene"
+    },
+    {
+      "status": "ON_SCENE",
+      "description": "Unit has arrived at scene"
+    },
+    {
+      "status": "OCCUPIED",
+      "description": "Unit is currently handling a call"
+    },
+    {
+      "status": "COMPLETED",
+      "description": "Unit has completed the assignment"
+    },
+    {
+      "status": "OUT_OF_SERVICE",
+      "description": "Unit is out of service"
+    }
+  ],
+  "callStatuses": [
+    {
+      "status": "PENDING",
+      "description": "Call awaiting unit assignment"
+    },
+    {
+      "status": "ACTIVE",
+      "description": "Call is currently being handled"
+    },
+    {
+      "status": "ON_HOLD",
+      "description": "Call is on hold"
+    },
+    {
+      "status": "CLOSED",
+      "description": "Call has been completed and closed"
+    }
+  ]
+}

@@ -1,0 +1,225 @@
+{
+  "characters": [
+    {
+      "id": "char_001",
+      "firstName": "John",
+      "lastName": "Smith",
+      "dob": "1990-05-15",
+      "ssn": "123-45-6789",
+      "phone": "555-0101",
+      "address": "123 Main St, Los Santos",
+      "createdDate": "2025-12-13T00:00:00Z",
+      "dmvRecords": {
+        "vehicleRegistrations": [
+          {
+            "id": "vreg_001",
+            "plate": "SMITH01",
+            "year": 2023,
+            "make": "Bravado",
+            "model": "Banshee",
+            "color": "Black",
+            "ownerName": "John Smith",
+            "registrationDate": "2025-01-01",
+            "status": "ACTIVE"
+          }
+        ],
+        "licenses": [
+          {
+            "id": "lic_001",
+            "type": "DRIVER",
+            "licenseNumber": "DL-123456",
+            "issuedDate": "2023-01-01",
+            "expiryDate": "2028-01-01",
+            "status": "VALID"
+          }
+        ],
+        "medicalHistory": [
+          {
+            "id": "med_001",
+            "condition": "None",
+            "notes": "No medical conditions on file"
+          }
+        ],
+        "securityGuardLicense": null,
+        "registeredFirearms": [],
+        "warrants": [],
+        "probation": null,
+        "parole": null,
+        "medicalHazards": []
+      }
+    }
+  ],
+  "arrests": [
+    {
+      "id": "arr_001",
+      "characterId": "char_001",
+      "characterName": "John Smith",
+      "arrestDate": "2025-12-10",
+      "arrestingOfficer": "Officer Johnson",
+      "arrestingOfficerBadge": "101",
+      "charges": "Speeding",
+      "status": "BOOKED"
+    }
+  ],
+  "bolos": [
+    {
+      "id": "bolo_001",
+      "characterId": "char_001",
+      "characterName": "John Smith",
+      "type": "PERSON",
+      "reason": "Wanted for questioning",
+      "description": "6ft tall, Black hair, Blue eyes",
+      "status": "ACTIVE",
+      "issuedDate": "2025-12-10",
+      "issuedBy": "Detective Davis"
+    }
+  ],
+  "warrants": [
+    {
+      "id": "war_001",
+      "characterId": "char_001",
+      "characterName": "John Smith",
+      "warrantType": "ARREST",
+      "charges": "Grand Theft Auto",
+      "issuedDate": "2025-12-05",
+      "issuedBy": "Judge Martinez",
+      "status": "ACTIVE"
+    }
+  ],
+  "citations": [
+    {
+      "id": "cit_001",
+      "characterId": "char_001",
+      "characterName": "John Smith",
+      "citationDate": "2025-12-08",
+      "issuingOfficer": "Officer Johnson",
+      "issuingOfficerBadge": "101",
+      "violation": "Speeding in School Zone",
+      "fineAmount": 500,
+      "status": "UNPAID"
+    }
+  ],
+  "reports": {
+    "trafficCollisionReports": [
+      {
+        "id": "tcr_001",
+        "reportDate": "2025-12-12",
+        "reportingOfficer": "Officer Johnson",
+        "reportingOfficerBadge": "101",
+        "department": "LSSO",
+        "recordNumber": "TCR-001",
+        "location": "123 Pillbox Hill, Los Santos",
+        "incidentDate": "2025-12-12",
+        "incidentTime": "14:30",
+        "status": "DRAFT"
+      }
+    ],
+    "supplementalReports": [
+      {
+        "id": "supp_001",
+        "reportDate": "2025-12-12",
+        "reportingOfficer": "Officer Smith",
+        "reportingOfficerBadge": "102",
+        "department": "LSSO",
+        "recordNumber": "SUPP-001",
+        "dateOfCall": "2025-12-10",
+        "primaryDepartment": "LSSO",
+        "primaryOfficerBadge": "101",
+        "bookedEvidence": "YES",
+        "evidenceLockerNumber": "E-001",
+        "evidenceDescription": "1x Pistol, 15x 9mm ammunition",
+        "completedByOfficerName": "Officer Smith",
+        "completedByBadge": "102",
+        "completedByDepartment": "LSSO",
+        "status": "DRAFT"
+      }
+    ],
+    "useOfForceReports": [
+      {
+        "id": "uof_001",
+        "reportDate": "2025-12-12",
+        "reportingOfficer": "Officer Davis",
+        "reportingOfficerBadge": "103",
+        "department": "LSSO",
+        "recordNumber": "UOF-001",
+        "status": "DRAFT"
+      }
+    ],
+    "generalReports": [
+      {
+        "id": "gen_001",
+        "reportDate": "2025-12-12",
+        "reportingOfficer": "Officer Wilson",
+        "reportingOfficerBadge": "104",
+        "department": "LSSO",
+        "recordNumber": "GEN-001",
+        "status": "DRAFT"
+      }
+    ],
+    "vehicleTowReleaseReports": [
+      {
+        "id": "vtr_001",
+        "reportDate": "2025-12-12",
+        "reportingOfficer": "Officer Brown",
+        "reportingOfficerBadge": "105",
+        "department": "LSSO",
+        "recordNumber": "VTR-001",
+        "status": "DRAFT"
+      }
+    ],
+    "detectiveRequestForms": [
+      {
+        "id": "drf_001",
+        "requestDate": "2025-12-12",
+        "requestingOfficer": "Officer Taylor",
+        "requestingOfficerBadge": "106",
+        "department": "LSSO",
+        "recordNumber": "DRF-001",
+        "status": "DRAFT"
+      }
+    ],
+    "detectiveReports": [
+      {
+        "id": "drep_001",
+        "reportDate": "2025-12-12",
+        "detectiveName": "Detective Garcia",
+        "detectiveBadge": "201",
+        "department": "LSSO",
+        "recordNumber": "DREP-001",
+        "status": "DRAFT"
+      }
+    ],
+    "trespassWarnings": [
+      {
+        "id": "tw_001",
+        "warningDate": "2025-12-12",
+        "issuingOfficer": "Officer Martinez",
+        "issuingOfficerBadge": "107",
+        "department": "LSSO",
+        "recordNumber": "TW-001",
+        "status": "DRAFT"
+      }
+    ],
+    "restrainingOrders": [
+      {
+        "id": "ro_001",
+        "orderDate": "2025-12-12",
+        "issuingOfficer": "Officer Rodriguez",
+        "issuingOfficerBadge": "108",
+        "department": "LSSO",
+        "recordNumber": "RO-001",
+        "status": "DRAFT"
+      }
+    ],
+    "evidenceLockerRecords": [
+      {
+        "id": "el_001",
+        "lockerNumber": "E-001",
+        "itemsStored": "1x Pistol, 15x 9mm ammunition",
+        "storedDate": "2025-12-12",
+        "storedBy": "Evidence Officer Williams",
+        "status": "SECURED"
+      }
+    ]
+  }
+}

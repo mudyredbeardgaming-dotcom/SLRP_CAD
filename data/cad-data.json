@@ -92,8 +92,89 @@
       "callHistory": []
     }
   ],
-  "calls": [],
-  "civilians": [],
+  "calls": [
+    {
+      "id": "call_001",
+      "callNumber": "25-001",
+      "callCode": "10-34",
+      "callCodeDescription": "Robbery in Progress",
+      "dispatchTime": "2025-12-13T10:30:00Z",
+      "location": "Pillbox Medical Center, Los Santos",
+      "description": "Armed robbery reported at medical center",
+      "priority": "HIGH",
+      "status": "ACTIVE",
+      "assignedUnits": [],
+      "dispatcher": "Dispatcher Davis",
+      "notes": "Suspect possibly armed with handgun, use caution"
+    },
+    {
+      "id": "call_002",
+      "callNumber": "25-002",
+      "callCode": "10-50",
+      "callCodeDescription": "Traffic Stop",
+      "dispatchTime": "2025-12-13T10:45:00Z",
+      "location": "Maze Bank Arena, Los Santos",
+      "description": "Traffic stop for expired registration",
+      "priority": "MEDIUM",
+      "status": "ACTIVE",
+      "assignedUnits": [],
+      "dispatcher": "Dispatcher Davis",
+      "notes": "Driver cooperative, no outstanding warrants"
+    },
+    {
+      "id": "call_003",
+      "callNumber": "25-003",
+      "callCode": "10-37",
+      "callCodeDescription": "Traffic Collision",
+      "dispatchTime": "2025-12-13T11:00:00Z",
+      "location": "Del Perro Freeway, Los Santos",
+      "description": "Multi-vehicle collision with possible injuries",
+      "priority": "HIGH",
+      "status": "ACTIVE",
+      "assignedUnits": [],
+      "dispatcher": "Dispatcher Davis",
+      "notes": "Multiple callers reporting injuries, EMS en route"
+    }
+  ],
+  "civilians": [
+    {
+      "id": "char_001",
+      "firstName": "John",
+      "lastName": "Smith",
+      "dob": "1990-05-15",
+      "ssn": "123-45-6789",
+      "phone": "555-0101",
+      "address": "123 Main St, Los Santos",
+      "createdDate": "2025-12-13T00:00:00Z",
+      "dmvRecords": [
+        {
+          "id": "vreg_001",
+          "type": "VEHICLE REGISTRATION",
+          "data": {
+            "plateNumber": "SMITH01",
+            "year": 2023,
+            "make": "Bravado",
+            "model": "Banshee",
+            "color": "Black",
+            "ownerName": "John Smith",
+            "registrationDate": "2025-01-01",
+            "status": "ACTIVE"
+          }
+        },
+        {
+          "id": "lic_001",
+          "type": "LICENSE",
+          "data": {
+            "licenseType": "DRIVER",
+            "licenseNumber": "DL-123456",
+            "issuedDate": "2023-01-01",
+            "expiryDate": "2028-01-01",
+            "status": "VALID"
+          }
+        }
+      ]
+    }
+  ],
   "officerReports": [],
   "officerRecords": [],
   "officerCredentials": [

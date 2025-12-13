@@ -1,0 +1,88 @@
+{
+  "callCodes": [
+    {
+      "code": "10-12",
+      "description": "Deceased Person"
+    },
+    {
+      "code": "10-34",
+      "description": "Robbery in Progress"
+    },
+    {
+      "code": "10-37",
+      "description": "Traffic Collision"
+    },
+    {
+      "code": "10-39",
+      "description": "Welfare Check"
+    },
+    {
+      "code": "10-50",
+      "description": "Traffic Stop"
+    },
+    {
+      "code": "10-91",
+      "description": "Impound Notice"
+    },
+    {
+      "code": "10-92",
+      "description": "Impound Confirmed"
+    },
+    {
+      "code": "10-93",
+      "description": "Tow Required"
+    },
+    {
+      "code": "10-97",
+      "description": "Arrived at Scene"
+    },
+    {
+      "code": "10-98",
+      "description": "Finished Last Assignment"
+    }
+  ],
+  "unitStatuses": [
+    {
+      "status": "AVAILABLE",
+      "description": "Unit is available for assignment"
+    },
+    {
+      "status": "EN_ROUTE",
+      "description": "Unit is en route to scene"
+    },
+    {
+      "status": "ON_SCENE",
+      "description": "Unit has arrived at scene"
+    },
+    {
+      "status": "OCCUPIED",
+      "description": "Unit is currently handling a call"
+    },
+    {
+      "status": "COMPLETED",
+      "description": "Unit has completed the assignment"
+    },
+    {
+      "status": "OUT_OF_SERVICE",
+      "description": "Unit is out of service"
+    }
+  ],
+  "callStatuses": [
+    {
+      "status": "PENDING",
+      "description": "Call awaiting unit assignment"
+    },
+    {
+      "status": "ACTIVE",
+      "description": "Call is currently being handled"
+    },
+    {
+      "status": "ON_HOLD",
+      "description": "Call is on hold"
+    },
+    {
+      "status": "CLOSED",
+      "description": "Call has been completed and closed"
+    }
+  ]
+}
