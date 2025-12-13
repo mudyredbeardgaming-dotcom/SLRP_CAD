@@ -5747,6 +5747,36 @@ const CADSystem = () => {
                       <textarea value={currentReportData.narrative || ''} onChange={(e) => setCurrentReportData({...currentReportData, narrative: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 h-40 text-sm" placeholder="Enter detailed supplemental narrative..." />
                     </div>
 
+                    {/* Evidence Section */}
+                    <div className="bg-gray-700 rounded-lg p-4">
+                      <h4 className="text-md font-semibold text-orange-400 mb-3 border-b border-gray-600 pb-2">Evidence</h4>
+                      <div className="mb-4">
+                        <label className="block text-xs text-gray-400 mb-2">Did You Book In Evidence Regards to this Supplemental?</label>
+                        <div className="flex gap-4">
+                          <label className="flex items-center gap-2 text-sm text-gray-300">
+                            <input type="radio" name="bookedEvidence" value="YES" checked={currentReportData.bookedEvidence === 'YES'} onChange={(e) => setCurrentReportData({...currentReportData, bookedEvidence: e.target.value})} />
+                            Yes
+                          </label>
+                          <label className="flex items-center gap-2 text-sm text-gray-300">
+                            <input type="radio" name="bookedEvidence" value="NO" checked={currentReportData.bookedEvidence === 'NO'} onChange={(e) => setCurrentReportData({...currentReportData, bookedEvidence: e.target.value})} />
+                            No
+                          </label>
+                        </div>
+                      </div>
+                      {currentReportData.bookedEvidence === 'YES' && (
+                        <>
+                          <div className="mb-3">
+                            <label className="block text-xs text-gray-400 mb-1">Evidence Locker #</label>
+                            <input type="text" value={currentReportData.evidenceLockerNumber || ''} onChange={(e) => setCurrentReportData({...currentReportData, evidenceLockerNumber: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-400 mb-1">List Item(s) Description Booked</label>
+                            <textarea value={currentReportData.evidenceDescription || ''} onChange={(e) => setCurrentReportData({...currentReportData, evidenceDescription: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 h-24 text-sm" placeholder="Describe all items booked into evidence..." />
+                          </div>
+                        </>
+                      )}
+                    </div>
+
                     {/* Scene Images Section */}
                     <div className="bg-gray-700 rounded-lg p-4">
                       <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Attachments/Images</h4>
@@ -5766,25 +5796,31 @@ const CADSystem = () => {
                       )}
                     </div>
 
-                    {/* Administrative Section */}
+                    {/* Completed By Section */}
                     <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Administrative</h4>
+                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Completed By</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div>
-                          <label className="block text-xs text-gray-400 mb-1">Submitting Officer</label>
-                          <input type="text" value={currentReportData.submittingOfficer || ''} onChange={(e) => setCurrentReportData({...currentReportData, submittingOfficer: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                        <div className="col-span-2">
+                          <label className="block text-xs text-gray-400 mb-1">Officer Name</label>
+                          <input type="text" value={currentReportData.completedByOfficerName || ''} onChange={(e) => setCurrentReportData({...currentReportData, completedByOfficerName: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Badge #</label>
-                          <input type="text" value={currentReportData.submittingBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, submittingBadge: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="block text-xs text-gray-400 mb-1">Badge#</label>
+                          <input type="text" value={currentReportData.completedByBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, completedByBadge: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Report Status</label>
-                          <select value={currentReportData.status || 'DRAFT'} onChange={(e) => setCurrentReportData({...currentReportData, status: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
-                            <option value="DRAFT">Draft</option>
-                            <option value="SUBMITTED">Submitted</option>
-                            <option value="APPROVED">Approved</option>
+                          <label className="block text-xs text-gray-400 mb-1">Department</label>
+                          <select value={currentReportData.completedByDepartment || ''} onChange={(e) => setCurrentReportData({...currentReportData, completedByDepartment: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                            <option value="">Select...</option>
+                            <option value="LSSO">LSSO</option>
+                            <option value="LSSO_CONTRACT">LSSO Contract Agency</option>
+                            <option value="LSSO_COMMUNITY">LSSO Community Service</option>
+                            <option value="LSSO_CORRECTIONS">LSSO Corrections Department</option>
                           </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Date</label>
+                          <input type="date" value={currentReportData.completedByDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, completedByDate: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
                         </div>
                       </div>
                     </div>
