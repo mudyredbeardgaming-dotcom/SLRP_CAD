@@ -6008,6 +6008,189 @@ const CADSystem = () => {
                       </div>
                     </div>
 
+                    {/* Subject Details Section */}
+                    <div className="bg-gray-700 rounded-lg p-4">
+                      <h4 className="text-md font-semibold text-red-400 mb-3 border-b border-gray-600 pb-2">Subject Details</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Subject Weapon</label>
+                          <select value={currentReportData.subjectWeapon || ''} onChange={(e) => setCurrentReportData({...currentReportData, subjectWeapon: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                            <option value="">Select...</option>
+                            <option value="KNIFE">Knife</option>
+                            <option value="FIREARM">Firearm</option>
+                            <option value="VEHICLE">Vehicle</option>
+                            <option value="HANDS_FEET">Hands/Feet</option>
+                            <option value="BLUNT_OBJECT">Blunt Object</option>
+                            <option value="OTHER">Other (In Narrative)</option>
+                            <option value="NONE">None</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Subject Under Influence</label>
+                          <select value={currentReportData.subjectInfluence || ''} onChange={(e) => setCurrentReportData({...currentReportData, subjectInfluence: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                            <option value="">Select...</option>
+                            <option value="ALCOHOL">Alcohol</option>
+                            <option value="DRUGS">Drugs</option>
+                            <option value="UNKNOWN">Unknown</option>
+                            <option value="N/A">N/A</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Subject Injured?</label>
+                          <select value={currentReportData.subjectInjured || ''} onChange={(e) => setCurrentReportData({...currentReportData, subjectInjured: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                            <option value="">Select...</option>
+                            <option value="YES">Yes</option>
+                            <option value="NO">No</option>
+                          </select>
+                        </div>
+                        {currentReportData.subjectInjured === 'YES' && (
+                          <div>
+                            <label className="block text-xs text-gray-400 mb-1">Describe Injuries</label>
+                            <input type="text" value={currentReportData.subjectInjuriesDesc || ''} onChange={(e) => setCurrentReportData({...currentReportData, subjectInjuriesDesc: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Describe injuries..." />
+                          </div>
+                        )}
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Medically Treated By</label>
+                          <select value={currentReportData.subjectTreatedBy || ''} onChange={(e) => setCurrentReportData({...currentReportData, subjectTreatedBy: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                            <option value="">Select...</option>
+                            <option value="OFFICER">Officer</option>
+                            <option value="FIRE_DEPT">Fire Department</option>
+                            <option value="EMS">EMS</option>
+                            <option value="REFUSED">Refused</option>
+                            <option value="N/A">N/A</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Transported to Hospital</label>
+                          <select value={currentReportData.subjectTransported || ''} onChange={(e) => setCurrentReportData({...currentReportData, subjectTransported: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                            <option value="">Select...</option>
+                            <option value="YES">Yes</option>
+                            <option value="NO">No</option>
+                            <option value="N/A">N/A</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Officer Information Section */}
+                    <div className="bg-gray-700 rounded-lg p-4">
+                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Officer Information</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Officer Uniform</label>
+                          <select value={currentReportData.officerUniform || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerUniform: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                            <option value="">Select...</option>
+                            <option value="PATROL">Patrol Uniform</option>
+                            <option value="TACTICAL">Tactical Vest Stating Agency</option>
+                            <option value="PLAIN_BADGE">Plain Clothes with Badge Visible</option>
+                            <option value="MOTORCYCLE">Motorcycle Uniform</option>
+                            <option value="AIR_SUPPORT">Air Support Uniform</option>
+                            <option value="OFF_DUTY">Off Duty Civilian Attire (No Badge Visible)</option>
+                          </select>
+                        </div>
+                        <div className="col-span-3">
+                          <label className="block text-xs text-gray-400 mb-1">Officer Precise Activity at Time of Incident</label>
+                          <input type="text" value={currentReportData.officerActivityDesc || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerActivityDesc: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Describe officer activity..." />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Weapons Utilized by Officer Section */}
+                    <div className="bg-gray-700 rounded-lg p-4">
+                      <h4 className="text-md font-semibold text-yellow-400 mb-3 border-b border-gray-600 pb-2">Weapon(s) Utilized by Officer</h4>
+                      <div className="space-y-2 mb-4">
+                        <div className="flex items-center gap-3">
+                          <input type="checkbox" id="weaponTaser" checked={currentReportData.weaponTaser || false} onChange={(e) => setCurrentReportData({...currentReportData, weaponTaser: e.target.checked})} className="w-4 h-4" />
+                          <label htmlFor="weaponTaser" className="text-sm text-gray-200 cursor-pointer">Taser</label>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <input type="checkbox" id="weaponFlashlight" checked={currentReportData.weaponFlashlight || false} onChange={(e) => setCurrentReportData({...currentReportData, weaponFlashlight: e.target.checked})} className="w-4 h-4" />
+                          <label htmlFor="weaponFlashlight" className="text-sm text-gray-200 cursor-pointer">Flashlight</label>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <input type="checkbox" id="weaponHandsFeet" checked={currentReportData.weaponHandsFeet || false} onChange={(e) => setCurrentReportData({...currentReportData, weaponHandsFeet: e.target.checked})} className="w-4 h-4" />
+                          <label htmlFor="weaponHandsFeet" className="text-sm text-gray-200 cursor-pointer">Hands/Feet</label>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <input type="checkbox" id="weaponCanine" checked={currentReportData.weaponCanine || false} onChange={(e) => setCurrentReportData({...currentReportData, weaponCanine: e.target.checked})} className="w-4 h-4" />
+                          <label htmlFor="weaponCanine" className="text-sm text-gray-200 cursor-pointer">Canine</label>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <input type="checkbox" id="weaponBaton" checked={currentReportData.weaponBaton || false} onChange={(e) => setCurrentReportData({...currentReportData, weaponBaton: e.target.checked})} className="w-4 h-4" />
+                          <label htmlFor="weaponBaton" className="text-sm text-gray-200 cursor-pointer">Baton</label>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <input type="checkbox" id="weaponHandgun" checked={currentReportData.weaponHandgun || false} onChange={(e) => setCurrentReportData({...currentReportData, weaponHandgun: e.target.checked})} className="w-4 h-4" />
+                          <label htmlFor="weaponHandgun" className="text-sm text-gray-200 cursor-pointer">Handgun</label>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <input type="checkbox" id="weaponRifle" checked={currentReportData.weaponRifle || false} onChange={(e) => setCurrentReportData({...currentReportData, weaponRifle: e.target.checked})} className="w-4 h-4" />
+                          <label htmlFor="weaponRifle" className="text-sm text-gray-200 cursor-pointer">Rifle</label>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <input type="checkbox" id="weaponShotgun" checked={currentReportData.weaponShotgun || false} onChange={(e) => setCurrentReportData({...currentReportData, weaponShotgun: e.target.checked})} className="w-4 h-4" />
+                          <label htmlFor="weaponShotgun" className="text-sm text-gray-200 cursor-pointer">Shotgun</label>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <input type="checkbox" id="weaponVehicle" checked={currentReportData.weaponVehicle || false} onChange={(e) => setCurrentReportData({...currentReportData, weaponVehicle: e.target.checked})} className="w-4 h-4" />
+                          <label htmlFor="weaponVehicle" className="text-sm text-gray-200 cursor-pointer">Vehicle</label>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <input type="checkbox" id="weaponCSGas" checked={currentReportData.weaponCSGas || false} onChange={(e) => setCurrentReportData({...currentReportData, weaponCSGas: e.target.checked})} className="w-4 h-4" />
+                          <label htmlFor="weaponCSGas" className="text-sm text-gray-200 cursor-pointer">CS Gas</label>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <input type="checkbox" id="weaponOther" checked={currentReportData.weaponOther || false} onChange={(e) => setCurrentReportData({...currentReportData, weaponOther: e.target.checked})} className="w-4 h-4" />
+                          <label htmlFor="weaponOther" className="text-sm text-gray-200 cursor-pointer">Other (In Narrative)</label>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Approximate Rounds Fired</label>
+                          <input type="text" value={currentReportData.roundsFired || ''} onChange={(e) => setCurrentReportData({...currentReportData, roundsFired: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="e.g., 3 rounds" />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Taser Cartridges Used</label>
+                          <input type="text" value={currentReportData.taserCartridges || ''} onChange={(e) => setCurrentReportData({...currentReportData, taserCartridges: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="e.g., 2 cartridges" />
+                        </div>
+                        <div className="col-span-2">
+                          <label className="block text-xs text-gray-400 mb-1">Describe Impact Locations</label>
+                          <input type="text" value={currentReportData.impactLocations || ''} onChange={(e) => setCurrentReportData({...currentReportData, impactLocations: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Describe where weapon impacted..." />
+                        </div>
+                        <div className="col-span-2">
+                          <label className="block text-xs text-gray-400 mb-1">Describe Weapon Usage</label>
+                          <input type="text" value={currentReportData.weaponUsageDesc || ''} onChange={(e) => setCurrentReportData({...currentReportData, weaponUsageDesc: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Describe how weapon was used..." />
+                        </div>
+                        <div className="col-span-2">
+                          <label className="block text-xs text-gray-400 mb-1">Effectiveness of Applied Weapon(s)</label>
+                          <input type="text" value={currentReportData.weaponEffectiveness || ''} onChange={(e) => setCurrentReportData({...currentReportData, weaponEffectiveness: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Describe effectiveness..." />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Officer Injured?</label>
+                          <select value={currentReportData.officerInjured || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerInjured: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                            <option value="">Select...</option>
+                            <option value="YES">Yes</option>
+                            <option value="NO">No</option>
+                          </select>
+                        </div>
+                        {currentReportData.officerInjured === 'YES' && (
+                          <div>
+                            <label className="block text-xs text-gray-400 mb-1">If Injured Describe Injuries</label>
+                            <input type="text" value={currentReportData.officerInjuriesDesc || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerInjuriesDesc: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Describe injuries..." />
+                          </div>
+                        )}
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Release by Doctor</label>
+                          <select value={currentReportData.releasedByDoctor || ''} onChange={(e) => setCurrentReportData({...currentReportData, releasedByDoctor: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                            <option value="">Select...</option>
+                            <option value="YES">Yes</option>
+                            <option value="NO">No</option>
+                            <option value="N/A">N/A</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
                     {/* Location Section */}
                     <div className="bg-gray-700 rounded-lg p-4">
                       <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Location</h4>
@@ -6208,6 +6391,21 @@ const CADSystem = () => {
                     <div className="bg-gray-700 rounded-lg p-4">
                       <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Narrative</h4>
                       <textarea value={currentReportData.narrative || ''} onChange={(e) => setCurrentReportData({...currentReportData, narrative: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 h-40 text-sm" placeholder="Provide a detailed account of the incident and use of force..." />
+                    </div>
+
+                    {/* Certification Section */}
+                    <div className="bg-gray-700 rounded-lg p-4">
+                      <h4 className="text-md font-semibold text-purple-400 mb-3 border-b border-gray-600 pb-2">Certification</h4>
+                      <div className="space-y-4">
+                        <div className="flex items-start gap-3">
+                          <input type="checkbox" id="certifyAccuracy" checked={currentReportData.certifyAccuracy || false} onChange={(e) => setCurrentReportData({...currentReportData, certifyAccuracy: e.target.checked})} className="w-4 h-4 mt-1" />
+                          <label htmlFor="certifyAccuracy" className="text-sm text-gray-200 cursor-pointer">I UNDERSTAND FALSIFICATION OF THIS DOCUMENT MAY RESULT IN DISCIPLINARY ACTION</label>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Date Submitted</label>
+                          <input type="date" value={currentReportData.dateSubmitted || ''} onChange={(e) => setCurrentReportData({...currentReportData, dateSubmitted: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                        </div>
+                      </div>
                     </div>
 
                     {/* Scene Images Section */}
