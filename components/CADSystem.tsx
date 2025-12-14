@@ -6212,69 +6212,6 @@ const CADSystem = () => {
                       </div>
                     </div>
 
-                    {/* Scene Images Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Scene Images/BWC Reference</h4>
-                      <div className="grid grid-cols-2 gap-4 mb-3">
-                        <div>
-                          <label className="block text-xs text-gray-400 mb-1">BWC Footage Available</label>
-                          <select value={currentReportData.bwcAvailable || ''} onChange={(e) => setCurrentReportData({...currentReportData, bwcAvailable: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
-                            <option value="">Select...</option>
-                            <option value="YES">Yes</option>
-                            <option value="NO">No</option>
-                            <option value="PARTIAL">Partial</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-xs text-gray-400 mb-1">BWC Reference #</label>
-                          <input type="text" value={currentReportData.bwcReference || ''} onChange={(e) => setCurrentReportData({...currentReportData, bwcReference: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
-                        </div>
-                      </div>
-                      <div className="mb-3">
-                        <input type="file" multiple accept="image/*" onChange={handleSceneImageUpload} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
-                      </div>
-                      {currentReportData.sceneImages?.length > 0 && (
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                          {currentReportData.sceneImages.map((img: any) => (
-                            <div key={img.id} className="relative bg-gray-800 rounded p-2">
-                              <img src={img.data} alt={img.name} className="w-full h-24 object-cover rounded" />
-                              <button onClick={() => removeSceneImage(img.id)} className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 hover:bg-red-500"><X size={12} /></button>
-                              <input type="text" placeholder="Add note..." value={img.note || ''} onChange={(e) => updateImageNote(img.id, e.target.value)} className="w-full bg-gray-700 text-white rounded px-2 py-1 text-xs mt-1" />
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Completed By Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Completed By</h4>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Officer Name</label>
-                          <input type="text" value={currentReportData.completedByOfficerName || ''} onChange={(e) => setCurrentReportData({...currentReportData, completedByOfficerName: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
-                        </div>
-                        <div>
-                          <label className="block text-xs text-gray-400 mb-1">Badge#</label>
-                          <input type="text" value={currentReportData.completedByBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, completedByBadge: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
-                        </div>
-                        <div>
-                          <label className="block text-xs text-gray-400 mb-1">Department</label>
-                          <select value={currentReportData.completedByDepartment || ''} onChange={(e) => setCurrentReportData({...currentReportData, completedByDepartment: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
-                            <option value="">Select...</option>
-                            <option value="LSSO">LSSO</option>
-                            <option value="LSSO_CONTRACT">LSSO Contract Agency</option>
-                            <option value="LSSO_COMMUNITY">LSSO Community Service</option>
-                            <option value="LSSO_CORRECTIONS">LSSO Corrections Department</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date</label>
-                          <input type="date" value={currentReportData.completedByDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, completedByDate: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
-                        </div>
-                      </div>
-                    </div>
-
                     {/* Chain of Command Review Section */}
                     <div className="bg-gray-700 rounded-lg p-4">
                       <h4 className="text-md font-semibold text-purple-400 mb-3 border-b border-gray-600 pb-2">Chain of Command Review</h4>
