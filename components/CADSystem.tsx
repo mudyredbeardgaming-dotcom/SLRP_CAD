@@ -1219,7 +1219,7 @@ const CADSystem = () => {
       <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
         <div className="bg-gray-800 rounded-lg p-8 w-full max-w-md border-4 border-cyan-500">
           <div className="text-center mb-6">
-            <Shield size={64} className="text-cyan-500 mx-auto mb-4" />
+            <img src="/SLRPLogo.png" alt="Silver Lining RP" className="h-24 mx-auto mb-4" />
             <h2 className="text-3xl font-bold text-white mb-2">Silver Lining Role-Play</h2>
             <p className="text-xs text-gray-500 mt-2">Version {APP_VERSION}</p>
           </div>
@@ -1243,7 +1243,7 @@ const CADSystem = () => {
                 onKeyPress={handleKeyPress}
                 onClick={(e) => e.stopPropagation()}
                 onFocus={(e) => e.stopPropagation()}
-                className="w-full bg-gray-700 text-white rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                className="w-full bg-gray-700 text-white rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-500"
                 placeholder="Enter your username"
                 autoComplete="off"
                 autoFocus
@@ -1263,7 +1263,7 @@ const CADSystem = () => {
                   onKeyPress={handleKeyPress}
                   onClick={(e) => e.stopPropagation()}
                   onFocus={(e) => e.stopPropagation()}
-                  className="w-full bg-gray-700 text-white rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                  className="w-full bg-gray-700 text-white rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-500"
                   placeholder="Enter your password"
                   autoComplete="off"
                 />
@@ -1282,7 +1282,7 @@ const CADSystem = () => {
 
             <button
               onClick={handleLogin}
-              className="w-full px-6 py-3 bg-yellow-600 text-white rounded-lg font-bold hover:bg-yellow-500 transition text-lg"
+              className="w-full px-6 py-3 bg-cyan-600 text-white rounded-lg font-bold hover:bg-cyan-500 transition text-lg"
             >
               Sign In
             </button>
