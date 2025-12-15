@@ -1217,11 +1217,10 @@ const CADSystem = () => {
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
-        <div className="bg-gray-800 rounded-lg p-8 w-full max-w-md border-4 border-yellow-500">
+        <div className="bg-gray-800 rounded-lg p-8 w-full max-w-md border-4 border-cyan-500">
           <div className="text-center mb-6">
-            <Shield size={64} className="text-yellow-500 mx-auto mb-4" />
-            <h2 className="text-3xl font-bold text-white mb-2">CAD System Login</h2>
-            <p className="text-gray-400">Los Santos Sheriff Office</p>
+            <Shield size={64} className="text-cyan-500 mx-auto mb-4" />
+            <h2 className="text-3xl font-bold text-white mb-2">Silver Lining Role-Play</h2>
             <p className="text-xs text-gray-500 mt-2">Version {APP_VERSION}</p>
           </div>
 
@@ -1289,7 +1288,7 @@ const CADSystem = () => {
             </button>
           </div>
 
-          <div className="mt-6 bg-gray-700 rounded p-4">
+          <div className="mt-6 bg-gray-700 rounded p-4 hidden">
             <p className="text-gray-300 text-xs mb-2">
               <strong className="text-white">Demo Credentials:</strong>
             </p>
