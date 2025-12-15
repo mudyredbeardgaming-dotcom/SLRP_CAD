@@ -203,6 +203,15 @@ const CADSystem = () => {
       role: 'police',
       department: 'LSSO'
     },
+    // Dispatcher
+    {
+      username: 'dispatcher',
+      password: 'dispatch123',
+      unitId: 'DISPATCH-1',
+      displayName: 'Dispatcher Davis',
+      role: 'dispatch',
+      department: 'LSSO Communications'
+    },
     // Firefighters
     {
       username: 'firefighter1',
@@ -1018,7 +1027,7 @@ const CADSystem = () => {
                 disabled={!permissions.canAccessDispatch}
                 className={`w-full bg-gray-800 rounded-lg p-6 border-4 transition transform hover:scale-105 ${
                   permissions.canAccessDispatch
-                    ? 'border-blue-500 hover:border-blue-400 cursor-pointer'
+                    ? 'border-green-500 hover:border-green-400 cursor-pointer'
                     : 'border-gray-600 opacity-50 cursor-not-allowed'
                 }`}
               >
@@ -1036,7 +1045,7 @@ const CADSystem = () => {
             <div>
               <button
                 onClick={() => setSelectedRole('civilian')}
-                className="w-full bg-gray-800 rounded-lg p-6 border-4 border-green-500 hover:border-green-400 transition transform hover:scale-105 cursor-pointer"
+                className="w-full bg-gray-800 rounded-lg p-6 border-4 border-purple-500 hover:border-purple-400 transition transform hover:scale-105 cursor-pointer"
               >
                 <img src="/CIVLogo.png" alt="Civilian" className="h-12 w-12 mx-auto mb-3" />
                 <h3 className="text-xl font-bold text-white mb-2">Civilian</h3>
@@ -1053,7 +1062,7 @@ const CADSystem = () => {
                 disabled={!permissions.canAccessPolice || loggedInOfficer?.role !== 'police'}
                 className={`w-full bg-gray-800 rounded-lg p-6 border-4 transition transform hover:scale-105 ${
                   permissions.canAccessPolice && loggedInOfficer?.role === 'police'
-                    ? 'border-yellow-500 hover:border-yellow-400 cursor-pointer'
+                    ? 'border-green-500 hover:border-green-400 cursor-pointer'
                     : 'border-gray-600 opacity-50 cursor-not-allowed'
                 }`}
               >
