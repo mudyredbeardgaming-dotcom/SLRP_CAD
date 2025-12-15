@@ -6411,7 +6411,7 @@ const CADSystem = () => {
                       </div>
                     </div>
 
-                    {/* Party #1 Information */}
+                    {/* Party #1 Information - General Report */}
                     <div className="bg-gray-700 rounded-lg p-4">
                       <h4 className="text-md font-semibold text-purple-400 mb-3 border-b border-gray-600 pb-2">Party #1 Information</h4>
                       <div className="mb-3">
@@ -6446,6 +6446,33 @@ const CADSystem = () => {
                         <div className="col-span-2">
                           <label className="block text-xs text-gray-400 mb-1">Address</label>
                           <input type="text" value={currentReportData.party1?.address || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, address: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Party #1 Details Section */}
+                    <div className="bg-gray-700 rounded-lg p-4">
+                      <h4 className="text-md font-semibold text-cyan-400 mb-3 border-b border-gray-600 pb-2">Party #1 Details</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="col-span-2">
+                          <label className="block text-xs text-gray-400 mb-1">Party #1 Involvement</label>
+                          <select value={currentReportData.party1Involvement || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1Involvement: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                            <option value="">Select...</option>
+                            <option value="VICTIM">Victim</option>
+                            <option value="WITNESS">Witness</option>
+                            <option value="SUSPECT">Suspect</option>
+                            <option value="OTHER">Other</option>
+                          </select>
+                        </div>
+                        {currentReportData.party1Involvement === 'OTHER' && (
+                          <div className="col-span-2">
+                            <label className="block text-xs text-gray-400 mb-1">If Other</label>
+                            <input type="text" value={currentReportData.party1InvolvementOther || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1InvolvementOther: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Specify other involvement..." />
+                          </div>
+                        )}
+                        <div className="col-span-2">
+                          <label className="block text-xs text-gray-400 mb-1">Party #1 Phone Number</label>
+                          <input type="text" value={currentReportData.party1PhoneNumber || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1PhoneNumber: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Phone number..." />
                         </div>
                       </div>
                     </div>
@@ -6528,6 +6555,33 @@ const CADSystem = () => {
                         <div className="col-span-2">
                           <label className="block text-xs text-gray-400 mb-1">Address</label>
                           <input type="text" value={currentReportData.party2?.address || ''} onChange={(e) => setCurrentReportData({...currentReportData, party2: {...currentReportData.party2, address: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Party #2 Details Section */}
+                    <div className="bg-gray-700 rounded-lg p-4">
+                      <h4 className="text-md font-semibold text-cyan-400 mb-3 border-b border-gray-600 pb-2">Party #2 Details</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="col-span-2">
+                          <label className="block text-xs text-gray-400 mb-1">Party #2 Involvement</label>
+                          <select value={currentReportData.party2Involvement || ''} onChange={(e) => setCurrentReportData({...currentReportData, party2Involvement: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                            <option value="">Select...</option>
+                            <option value="VICTIM">Victim</option>
+                            <option value="WITNESS">Witness</option>
+                            <option value="SUSPECT">Suspect</option>
+                            <option value="OTHER">Other</option>
+                          </select>
+                        </div>
+                        {currentReportData.party2Involvement === 'OTHER' && (
+                          <div className="col-span-2">
+                            <label className="block text-xs text-gray-400 mb-1">If Other</label>
+                            <input type="text" value={currentReportData.party2InvolvementOther || ''} onChange={(e) => setCurrentReportData({...currentReportData, party2InvolvementOther: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Specify other involvement..." />
+                          </div>
+                        )}
+                        <div className="col-span-2">
+                          <label className="block text-xs text-gray-400 mb-1">Party #2 Phone Number</label>
+                          <input type="text" value={currentReportData.party2PhoneNumber || ''} onChange={(e) => setCurrentReportData({...currentReportData, party2PhoneNumber: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Phone number..." />
                         </div>
                       </div>
                     </div>
