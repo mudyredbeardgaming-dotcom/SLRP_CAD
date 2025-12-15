@@ -3896,12 +3896,11 @@ const CADSystem = () => {
 
     return (
       <div className="min-h-screen bg-gray-900 text-white flex flex-col">
-        <header className="bg-gradient-to-r from-green-900 to-green-800 border-b-4 border-green-500 p-6">
+        <header className="bg-gradient-to-r from-purple-900 to-purple-800 border-b-4 border-purple-500 p-6">
           <div className="max-w-6xl mx-auto">
             <div className="flex justify-between items-center">
               <div>
-                <h1 className="text-3xl font-bold text-green-400">Civilian Portal</h1>
-                <p className="text-xl text-white">Silver Lining Roleplay - LSSO</p>
+                <p className="text-xl text-white">Silver Lining Roleplay</p>
               </div>
               <button
                 onClick={() => setSelectedRole(null)}
