@@ -1158,6 +1158,19 @@ const CADSystem = () => {
               </span>
             </div>
           </div>
+
+          <div className="mt-6">
+            <button
+              onClick={() => {
+                setLoggedInOfficer(null);
+                setSelectedRole(null);
+                localStorage.removeItem('cadSession');
+              }}
+              className="px-6 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition"
+            >
+              Sign Out
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -8521,7 +8534,7 @@ const CADSystem = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 text-white flex flex-col">
-      <header className="bg-gradient-to-r from-blue-900 to-blue-800 border-b-4 border-yellow-500 p-4">
+      <header className="bg-gradient-to-r from-green-900 to-green-800 border-b-4 border-green-500 p-4">
         <div className="text-center mb-3">
           <h1 className="text-3xl font-bold text-yellow-400">Silver Lining Roleplay</h1>
           <p className="text-xl text-white">Los Santos Sheriff Office</p>
