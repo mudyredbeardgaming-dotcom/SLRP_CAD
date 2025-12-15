@@ -5480,45 +5480,6 @@ const CADSystem = () => {
                           <label className="block text-xs text-gray-400 mb-1">Color</label>
                           <input type="text" value={currentReportData.vehicle1?.color || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, color: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
                         </div>
-                        <div>
-                          <label className="block text-xs text-gray-400 mb-1">Damage</label>
-                          <select value={currentReportData.vehicle1?.damage || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, damage: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
-                            <option value="">Select...</option>
-                            <option value="NONE">None</option>
-                            <option value="MINOR">Minor</option>
-                            <option value="MODERATE">Moderate</option>
-                            <option value="MAJOR">Major</option>
-                            <option value="TOTALED">Totaled</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-xs text-gray-400 mb-1">Defects</label>
-                          <input type="text" value={currentReportData.vehicle1?.defects || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, defects: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
-                        </div>
-                        <div>
-                          <label className="block text-xs text-gray-400 mb-1">Damage Location</label>
-                          <select value={currentReportData.vehicle1?.damageLocation || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, damageLocation: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
-                            <option value="">Select...</option>
-                            <option value="FRONT">Front</option>
-                            <option value="REAR">Rear</option>
-                            <option value="LEFT_SIDE">Left Side</option>
-                            <option value="RIGHT_SIDE">Right Side</option>
-                            <option value="MULTIPLE">Multiple Areas</option>
-                          </select>
-                        </div>
-                        <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Disposition</label>
-                          <div className="flex gap-4">
-                            <label className="flex items-center gap-2 text-sm text-gray-300">
-                              <input type="radio" name="suppVehicle1Disposition" value="TOWED" checked={currentReportData.vehicle1?.disposition === 'TOWED'} onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, disposition: e.target.value}})} />
-                              Towed
-                            </label>
-                            <label className="flex items-center gap-2 text-sm text-gray-300">
-                              <input type="radio" name="suppVehicle1Disposition" value="DRIVEN" checked={currentReportData.vehicle1?.disposition === 'DRIVEN'} onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, disposition: e.target.value}})} />
-                              Driven Away
-                            </label>
-                          </div>
-                        </div>
                       </div>
                     </div>
 
@@ -5600,45 +5561,6 @@ const CADSystem = () => {
                         <div>
                           <label className="block text-xs text-gray-400 mb-1">Color</label>
                           <input type="text" value={currentReportData.vehicle2?.color || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle2: {...currentReportData.vehicle2, color: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
-                        </div>
-                        <div>
-                          <label className="block text-xs text-gray-400 mb-1">Damage</label>
-                          <select value={currentReportData.vehicle2?.damage || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle2: {...currentReportData.vehicle2, damage: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
-                            <option value="">Select...</option>
-                            <option value="NONE">None</option>
-                            <option value="MINOR">Minor</option>
-                            <option value="MODERATE">Moderate</option>
-                            <option value="MAJOR">Major</option>
-                            <option value="TOTALED">Totaled</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-xs text-gray-400 mb-1">Defects</label>
-                          <input type="text" value={currentReportData.vehicle2?.defects || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle2: {...currentReportData.vehicle2, defects: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
-                        </div>
-                        <div>
-                          <label className="block text-xs text-gray-400 mb-1">Damage Location</label>
-                          <select value={currentReportData.vehicle2?.damageLocation || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle2: {...currentReportData.vehicle2, damageLocation: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
-                            <option value="">Select...</option>
-                            <option value="FRONT">Front</option>
-                            <option value="REAR">Rear</option>
-                            <option value="LEFT_SIDE">Left Side</option>
-                            <option value="RIGHT_SIDE">Right Side</option>
-                            <option value="MULTIPLE">Multiple Areas</option>
-                          </select>
-                        </div>
-                        <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Disposition</label>
-                          <div className="flex gap-4">
-                            <label className="flex items-center gap-2 text-sm text-gray-300">
-                              <input type="radio" name="suppVehicle2Disposition" value="TOWED" checked={currentReportData.vehicle2?.disposition === 'TOWED'} onChange={(e) => setCurrentReportData({...currentReportData, vehicle2: {...currentReportData.vehicle2, disposition: e.target.value}})} />
-                              Towed
-                            </label>
-                            <label className="flex items-center gap-2 text-sm text-gray-300">
-                              <input type="radio" name="suppVehicle2Disposition" value="DRIVEN" checked={currentReportData.vehicle2?.disposition === 'DRIVEN'} onChange={(e) => setCurrentReportData({...currentReportData, vehicle2: {...currentReportData.vehicle2, disposition: e.target.value}})} />
-                              Driven Away
-                            </label>
-                          </div>
                         </div>
                       </div>
                     </div>
