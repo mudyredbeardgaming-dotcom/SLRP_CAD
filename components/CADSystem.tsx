@@ -1022,7 +1022,7 @@ const CADSystem = () => {
                     : 'border-gray-600 opacity-50 cursor-not-allowed'
                 }`}
               >
-                <Radio size={48} className={`mx-auto mb-3 ${permissions.canAccessDispatch ? 'text-blue-500' : 'text-gray-500'}`} />
+                <img src="/COMLogo.png" alt="Dispatch" className={`h-12 w-12 mx-auto mb-3 ${!permissions.canAccessDispatch ? 'opacity-50' : ''}`} />
                 <h3 className="text-xl font-bold text-white mb-2">Dispatch</h3>
                 <p className="text-gray-400 text-sm mb-3">Manage emergency calls</p>
                 {!permissions.canAccessDispatch && (
