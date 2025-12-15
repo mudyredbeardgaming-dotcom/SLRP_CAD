@@ -1145,21 +1145,7 @@ const CADSystem = () => {
             </div>
           </div>
 
-          <div className="mt-8 bg-gray-800 rounded-lg p-4 border border-gray-700">
-            <p className="text-gray-400 text-sm mb-3">
-              <strong className="text-white">Note:</strong> Data is stored in memory during this session. Use Export/Import to save your progress.
-            </p>
-            <div className="flex gap-4 justify-center text-xs">
-              <span className={permissions.canAccessDispatch ? 'text-green-400' : 'text-red-400'}>
-                Dispatch: {permissions.canAccessDispatch ? 'Enabled' : 'Disabled'}
-              </span>
-              <span className={permissions.canAccessPolice ? 'text-green-400' : 'text-red-400'}>
-                Police: {permissions.canAccessPolice ? 'Enabled' : 'Disabled'}
-              </span>
-            </div>
-          </div>
-
-          <div className="mt-6">
+          <div className="mt-8">
             <button
               onClick={() => {
                 setLoggedInOfficer(null);
