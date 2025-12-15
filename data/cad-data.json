@@ -233,6 +233,22 @@
       "displayName": "Joe (Towing)",
       "role": "tow",
       "department": "Quick Tow"
+    },
+    {
+      "username": "admin1",
+      "password": "admin123",
+      "unitId": "ADMIN-1",
+      "displayName": "Admin One",
+      "role": "admin",
+      "department": "System Administration"
+    },
+    {
+      "username": "admin2",
+      "password": "admin123",
+      "unitId": "ADMIN-2",
+      "displayName": "Admin Two",
+      "role": "admin",
+      "department": "System Administration"
     }
   ]
 }

@@ -245,6 +245,23 @@ const CADSystem = () => {
       displayName: 'Joe (Towing)',
       role: 'tow',
       department: 'Quick Tow'
+    },
+    // Admin Accounts
+    {
+      username: 'admin1',
+      password: 'admin123',
+      unitId: 'ADMIN-1',
+      displayName: 'Admin One',
+      role: 'admin',
+      department: 'System Administration'
+    },
+    {
+      username: 'admin2',
+      password: 'admin123',
+      unitId: 'ADMIN-2',
+      displayName: 'Admin Two',
+      role: 'admin',
+      department: 'System Administration'
     }
   ]);
 
@@ -1023,17 +1040,17 @@ const CADSystem = () => {
           <div className="grid md:grid-cols-5 gap-4">
             <div className="relative">
               <button
-                onClick={() => permissions.canAccessDispatch && setSelectedRole('dispatch')}
-                disabled={!permissions.canAccessDispatch}
+                onClick={() => (permissions.canAccessDispatch || loggedInOfficer?.role === 'admin') && setSelectedRole('dispatch')}
+                disabled={!permissions.canAccessDispatch && loggedInOfficer?.role !== 'admin'}
                 className={`w-full bg-gray-800 rounded-lg p-6 border-4 transition transform hover:scale-105 ${
-                  permissions.canAccessDispatch
+                  (permissions.canAccessDispatch || loggedInOfficer?.role === 'admin')
                     ? 'border-green-500 hover:border-green-400 cursor-pointer'
                     : 'border-gray-600 opacity-50 cursor-not-allowed'
                 }`}
               >
-                <img src="/COMLogo.png" alt="Dispatch" className={`h-12 w-12 mx-auto mb-3 ${!permissions.canAccessDispatch ? 'opacity-50' : ''}`} />
+                <img src="/COMLogo.png" alt="Dispatch" className={`h-12 w-12 mx-auto mb-3 ${(!permissions.canAccessDispatch && loggedInOfficer?.role !== 'admin') ? 'opacity-50' : ''}`} />
                 <h3 className="text-xl font-bold text-white mb-2">Dispatch</h3>
-                {!permissions.canAccessDispatch && (
+                {!permissions.canAccessDispatch && loggedInOfficer?.role !== 'admin' && (
                   <div className="flex items-center justify-center gap-1 text-yellow-500">
                     <Lock size={14} />
                     <span className="text-xs">Admin Required</span>
@@ -1055,20 +1072,20 @@ const CADSystem = () => {
             <div className="relative">
               <button
                 onClick={() => {
-                  if (permissions.canAccessPolice && loggedInOfficer?.role === 'police') {
+                  if ((permissions.canAccessPolice && loggedInOfficer?.role === 'police') || loggedInOfficer?.role === 'admin') {
                     setSelectedRole('police');
                   }
                 }}
-                disabled={!permissions.canAccessPolice || loggedInOfficer?.role !== 'police'}
+                disabled={(!permissions.canAccessPolice && loggedInOfficer?.role !== 'admin') || (loggedInOfficer?.role !== 'police' && loggedInOfficer?.role !== 'admin')}
                 className={`w-full bg-gray-800 rounded-lg p-6 border-4 transition transform hover:scale-105 ${
-                  permissions.canAccessPolice && loggedInOfficer?.role === 'police'
+                  (permissions.canAccessPolice && loggedInOfficer?.role === 'police') || loggedInOfficer?.role === 'admin'
                     ? 'border-blue-500 hover:border-blue-400 cursor-pointer'
                     : 'border-gray-600 opacity-50 cursor-not-allowed'
                 }`}
               >
-                <img src="/LSSOLogo.png" alt="Sheriff" className={`h-12 w-12 mx-auto mb-3 ${!permissions.canAccessPolice || loggedInOfficer?.role !== 'police' ? 'opacity-50' : ''}`} />
+                <img src="/LSSOLogo.png" alt="Sheriff" className={`h-12 w-12 mx-auto mb-3 ${((!permissions.canAccessPolice && loggedInOfficer?.role !== 'admin') || (loggedInOfficer?.role !== 'police' && loggedInOfficer?.role !== 'admin')) ? 'opacity-50' : ''}`} />
                 <h3 className="text-xl font-bold text-white mb-2">Sheriff</h3>
-                {(!permissions.canAccessPolice || loggedInOfficer?.role !== 'police') && (
+                {((!permissions.canAccessPolice && loggedInOfficer?.role !== 'admin') || (loggedInOfficer?.role !== 'police' && loggedInOfficer?.role !== 'admin')) && (
                   <div className="flex items-center justify-center gap-1 text-yellow-500">
                     <Lock size={14} />
                     <span className="text-xs">{loggedInOfficer ? 'Police Login' : 'Login Required'}</span>
@@ -1080,20 +1097,20 @@ const CADSystem = () => {
             <div className="relative">
               <button
                 onClick={() => {
-                  if (loggedInOfficer?.role === 'fire') {
+                  if (loggedInOfficer?.role === 'fire' || loggedInOfficer?.role === 'admin') {
                     setSelectedRole('fire');
                   }
                 }}
-                disabled={loggedInOfficer?.role !== 'fire'}
+                disabled={loggedInOfficer?.role !== 'fire' && loggedInOfficer?.role !== 'admin'}
                 className={`w-full bg-gray-800 rounded-lg p-6 border-4 transition transform hover:scale-105 ${
-                  loggedInOfficer?.role === 'fire'
+                  (loggedInOfficer?.role === 'fire' || loggedInOfficer?.role === 'admin')
                     ? 'border-red-500 hover:border-red-400 cursor-pointer'
                     : 'border-gray-600 opacity-50 cursor-not-allowed'
                 }`}
               >
-                <Flame size={48} className={`mx-auto mb-3 ${loggedInOfficer?.role === 'fire' ? 'text-red-500' : 'text-gray-500'}`} />
+                <Flame size={48} className={`mx-auto mb-3 ${(loggedInOfficer?.role === 'fire' || loggedInOfficer?.role === 'admin') ? 'text-red-500' : 'text-gray-500'}`} />
                 <h3 className="text-xl font-bold text-white mb-2">Fire/EMS</h3>
-                {loggedInOfficer?.role !== 'fire' && (
+                {loggedInOfficer?.role !== 'fire' && loggedInOfficer?.role !== 'admin' && (
                   <div className="flex items-center justify-center gap-1 text-yellow-500">
                     <Lock size={14} />
                     <span className="text-xs">Fire Login</span>
@@ -1105,20 +1122,20 @@ const CADSystem = () => {
             <div className="relative">
               <button
                 onClick={() => {
-                  if (loggedInOfficer?.role === 'tow') {
+                  if (loggedInOfficer?.role === 'tow' || loggedInOfficer?.role === 'admin') {
                     setSelectedRole('tow');
                   }
                 }}
-                disabled={loggedInOfficer?.role !== 'tow'}
+                disabled={loggedInOfficer?.role !== 'tow' && loggedInOfficer?.role !== 'admin'}
                 className={`w-full bg-gray-800 rounded-lg p-6 border-4 transition transform hover:scale-105 ${
-                  loggedInOfficer?.role === 'tow'
+                  (loggedInOfficer?.role === 'tow' || loggedInOfficer?.role === 'admin')
                     ? 'border-orange-500 hover:border-orange-400 cursor-pointer'
                     : 'border-gray-600 opacity-50 cursor-not-allowed'
                 }`}
               >
-                <img src="/TOWLogo.png" alt="Tow" className={`h-12 w-12 mx-auto mb-3 ${loggedInOfficer?.role !== 'tow' ? 'opacity-50' : ''}`} />
+                <img src="/TOWLogo.png" alt="Tow" className={`h-12 w-12 mx-auto mb-3 ${loggedInOfficer?.role !== 'tow' && loggedInOfficer?.role !== 'admin' ? 'opacity-50' : ''}`} />
                 <h3 className="text-xl font-bold text-white mb-2">Tow</h3>
-                {loggedInOfficer?.role !== 'tow' && (
+                {loggedInOfficer?.role !== 'tow' && loggedInOfficer?.role !== 'admin' && (
                   <div className="flex items-center justify-center gap-1 text-yellow-500">
                     <Lock size={14} />
                     <span className="text-xs">Tow Login</span>
