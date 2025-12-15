@@ -1062,7 +1062,7 @@ const CADSystem = () => {
                 disabled={!permissions.canAccessPolice || loggedInOfficer?.role !== 'police'}
                 className={`w-full bg-gray-800 rounded-lg p-6 border-4 transition transform hover:scale-105 ${
                   permissions.canAccessPolice && loggedInOfficer?.role === 'police'
-                    ? 'border-green-500 hover:border-green-400 cursor-pointer'
+                    ? 'border-blue-500 hover:border-blue-400 cursor-pointer'
                     : 'border-gray-600 opacity-50 cursor-not-allowed'
                 }`}
               >
