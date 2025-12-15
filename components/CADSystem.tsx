@@ -1001,6 +1001,9 @@ const CADSystem = () => {
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 flex items-center justify-center p-4">
         <div className="text-center max-w-6xl">
           <div className="mb-8">
+            <div className="mb-6">
+              <img src="/SLRPLogo.png" alt="Silver Lining RP Logo" className="h-32 mx-auto" />
+            </div>
             <h1 className="text-5xl font-bold text-yellow-400 mb-2">Silver Lining Roleplay</h1>
             <p className="text-3xl text-white">Los Santos Sheriff Office</p>
             {loggedInOfficer && (
@@ -1059,7 +1062,7 @@ const CADSystem = () => {
                 }`}
               >
                 <Shield size={48} className={`mx-auto mb-3 ${permissions.canAccessPolice && loggedInOfficer?.role === 'police' ? 'text-yellow-500' : 'text-gray-500'}`} />
-                <h3 className="text-xl font-bold text-white mb-2">Police</h3>
+                <h3 className="text-xl font-bold text-white mb-2">Sheriff</h3>
                 <p className="text-gray-400 text-sm mb-3">Access MDT</p>
                 {(!permissions.canAccessPolice || loggedInOfficer?.role !== 'police') && (
                   <div className="flex items-center justify-center gap-1 text-yellow-500">
