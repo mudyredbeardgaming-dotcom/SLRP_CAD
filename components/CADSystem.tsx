@@ -6749,25 +6749,21 @@ const CADSystem = () => {
                       </div>
                     </div>
 
-                    {/* Location Section */}
+                    {/* Reference Information Section */}
                     <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Location</h4>
+                      <h4 className="text-md font-semibold text-yellow-400 mb-3 border-b border-gray-600 pb-2">Reference Information</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Tow/Release Location</label>
-                          <input type="text" value={currentReportData.location || ''} onChange={(e) => setCurrentReportData({...currentReportData, location: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="block text-xs text-gray-400 mb-1">Dispatch Call ID#</label>
+                          <input type="text" value={currentReportData.dispatchCallId || ''} onChange={(e) => setCurrentReportData({...currentReportData, dispatchCallId: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
                         </div>
-                        <div>
+                        <div className="col-span-2">
+                          <label className="block text-xs text-gray-400 mb-1">Street Towed From</label>
+                          <input type="text" value={currentReportData.streetTowedFrom || ''} onChange={(e) => setCurrentReportData({...currentReportData, streetTowedFrom: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                        </div>
+                        <div className="col-span-2">
                           <label className="block text-xs text-gray-400 mb-1">Postal</label>
                           <input type="text" value={currentReportData.postal || ''} onChange={(e) => setCurrentReportData({...currentReportData, postal: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
-                        </div>
-                        <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date</label>
-                          <input type="date" value={currentReportData.incidentDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, incidentDate: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
-                        </div>
-                        <div>
-                          <label className="block text-xs text-gray-400 mb-1">Time</label>
-                          <input type="time" value={currentReportData.incidentTime || ''} onChange={(e) => setCurrentReportData({...currentReportData, incidentTime: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
                         </div>
                       </div>
                     </div>
@@ -6812,35 +6808,42 @@ const CADSystem = () => {
                           <label className="block text-xs text-gray-400 mb-1">Color</label>
                           <input type="text" value={currentReportData.vehicle1?.color || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, color: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
                         </div>
-                        <div>
-                          <label className="block text-xs text-gray-400 mb-1">VIN</label>
-                          <input type="text" value={currentReportData.vehicle1?.vin || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, vin: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
-                        </div>
-                        <div>
-                          <label className="block text-xs text-gray-400 mb-1">Vehicle Condition</label>
-                          <select value={currentReportData.vehicle1?.condition || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, condition: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                        <div className="col-span-2">
+                          <label className="block text-xs text-gray-400 mb-1">Work Vehicle?</label>
+                          <select value={currentReportData.isWorkVehicle || ''} onChange={(e) => setCurrentReportData({...currentReportData, isWorkVehicle: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
                             <option value="">Select...</option>
-                            <option value="GOOD">Good</option>
-                            <option value="MINOR_DAMAGE">Minor Damage</option>
-                            <option value="MAJOR_DAMAGE">Major Damage</option>
-                            <option value="INOPERABLE">Inoperable</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-xs text-gray-400 mb-1">Keys</label>
-                          <select value={currentReportData.keysPresent || ''} onChange={(e) => setCurrentReportData({...currentReportData, keysPresent: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
-                            <option value="">Select...</option>
-                            <option value="YES">Yes - With Vehicle</option>
+                            <option value="YES">Yes</option>
                             <option value="NO">No</option>
-                            <option value="OWNER">With Owner</option>
                           </select>
+                        </div>
+                        {currentReportData.isWorkVehicle === 'YES' && (
+                          <div className="col-span-2">
+                            <label className="block text-xs text-gray-400 mb-1">Company/Job Info</label>
+                            <input type="text" value={currentReportData.companyJobInfo || ''} onChange={(e) => setCurrentReportData({...currentReportData, companyJobInfo: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Company name or job details..." />
+                          </div>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
+                        <div className="flex items-center gap-2">
+                          <input type="checkbox" checked={currentReportData.vehicleStored || false} onChange={(e) => setCurrentReportData({...currentReportData, vehicleStored: e.target.checked})} className="w-4 h-4" />
+                          <label className="text-sm text-gray-300">Stored</label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input type="checkbox" checked={currentReportData.vehicleImpoundedRetrievable || false} onChange={(e) => setCurrentReportData({...currentReportData, vehicleImpoundedRetrievable: e.target.checked})} className="w-4 h-4" />
+                          <label className="text-sm text-gray-300">Impounded (Retrievable by Owner)</label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input type="checkbox" checked={currentReportData.vehicleImpoundedLawHold || false} onChange={(e) => setCurrentReportData({...currentReportData, vehicleImpoundedLawHold: e.target.checked})} className="w-4 h-4" />
+                          <label className="text-sm text-gray-300">Impounded (Law Agency Hold)</label>
                         </div>
                       </div>
                     </div>
 
-                    {/* Owner Information */}
+                    {/* Registered Owner Information */}
                     <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-purple-400 mb-3 border-b border-gray-600 pb-2">Owner Information</h4>
+                      <h4 className="text-md font-semibold text-purple-400 mb-3 border-b border-gray-600 pb-2">Registered Owner Information</h4>
                       <div className="mb-3">
                         <label className="block text-xs text-gray-400 mb-1">Search by Name</label>
                         <div className="flex gap-2">
@@ -6859,7 +6862,7 @@ const CADSystem = () => {
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Owner Name</label>
+                          <label className="block text-xs text-gray-400 mb-1">Registered Owner Name</label>
                           <input type="text" value={currentReportData.party1?.name || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, name: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
                         </div>
                         <div>
@@ -6874,141 +6877,145 @@ const CADSystem = () => {
                           <label className="block text-xs text-gray-400 mb-1">Address</label>
                           <input type="text" value={currentReportData.party1?.address || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, address: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
                         </div>
-                        <div className="flex items-center gap-2 pt-4">
-                          <input type="checkbox" checked={currentReportData.ownerNotified || false} onChange={(e) => setCurrentReportData({...currentReportData, ownerNotified: e.target.checked})} className="w-4 h-4" />
-                          <label className="text-sm text-gray-300">Owner Notified</label>
-                        </div>
                       </div>
                     </div>
 
-                    {/* Tow Information */}
+                    {/* Towing Information */}
                     <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-orange-400 mb-3 border-b border-gray-600 pb-2">Tow Information</h4>
+                      <h4 className="text-md font-semibold text-orange-400 mb-3 border-b border-gray-600 pb-2">Towing Information</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Reason for Tow</label>
-                          <select value={currentReportData.towReason || ''} onChange={(e) => setCurrentReportData({...currentReportData, towReason: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="block text-xs text-gray-400 mb-1">Towing Company</label>
+                          <select value={currentReportData.towingCompany || ''} onChange={(e) => setCurrentReportData({...currentReportData, towingCompany: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
                             <option value="">Select...</option>
-                            <option value="ABANDONED">Abandoned Vehicle</option>
-                            <option value="ILLEGAL_PARKING">Illegal Parking</option>
-                            <option value="ACCIDENT">Traffic Accident</option>
-                            <option value="EVIDENCE">Evidence Hold</option>
-                            <option value="ARREST">Driver Arrest</option>
-                            <option value="EXPIRED_REG">Expired Registration</option>
-                            <option value="NO_LICENSE">Unlicensed Driver</option>
-                            <option value="OWNER_REQUEST">Owner Request</option>
-                            <option value="OBSTRUCTION">Obstruction</option>
+                            <option value="ACTION_TOWING">Action Towing Inc</option>
+                            <option value="COUNTY_TOW">County Tow</option>
+                            <option value="LSSO_TOW">LSSO Tow Service</option>
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Tow Company</label>
-                          <input type="text" value={currentReportData.towCompany || ''} onChange={(e) => setCurrentReportData({...currentReportData, towCompany: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="block text-xs text-gray-400 mb-1">Driver Name</label>
+                          <input type="text" value={currentReportData.driverName || ''} onChange={(e) => setCurrentReportData({...currentReportData, driverName: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Tow driver name..." />
                         </div>
-                        <div>
-                          <label className="block text-xs text-gray-400 mb-1">Tow Driver</label>
-                          <input type="text" value={currentReportData.towDriver || ''} onChange={(e) => setCurrentReportData({...currentReportData, towDriver: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
-                        </div>
-                        <div>
-                          <label className="block text-xs text-gray-400 mb-1">Tow Destination</label>
-                          <input type="text" value={currentReportData.towDestination || ''} onChange={(e) => setCurrentReportData({...currentReportData, towDestination: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
-                        </div>
-                        <div>
-                          <label className="block text-xs text-gray-400 mb-1">Hold Type</label>
-                          <select value={currentReportData.holdType || ''} onChange={(e) => setCurrentReportData({...currentReportData, holdType: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                        <div className="col-span-2">
+                          <label className="block text-xs text-gray-400 mb-1">Towing Authority/Reason</label>
+                          <select value={currentReportData.towingAuthority || ''} onChange={(e) => setCurrentReportData({...currentReportData, towingAuthority: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
                             <option value="">Select...</option>
-                            <option value="NONE">No Hold</option>
-                            <option value="EVIDENCE">Evidence Hold</option>
-                            <option value="STORAGE">Storage Hold</option>
-                            <option value="COURT">Court Hold</option>
+                            <option value="BLOCKING_ROADWAY">Vehicle Blocking Roadway</option>
+                            <option value="ILLEGAL_PARKING">Vehicle Illegally Parked</option>
+                            <option value="INCAPACITATED_DRIVER">Driver Incapacitated/Unable to Drive</option>
+                            <option value="DRIVER_ARRESTED">Driver Arrested</option>
+                            <option value="OTHER_REMARKS">Other (In Remarks)</option>
+                            <option value="OWNER_REQUESTED">Registered Owner Requested</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                        <div className="col-span-2">
+                          <label className="block text-xs text-gray-400 mb-1">Release Vehicle To</label>
+                          <select value={currentReportData.releaseVehicleTo || ''} onChange={(e) => setCurrentReportData({...currentReportData, releaseVehicleTo: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                            <option value="">Select...</option>
+                            <option value="OWNER">Registered Owner</option>
+                            <option value="HOLD_DATE">Agency Hold Until Specified Date</option>
+                            <option value="HOLD_NOTICE">Agency Hold Until Further Notice</option>
+                          </select>
+                        </div>
+                        <div className="col-span-2">
+                          <label className="block text-xs text-gray-400 mb-1">Agency Hold Duration</label>
+                          <select value={currentReportData.agencyHoldDuration || ''} onChange={(e) => setCurrentReportData({...currentReportData, agencyHoldDuration: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                            <option value="">Select...</option>
+                            <option value="NO_HOLD">No Hold</option>
+                            <option value="1_HOUR">1 Hour</option>
+                            <option value="4_HOURS">4 Hours</option>
+                            <option value="12_HOURS">12 Hours</option>
+                            <option value="24_HOURS">24 Hours</option>
+                            <option value="3_DAYS">3 Days</option>
+                            <option value="7_DAYS">7 Days</option>
                           </select>
                         </div>
                       </div>
                     </div>
 
-                    {/* Property Inventory */}
+                    {/* Driver Information */}
                     <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Property Inventory</h4>
-                      <textarea value={currentReportData.propertyInventory || ''} onChange={(e) => setCurrentReportData({...currentReportData, propertyInventory: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 h-24 text-sm" placeholder="List items found in vehicle..." />
-                    </div>
-
-                    {/* Narrative Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Narrative</h4>
-                      <textarea value={currentReportData.narrative || ''} onChange={(e) => setCurrentReportData({...currentReportData, narrative: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 h-32 text-sm" placeholder="Enter details about tow/release..." />
-                    </div>
-
-                    {/* Scene Images Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Vehicle Photos</h4>
+                      <h4 className="text-md font-semibold text-indigo-400 mb-3 border-b border-gray-600 pb-2">Driver Information</h4>
                       <div className="mb-3">
-                        <input type="file" multiple accept="image/*" onChange={handleSceneImageUpload} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                        <div className="flex items-center gap-2">
+                          <input type="checkbox" checked={currentReportData.driverSameAsOwner || false} onChange={(e) => setCurrentReportData({...currentReportData, driverSameAsOwner: e.target.checked})} className="w-4 h-4" />
+                          <label className="text-sm text-gray-300">Same as Registered Owner</label>
+                        </div>
                       </div>
-                      {currentReportData.sceneImages?.length > 0 && (
+                      {!currentReportData.driverSameAsOwner && (
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                          {currentReportData.sceneImages.map((img: any) => (
-                            <div key={img.id} className="relative bg-gray-800 rounded p-2">
-                              <img src={img.data} alt={img.name} className="w-full h-24 object-cover rounded" />
-                              <button onClick={() => removeSceneImage(img.id)} className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 hover:bg-red-500"><X size={12} /></button>
-                              <input type="text" placeholder="Add note..." value={img.note || ''} onChange={(e) => updateImageNote(img.id, e.target.value)} className="w-full bg-gray-700 text-white rounded px-2 py-1 text-xs mt-1" />
-                            </div>
-                          ))}
+                          <div className="col-span-2">
+                            <label className="block text-xs text-gray-400 mb-1">Driver Name</label>
+                            <input type="text" value={currentReportData.driverInformationName || ''} onChange={(e) => setCurrentReportData({...currentReportData, driverInformationName: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Driver name..." />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-400 mb-1">Arrested / Section</label>
+                            <input type="text" value={currentReportData.arrestedSection || ''} onChange={(e) => setCurrentReportData({...currentReportData, arrestedSection: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="PC Section..." />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-400 mb-1">Arresting Agency</label>
+                            <select value={currentReportData.arrestingAgency || ''} onChange={(e) => setCurrentReportData({...currentReportData, arrestingAgency: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                              <option value="">Select...</option>
+                              <option value="LSSO">LSSO</option>
+                              <option value="LSSO_METRO">LSSO - Metro</option>
+                              <option value="LSSO_PALETO">LSSO - Paleto</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-400 mb-1">Officer Badge#</label>
+                            <input type="text" value={currentReportData.arrestingOfficerBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, arrestingOfficerBadge: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Badge number..." />
+                          </div>
                         </div>
                       )}
                     </div>
 
-                    {/* Completed By Section */}
+                    {/* Remarks Section */}
                     <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Completed By</h4>
+                      <h4 className="text-md font-semibold text-green-400 mb-3 border-b border-gray-600 pb-2">Remarks</h4>
+                      <textarea value={currentReportData.remarks || ''} onChange={(e) => setCurrentReportData({...currentReportData, remarks: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 h-24 text-sm" placeholder="LIST PROPERTY, TOOLS, VEHICLE DAMAGE, ARRESTS" />
+                    </div>
+
+                    {/* Authorizing Signature Section */}
+                    <div className="bg-gray-700 rounded-lg p-4">
+                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Authorizing Signature</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Officer Name</label>
-                          <input type="text" value={currentReportData.completedByOfficerName || ''} onChange={(e) => setCurrentReportData({...currentReportData, completedByOfficerName: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="block text-xs text-gray-400 mb-1">Officer Signature</label>
+                          <input type="text" value={currentReportData.officerSignature || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerSignature: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Signature..." />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Badge#</label>
-                          <input type="text" value={currentReportData.completedByBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, completedByBadge: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="block text-xs text-gray-400 mb-1">Officer Badge#</label>
+                          <input type="text" value={currentReportData.officerBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerBadge: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Badge number..." />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Department</label>
-                          <select value={currentReportData.completedByDepartment || ''} onChange={(e) => setCurrentReportData({...currentReportData, completedByDepartment: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="block text-xs text-gray-400 mb-1">Officer Agency</label>
+                          <select value={currentReportData.officerAgency || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerAgency: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
                             <option value="">Select...</option>
                             <option value="LSSO">LSSO</option>
-                            <option value="LSSO_CONTRACT">LSSO Contract Agency</option>
                             <option value="LSSO_COMMUNITY">LSSO Community Service</option>
-                            <option value="LSSO_CORRECTIONS">LSSO Corrections Department</option>
                           </select>
-                        </div>
-                        <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date</label>
-                          <input type="date" value={currentReportData.completedByDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, completedByDate: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
                         </div>
                       </div>
                     </div>
 
-                    {/* Supervisor Signature Section */}
+                    {/* Administrative Section */}
                     <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Supervisor Signature</h4>
+                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Administrative</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div>
-                          <label className="block text-xs text-gray-400 mb-1">Supervisor Name</label>
-                          <input type="text" value={currentReportData.supervisorName || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorName: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                        <div className="col-span-2">
+                          <label className="block text-xs text-gray-400 mb-1">Supervisor Signature</label>
+                          <input type="text" value={currentReportData.supervisorSignature || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorSignature: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Signature..." />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Supervisor Badge #</label>
-                          <input type="text" value={currentReportData.supervisorBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorBadge: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="block text-xs text-gray-400 mb-1">Supervisor Badge#</label>
+                          <input type="text" value={currentReportData.supervisorBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorBadge: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Badge number..." />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date Signed</label>
-                          <input type="date" value={currentReportData.supervisorSignDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorSignDate: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
-                        </div>
-                        <div>
-                          <label className="block text-xs text-gray-400 mb-1">Report Status</label>
-                          <select value={currentReportData.reportStatus || ''} onChange={(e) => setCurrentReportData({...currentReportData, reportStatus: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
-                            <option value="">Select...</option>
-                            <option value="APPROVED">Approved</option>
-                            <option value="PENDING">Pending</option>
-                            <option value="DENIED">Denied/Needs Edits</option>
-                          </select>
+                          <label className="block text-xs text-gray-400 mb-1">Date</label>
+                          <input type="date" value={currentReportData.administrativeDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, administrativeDate: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
                         </div>
                       </div>
                     </div>
