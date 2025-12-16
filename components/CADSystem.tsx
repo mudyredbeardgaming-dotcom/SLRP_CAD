@@ -1146,6 +1146,7 @@ const CADSystem = () => {
               onClick={() => {
                 setLoggedInOfficer(null);
                 setSelectedRole(null);
+                setShowLogin(true);
                 localStorage.removeItem('cadSession');
               }}
               className="px-6 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition"
