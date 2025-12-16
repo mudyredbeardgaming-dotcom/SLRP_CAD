@@ -84,6 +84,8 @@ const CADSystem = () => {
   const [callIdCounter, setCallIdCounter] = useState(1);
   const [selectedUnit, setSelectedUnit] = useState<string | null>(null);
   const [showUnitInfo, setShowUnitInfo] = useState(false);
+  const [showComModal, setShowComModal] = useState(false);
+  const [comNumber, setComNumber] = useState('');
   const [showRoleMenu, setShowRoleMenu] = useState(false);
   const [showExportImport, setShowExportImport] = useState(false);
   const [loggedInOfficer, setLoggedInOfficer] = useState<any>(null);
@@ -3995,17 +3997,6 @@ const CADSystem = () => {
               </button>
             </>
           )}
-          
-          <button
-            onClick={() => setShowExportImport(true)}
-            className="w-full px-4 py-2 rounded text-left transition bg-blue-700 text-white hover:bg-blue-600"
-          >
-            <div className="font-semibold flex items-center gap-2">
-              <Download size={16} />
-              Export/Import Data
-            </div>
-            <div className="text-xs text-gray-300">Save or load your session</div>
-          </button>
 
           <button
             onClick={() => {
@@ -8424,6 +8415,44 @@ const CADSystem = () => {
     );
   };
 
+  const ComModal = () => {
+    const [tempComNumber, setTempComNumber] = useState(comNumber);
+
+    const handleSave = () => {
+      setComNumber(tempComNumber);
+      setShowComModal(false);
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold text-white">Dispatcher COM #</h2>
+            <button onClick={() => setShowComModal(false)} className="text-gray-400"><X size={24} /></button>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm text-gray-300 mb-2">Enter COM Number</label>
+              <input
+                type="text"
+                value={tempComNumber}
+                onChange={(e) => setTempComNumber(e.target.value)}
+                className="w-full bg-gray-700 text-white rounded px-3 py-2 border border-gray-600"
+                placeholder="e.g., COM-1, 911, etc."
+              />
+            </div>
+
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setShowComModal(false)} className="px-4 py-2 bg-gray-600 text-white rounded">Cancel</button>
+              <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white rounded">Save</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const UnitInfoModal = ({ unit }) => {
     const [info, setInfo] = useState({
       callsign: unit.callsign || '',
@@ -8467,9 +8496,9 @@ const CADSystem = () => {
 
             <div>
               <label className="block text-sm text-gray-300 mb-1">Department</label>
-              <select 
-                value={info.department} 
-                onChange={(e) => setInfo({...info, department: e.target.value})} 
+              <select
+                value={info.department}
+                onChange={(e) => setInfo({...info, department: e.target.value})}
                 onMouseDown={(e) => e.stopPropagation()}
                 onClick={(e) => e.stopPropagation()}
                 className="w-full bg-gray-700 text-white rounded px-3 py-2 cursor-pointer"
@@ -8637,7 +8666,7 @@ const CADSystem = () => {
         <div className="flex justify-between items-center">
           <div className="flex gap-2">
             {selectedRole === 'dispatch' && selectedUnit && (
-              <button onClick={() => setShowUnitInfo(true)} className="px-4 py-2 bg-yellow-600 text-white rounded font-bold">
+              <button onClick={() => setShowComModal(true)} className="px-4 py-2 bg-yellow-600 text-white rounded font-bold">
                 {units.find(u => u.id === selectedUnit)?.callsign}
               </button>
             )}
@@ -8891,6 +8920,7 @@ const CADSystem = () => {
       {showNewCall && <NewCallForm />}
       {selectedCall && <CallDetail call={selectedCall} />}
       {showUnitInfo && selectedUnit && <UnitInfoModal unit={units.find(u => u.id === selectedUnit)} />}
+      {showComModal && <ComModal />}
     </div>
   );
 };
