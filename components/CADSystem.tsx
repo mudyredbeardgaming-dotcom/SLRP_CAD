@@ -1104,7 +1104,7 @@ const CADSystem = () => {
                     : 'border-gray-600 opacity-50 cursor-not-allowed'
                 }`}
               >
-                <Flame size={48} className={`mx-auto mb-3 ${(loggedInOfficer?.role === 'fire' || loggedInOfficer?.role === 'admin') ? 'text-red-500' : 'text-gray-500'}`} />
+                <img src="/LSFDLogo.png" alt="Fire/EMS" className={`h-12 w-12 mx-auto mb-3 ${(loggedInOfficer?.role !== 'fire' && loggedInOfficer?.role !== 'admin') ? 'opacity-50' : ''}`} />
                 <h3 className="text-xl font-bold text-white mb-2">Fire/EMS</h3>
                 {loggedInOfficer?.role !== 'fire' && loggedInOfficer?.role !== 'admin' && (
                   <div className="flex items-center justify-center gap-1 text-yellow-500">
