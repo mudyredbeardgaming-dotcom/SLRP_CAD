@@ -8454,6 +8454,8 @@ const CADSystem = () => {
   };
 
   const UnitInfoModal = ({ unit }) => {
+    if (!unit) return null;
+
     const [info, setInfo] = useState({
       callsign: unit.callsign || '',
       officer: unit.officer || '',
@@ -8667,7 +8669,7 @@ const CADSystem = () => {
           <div className="flex gap-2">
             {selectedRole === 'dispatch' && selectedUnit && (
               <button onClick={() => setShowComModal(true)} className="px-4 py-2 bg-yellow-600 text-white rounded font-bold">
-                {units.find(u => u.id === selectedUnit)?.callsign}
+                {units.find(u => u.id === selectedUnit)?.callsign || 'Unit'}
               </button>
             )}
           </div>
@@ -8919,7 +8921,7 @@ const CADSystem = () => {
       {showExportImport && <ExportImportModal />}
       {showNewCall && <NewCallForm />}
       {selectedCall && <CallDetail call={selectedCall} />}
-      {showUnitInfo && selectedUnit && <UnitInfoModal unit={units.find(u => u.id === selectedUnit)} />}
+      {showUnitInfo && selectedUnit && units.find(u => u.id === selectedUnit) && <UnitInfoModal unit={units.find(u => u.id === selectedUnit)} />}
       {showComModal && <ComModal />}
     </div>
   );
