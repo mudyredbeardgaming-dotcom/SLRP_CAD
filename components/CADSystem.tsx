@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, Radio, MapPin, Clock, User, Phone, FileText, Plus, X, Check, Shield, AlertTriangle, Lock, Download, Upload, LogOut, Search, Database, Pin, PinOff, Car, Flame, Truck } from 'lucide-react';
+import { AlertCircle, Radio, MapPin, Clock, User, Phone, FileText, Plus, X, Check, Shield, AlertTriangle, Lock, LogOut, Search, Database, Pin, PinOff, Car, Flame, Truck } from 'lucide-react';
 
 // App version - increment this to force re-login after updates
 const APP_VERSION = '1.2.2';
@@ -87,7 +87,6 @@ const CADSystem = () => {
   const [showComModal, setShowComModal] = useState(false);
   const [comNumber, setComNumber] = useState('');
   const [showRoleMenu, setShowRoleMenu] = useState(false);
-  const [showExportImport, setShowExportImport] = useState(false);
   const [loggedInOfficer, setLoggedInOfficer] = useState<any>(null);
   const [showLogin, setShowLogin] = useState(true);
 
@@ -951,44 +950,6 @@ const CADSystem = () => {
 
   const setPrimary = (callId, unitId) => {
     setCalls(calls.map(c => c.id === callId ? { ...c, primaryUnit: unitId } : c));
-  };
-
-  const exportData = () => {
-    const data = {
-      calls,
-      units,
-      callIdCounter,
-      officerCredentials,
-      exportDate: new Date().toISOString()
-    };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `cad-backup-${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const importData = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const data = JSON.parse(e.target?.result as string);
-          if (data.calls) setCalls(data.calls);
-          if (data.units) setUnits(data.units);
-          if (data.callIdCounter) setCallIdCounter(data.callIdCounter);
-          if (data.officerCredentials) setOfficerCredentials(data.officerCredentials);
-          setShowExportImport(false);
-          alert('Data imported successfully!');
-        } catch (error) {
-          alert('Error importing data. Please check the file format.');
-        }
-      };
-      reader.readAsText(file);
-    }
   };
 
   const getStatusColor = (status) => {
@@ -4027,58 +3988,6 @@ const CADSystem = () => {
               <div className="text-xs text-gray-300">Log out and return to login</div>
             </button>
           )}
-        </div>
-      </div>
-    );
-  };
-
-  const ExportImportModal = () => {
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold text-white">Export/Import Data</h2>
-            <button onClick={() => setShowExportImport(false)} className="text-gray-400 hover:text-white">
-              <X size={24} />
-            </button>
-          </div>
-          
-          <div className="space-y-4">
-            <div className="bg-gray-700 rounded p-4">
-              <h3 className="text-white font-semibold mb-2 flex items-center gap-2">
-                <Download size={18} />
-                Export Data
-              </h3>
-              <p className="text-gray-400 text-sm mb-3">
-                Download all calls, units, officer credentials, and settings as a JSON file
-              </p>
-              <div className="bg-blue-900 border border-blue-500 rounded p-2 mb-3 text-xs text-blue-200">
-                <strong>Note:</strong> Officer login credentials are included in the backup for admin purposes.
-              </div>
-              <button
-                onClick={exportData}
-                className="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500"
-              >
-                Download Backup
-              </button>
-            </div>
-            
-            <div className="bg-gray-700 rounded p-4">
-              <h3 className="text-white font-semibold mb-2 flex items-center gap-2">
-                <Upload size={18} />
-                Import Data
-              </h3>
-              <p className="text-gray-400 text-sm mb-3">
-                Load a previously exported backup file
-              </p>
-              <input
-                type="file"
-                accept=".json"
-                onChange={importData}
-                className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500"
-              />
-            </div>
-          </div>
         </div>
       </div>
     );
@@ -8918,7 +8827,6 @@ const CADSystem = () => {
       {showRecordsMenu && <RecordsManagementMenu />}
       {activeRecordsPanel === 'records' && recordsPanelJSX}
       {activeRecordsPanel === 'lookup' && lookupPanelJSX}
-      {showExportImport && <ExportImportModal />}
       {showNewCall && <NewCallForm />}
       {selectedCall && <CallDetail call={selectedCall} />}
       {showUnitInfo && selectedUnit && units.find(u => u.id === selectedUnit) && <UnitInfoModal unit={units.find(u => u.id === selectedUnit)} />}
