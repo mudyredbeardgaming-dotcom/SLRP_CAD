@@ -134,16 +134,47 @@ Standard dispatch call types
 
 ## Styling Conventions
 
-- Dark theme with gray-800/900 backgrounds
-- Color coding:
-  - Blue: Primary actions, Lookup
-  - Green: Success, Reports, Available status
-  - Orange: Warnings, Records
-  - Red: Danger, BOLO, Close actions
-  - Purple: Records Management
-  - Yellow: Draft status, Warnings
+### Overall Theme
+- Dark theme with gray-800/900 backgrounds (dark gray, clean appearance)
+- SLRP branding with official logos for all roles
+- Vivid azure/cyan accent color for interactive elements
+
+### Color Coding by Role
+- **Dispatch**: Green (border-green-500)
+- **Civilian**: Purple (border-purple-500)
+- **Sheriff (Police)**: Blue (border-blue-500)
+- **Fire/EMS**: Red (border-red-500)
+- **Tow**: Orange (border-orange-500)
+- **Admin**: Full access to all colors
+
+### Other Color Usage
+- Blue: Primary actions, Lookup
+- Green: Success, Reports, Available status
+- Orange: Warnings, Records
+- Red: Danger, BOLO, Close actions
+- Purple: Records Management
+- Yellow: Draft status, Warnings
+- Cyan: Login screen border and button, focus rings
 - Rounded corners (`rounded`, `rounded-lg`)
 - Consistent padding (`p-4`, `px-4 py-2`)
+
+### Branding Elements
+- SLRP Logo (h-40) on main role selection page
+- Role buttons display official logos:
+  - COMLogo: Dispatch
+  - CIVLogo: Civilian
+  - LSSOLogo: Sheriff
+  - LSFDLogo: Fire/EMS
+  - TOWLogo: Tow
+- Logo image height: h-12 for role buttons, h-24 for login screen
+
+### Login Screen
+- SLRP Logo (h-24) displayed prominently
+- Title: "Silver Lining Role-Play"
+- Vivid azure border (border-cyan-500)
+- Cyan sign-in button (bg-cyan-600)
+- Cyan input focus rings (focus:ring-cyan-500)
+- Hidden demo credentials section
 
 ## Common Issues & Solutions
 
@@ -161,10 +192,60 @@ Standard dispatch call types
 
 ## Testing Credentials (Development)
 
-Default officer logins are defined in `officerCredentials` state:
-- Username: `johnson`, Password: `badge101`
-- Username: `smith`, Password: `badge102`
-- Username: `davis`, Password: `badge103`
+All test credentials are stored in `/data/cad-data.json` under `officerCredentials`. See `TESTING_LOGINS.md` for complete list and testing scenarios.
+
+### Quick Reference:
+- **Police**: johnson / deputy123, smith / deputy123, davis / deputy123
+- **Fire**: firefighter1 / fire123, medic1 / medic123
+- **Tow**: tow1 / tow123, tow2 / tow123
+- **Dispatch**: dispatcher1 / dispatch123
+- **Civilian**: civilian1 / civilian123
+- **Admin**: admin1 / admin123, admin2 / admin123
+
+## Recent UI/UX Improvements (December 2025)
+
+### Main Page (Role Selection)
+- Redesigned with clean dark gray background (`bg-gray-800`)
+- Larger SLRP logo (h-40) for better prominence
+- Logo-based role buttons instead of text-only
+- Role-specific color coding with vivid borders
+- Removed welcome text and permission status indicators
+- Added "Sign Out" button for testing account switching
+
+### Login Screen
+- Updated title from "CAD System Login" to "Silver Lining Role-Play"
+- Replaced shield icon with SLRP logo (h-24)
+- Changed border color to vivid azure (cyan-500)
+- Updated sign-in button to cyan theme
+- Updated input focus rings to cyan
+- Hidden demo credentials section for cleaner UI
+
+### Civilian Portal
+- Header changed to purple gradient
+- Removed "Civilian Portal" title
+- Removed "Los Santos Sheriff Office" subtitle
+- Cleaner header with just branding
+
+### Dispatch Interface
+- Header background changed to green gradient
+- Visual consistency with role color coding
+
+### Role Access Control
+- Role-based button graying for non-authorized users
+- Admin role grants access to all interfaces
+- Removed lock icon text labels from buttons
+- Button styling clearly indicates disabled state (gray border, reduced opacity)
+
+## Role Permissions Matrix
+
+| Role | Dispatch | Civilian | Sheriff | Fire/EMS | Tow |
+|------|----------|----------|---------|----------|-----|
+| Police | ❌ | ✅ | ✅ | ❌ | ❌ |
+| Fire | ❌ | ✅ | ❌ | ✅ | ❌ |
+| Tow | ❌ | ✅ | ❌ | ❌ | ✅ |
+| Dispatch | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Civilian | ❌ | ✅ | ❌ | ❌ | ❌ |
+| Admin | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 ## Deployment
 
@@ -174,7 +255,10 @@ The `railway.json` configuration handles the deployment settings.
 
 ## Future Considerations
 
-- Database integration (currently all data is in-memory/localStorage)
+- Database integration (currently using JSON file persistence)
 - Real-time sync between users (WebSocket/Server-Sent Events)
-- Role-based access control improvements
+- Multi-instance deployment support
 - Separate the monolithic component into smaller modules
+- Implement proper authentication with JWT tokens
+- Add password hashing for production
+- Implement audit logging for all operations
