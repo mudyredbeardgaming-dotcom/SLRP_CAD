@@ -1046,12 +1046,6 @@ const CADSystem = () => {
               >
                 <img src="/COMLogo.png" alt="Dispatch" className={`h-12 w-12 mx-auto mb-3 ${(!permissions.canAccessDispatch && loggedInOfficer?.role !== 'admin') ? 'opacity-50' : ''}`} />
                 <h3 className="text-xl font-bold text-white mb-2">Dispatch</h3>
-                {!permissions.canAccessDispatch && loggedInOfficer?.role !== 'admin' && (
-                  <div className="flex items-center justify-center gap-1 text-yellow-500">
-                    <Lock size={14} />
-                    <span className="text-xs">Admin Required</span>
-                  </div>
-                )}
               </button>
             </div>
 
@@ -1081,12 +1075,6 @@ const CADSystem = () => {
               >
                 <img src="/LSSOLogo.png" alt="Sheriff" className={`h-12 w-12 mx-auto mb-3 ${((!permissions.canAccessPolice && loggedInOfficer?.role !== 'admin') || (loggedInOfficer?.role !== 'police' && loggedInOfficer?.role !== 'admin')) ? 'opacity-50' : ''}`} />
                 <h3 className="text-xl font-bold text-white mb-2">Sheriff</h3>
-                {((!permissions.canAccessPolice && loggedInOfficer?.role !== 'admin') || (loggedInOfficer?.role !== 'police' && loggedInOfficer?.role !== 'admin')) && (
-                  <div className="flex items-center justify-center gap-1 text-yellow-500">
-                    <Lock size={14} />
-                    <span className="text-xs">{loggedInOfficer ? 'Police Login' : 'Login Required'}</span>
-                  </div>
-                )}
               </button>
             </div>
 
@@ -1106,12 +1094,6 @@ const CADSystem = () => {
               >
                 <img src="/LSFDLogo.png" alt="Fire/EMS" className={`h-12 w-12 mx-auto mb-3 ${(loggedInOfficer?.role !== 'fire' && loggedInOfficer?.role !== 'admin') ? 'opacity-50' : ''}`} />
                 <h3 className="text-xl font-bold text-white mb-2">Fire/EMS</h3>
-                {loggedInOfficer?.role !== 'fire' && loggedInOfficer?.role !== 'admin' && (
-                  <div className="flex items-center justify-center gap-1 text-yellow-500">
-                    <Lock size={14} />
-                    <span className="text-xs">Fire Login</span>
-                  </div>
-                )}
               </button>
             </div>
 
@@ -1131,12 +1113,6 @@ const CADSystem = () => {
               >
                 <img src="/TOWLogo.png" alt="Tow" className={`h-12 w-12 mx-auto mb-3 ${loggedInOfficer?.role !== 'tow' && loggedInOfficer?.role !== 'admin' ? 'opacity-50' : ''}`} />
                 <h3 className="text-xl font-bold text-white mb-2">Tow</h3>
-                {loggedInOfficer?.role !== 'tow' && loggedInOfficer?.role !== 'admin' && (
-                  <div className="flex items-center justify-center gap-1 text-yellow-500">
-                    <Lock size={14} />
-                    <span className="text-xs">Tow Login</span>
-                  </div>
-                )}
               </button>
             </div>
           </div>
