@@ -1031,10 +1031,6 @@ const CADSystem = () => {
               <img src="/SLRPLogo.png" alt="Silver Lining RP Logo" className="h-32 mx-auto" />
             </div>
             <h1 className="text-5xl font-bold text-yellow-400 mb-2">Silver Lining Roleplay</h1>
-            {loggedInOfficer && (
-              <p className="text-green-400 mt-4">Welcome, {loggedInOfficer.displayName}</p>
-            )}
-            <p className="text-gray-300 mt-2">Select Your Role</p>
           </div>
 
           <div className="grid md:grid-cols-5 gap-4">
