@@ -235,6 +235,14 @@
       "department": "Quick Tow"
     },
     {
+      "username": "dispatcher1",
+      "password": "dispatch123",
+      "unitId": "DISPATCH-1",
+      "displayName": "Dispatcher Davis",
+      "role": "dispatch",
+      "department": "Dispatch"
+    },
+    {
       "username": "admin1",
       "password": "admin123",
       "unitId": "ADMIN-1",
