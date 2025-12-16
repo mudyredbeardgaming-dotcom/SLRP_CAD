@@ -243,6 +243,14 @@
       "department": "Dispatch"
     },
     {
+      "username": "civilian1",
+      "password": "civilian123",
+      "unitId": "CIVILIAN-1",
+      "displayName": "Civilian User",
+      "role": "civilian",
+      "department": "Civilian"
+    },
+    {
       "username": "admin1",
       "password": "admin123",
       "unitId": "ADMIN-1",

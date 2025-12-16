@@ -1036,11 +1036,15 @@ const CADSystem = () => {
           <div className="grid md:grid-cols-5 gap-4">
             <div className="relative">
               <button
-                onClick={() => (loggedInOfficer?.role === 'dispatch' || loggedInOfficer?.role === 'admin') && setSelectedRole('dispatch')}
+                onClick={() => {
+                  if (loggedInOfficer?.role === 'dispatch' || loggedInOfficer?.role === 'admin') {
+                    setSelectedRole('dispatch');
+                  }
+                }}
                 disabled={loggedInOfficer?.role !== 'dispatch' && loggedInOfficer?.role !== 'admin'}
-                className={`w-full bg-gray-800 rounded-lg p-6 border-4 transition transform hover:scale-105 ${
+                className={`w-full bg-gray-800 rounded-lg p-6 border-4 transition ${
                   (loggedInOfficer?.role === 'dispatch' || loggedInOfficer?.role === 'admin')
-                    ? 'border-green-500 hover:border-green-400 cursor-pointer'
+                    ? 'border-green-500 hover:border-green-400 cursor-pointer transform hover:scale-105'
                     : 'border-gray-600 opacity-50 cursor-not-allowed'
                 }`}
               >
