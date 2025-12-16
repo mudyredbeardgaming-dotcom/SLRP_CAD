@@ -1036,15 +1036,15 @@ const CADSystem = () => {
           <div className="grid md:grid-cols-5 gap-4">
             <div className="relative">
               <button
-                onClick={() => (permissions.canAccessDispatch || loggedInOfficer?.role === 'admin') && setSelectedRole('dispatch')}
-                disabled={!permissions.canAccessDispatch && loggedInOfficer?.role !== 'admin'}
+                onClick={() => (loggedInOfficer?.role === 'dispatch' || loggedInOfficer?.role === 'admin') && setSelectedRole('dispatch')}
+                disabled={loggedInOfficer?.role !== 'dispatch' && loggedInOfficer?.role !== 'admin'}
                 className={`w-full bg-gray-800 rounded-lg p-6 border-4 transition transform hover:scale-105 ${
-                  (permissions.canAccessDispatch || loggedInOfficer?.role === 'admin')
+                  (loggedInOfficer?.role === 'dispatch' || loggedInOfficer?.role === 'admin')
                     ? 'border-green-500 hover:border-green-400 cursor-pointer'
                     : 'border-gray-600 opacity-50 cursor-not-allowed'
                 }`}
               >
-                <img src="/COMLogo.png" alt="Dispatch" className={`h-12 w-12 mx-auto mb-3 ${(!permissions.canAccessDispatch && loggedInOfficer?.role !== 'admin') ? 'opacity-50' : ''}`} />
+                <img src="/COMLogo.png" alt="Dispatch" className={`h-12 w-12 mx-auto mb-3 ${(loggedInOfficer?.role !== 'dispatch' && loggedInOfficer?.role !== 'admin') ? 'opacity-50' : ''}`} />
                 <h3 className="text-xl font-bold text-white mb-2">Dispatch</h3>
               </button>
             </div>
