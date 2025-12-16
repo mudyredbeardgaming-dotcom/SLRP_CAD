@@ -1024,11 +1024,11 @@ const CADSystem = () => {
 
   const RoleSelection = () => {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gray-800 flex items-center justify-center p-4">
         <div className="text-center max-w-6xl">
           <div className="mb-8">
             <div className="mb-6">
-              <img src="/SLRPLogo.png" alt="Silver Lining RP Logo" className="h-32 mx-auto" />
+              <img src="/SLRPLogo.png" alt="Silver Lining RP Logo" className="h-40 mx-auto" />
             </div>
             <h1 className="text-5xl font-bold text-yellow-400 mb-2">Silver Lining Roleplay</h1>
           </div>
