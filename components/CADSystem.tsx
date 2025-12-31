@@ -7271,6 +7271,297 @@ const CADSystem = () => {
                       </div>
                     </div>
                   </>
+                ) : activeReportForm === 'TRESPASS WARNING' ? (
+                  <>
+                    {/* Agency Information Section */}
+                    <div className="bg-gray-700 rounded-lg p-4">
+                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Agency Information</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Record ID#</label>
+                          <input type="text" value={currentReportData.recordId || ''} readOnly className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Date of Trespass Given</label>
+                          <input type="date" value={currentReportData.trespassDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, trespassDate: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Officer Name</label>
+                          <input type="text" value={currentReportData.officer || ''} readOnly className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Officer Badge#</label>
+                          <input type="text" value={currentReportData.badgeNumber || ''} onChange={(e) => setCurrentReportData({...currentReportData, badgeNumber: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Officer Agency</label>
+                          <select value={currentReportData.officerAgency || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerAgency: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                            <option value="">Select...</option>
+                            <option value="LSSO">LSSO</option>
+                            <option value="LSPD">LSPD</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Address Trespass Advisement Given Section */}
+                    <div className="bg-gray-700 rounded-lg p-4">
+                      <h4 className="text-md font-semibold text-purple-400 mb-3 border-b border-gray-600 pb-2">Address Trespass Advisement Given</h4>
+                      <div className="flex flex-wrap gap-6">
+                        <label className="flex items-center space-x-2 cursor-pointer">
+                          <input type="checkbox" checked={currentReportData.propertyTypeResidential || false} onChange={(e) => setCurrentReportData({...currentReportData, propertyTypeResidential: e.target.checked})} className="w-4 h-4" />
+                          <span className="text-sm text-gray-300">RESIDENTIAL</span>
+                        </label>
+                        <label className="flex items-center space-x-2 cursor-pointer">
+                          <input type="checkbox" checked={currentReportData.propertyTypeBusiness || false} onChange={(e) => setCurrentReportData({...currentReportData, propertyTypeBusiness: e.target.checked})} className="w-4 h-4" />
+                          <span className="text-sm text-gray-300">BUSINESS</span>
+                        </label>
+                        <label className="flex items-center space-x-2 cursor-pointer">
+                          <input type="checkbox" checked={currentReportData.propertyTypeGovernment || false} onChange={(e) => setCurrentReportData({...currentReportData, propertyTypeGovernment: e.target.checked})} className="w-4 h-4" />
+                          <span className="text-sm text-gray-300">GOVERNMENT</span>
+                        </label>
+                        <label className="flex items-center space-x-2 cursor-pointer">
+                          <input type="checkbox" checked={currentReportData.propertyTypePark || false} onChange={(e) => setCurrentReportData({...currentReportData, propertyTypePark: e.target.checked})} className="w-4 h-4" />
+                          <span className="text-sm text-gray-300">PARK</span>
+                        </label>
+                        <label className="flex items-center space-x-2 cursor-pointer">
+                          <input type="checkbox" checked={currentReportData.propertyTypePublic || false} onChange={(e) => setCurrentReportData({...currentReportData, propertyTypePublic: e.target.checked})} className="w-4 h-4" />
+                          <span className="text-sm text-gray-300">PUBLIC AREA</span>
+                        </label>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4 mt-4">
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Street Address</label>
+                          <input type="text" value={currentReportData.streetAddress || ''} onChange={(e) => setCurrentReportData({...currentReportData, streetAddress: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Postal</label>
+                          <input type="text" value={currentReportData.postal || ''} onChange={(e) => setCurrentReportData({...currentReportData, postal: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Business Name (If Applicable)</label>
+                          <input type="text" value={currentReportData.businessName || ''} onChange={(e) => setCurrentReportData({...currentReportData, businessName: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Property Description (General Building/Area Description)</label>
+                          <input type="text" value={currentReportData.propertyDescription || ''} onChange={(e) => setCurrentReportData({...currentReportData, propertyDescription: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Trespasser Information Section */}
+                    <div className="bg-gray-700 rounded-lg p-4">
+                      <h4 className="text-md font-semibold text-orange-400 mb-3 border-b border-gray-600 pb-2">Trespasser Information</h4>
+
+                      {/* Search Functionality */}
+                      <div className="mb-4">
+                        <label className="block text-xs text-gray-400 mb-2">Search for Person</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="Search by name..."
+                            value={currentReportData.trespasserSearchQuery || ''}
+                            onChange={(e) => {
+                              const query = e.target.value;
+                              setCurrentReportData({...currentReportData, trespasserSearchQuery: query});
+                              if (query.length >= 2) {
+                                const results = civilians.filter(c =>
+                                  c.name.toLowerCase().includes(query.toLowerCase())
+                                );
+                                setCurrentReportData({...currentReportData, trespasserSearchQuery: query, trespasserSearchResults: results});
+                              }
+                            }}
+                            className="flex-1 bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                          />
+                        </div>
+                        {currentReportData.trespasserSearchResults && currentReportData.trespasserSearchResults.length > 0 && (
+                          <div className="mt-2 bg-gray-800 rounded max-h-40 overflow-y-auto">
+                            {currentReportData.trespasserSearchResults.map((person, idx) => (
+                              <div
+                                key={idx}
+                                onClick={() => {
+                                  setCurrentReportData({
+                                    ...currentReportData,
+                                    trespasserName: person.name,
+                                    trespasserDOB: person.dob,
+                                    trespasserPhone: person.phone,
+                                    trespasserAddress: person.address,
+                                    trespasserSearchQuery: '',
+                                    trespasserSearchResults: []
+                                  });
+                                }}
+                                className="p-2 hover:bg-gray-700 cursor-pointer border-b border-gray-700 last:border-0"
+                              >
+                                <div className="text-sm text-white">{person.name}</div>
+                                <div className="text-xs text-gray-400">DOB: {person.dob}</div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Name</label>
+                          <input type="text" value={currentReportData.trespasserName || ''} onChange={(e) => setCurrentReportData({...currentReportData, trespasserName: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">DOB</label>
+                          <input type="date" value={currentReportData.trespasserDOB || ''} onChange={(e) => setCurrentReportData({...currentReportData, trespasserDOB: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Phone</label>
+                          <input type="text" value={currentReportData.trespasserPhone || ''} onChange={(e) => setCurrentReportData({...currentReportData, trespasserPhone: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Address</label>
+                          <input type="text" value={currentReportData.trespasserAddress || ''} onChange={(e) => setCurrentReportData({...currentReportData, trespasserAddress: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Acknowledgement Section */}
+                    <div className="bg-gray-700 rounded-lg p-4">
+                      <h4 className="text-md font-semibold text-red-400 mb-3 border-b border-gray-600 pb-2">Acknowledgement</h4>
+                      <div className="bg-gray-800 rounded p-4 mb-4 text-sm text-gray-200 leading-relaxed">
+                        <p className="mb-2">
+                          YOU ARE BEING OFFICIALLY WARNED TO STAY OFF THE PROPERTY AT <span className="font-bold text-yellow-400">{currentReportData.streetAddress || '[ADDRESS NOT PROVIDED]'}</span>. THIS WARNING IS BEING GIVEN TO YOU ON <span className="font-bold text-yellow-400">{currentReportData.trespassDate ? new Date(currentReportData.trespassDate).toLocaleDateString() : '[DATE NOT PROVIDED]'}</span> AT <span className="font-bold text-yellow-400">{new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>.
+                        </p>
+                        <p className="mb-2">
+                          YOU ARE ADVISED THAT IF YOU REMAIN ON OR RETURN TO THIS PROPERTY, YOU WILL BE IN VIOLATION OF SAN ANDREAS PENAL CODE PROHIBITING CRIMINAL TRESPASS AND YOU WILL BE SUBJECT TO ARREST.
+                        </p>
+                        <p className="mb-2">
+                          IF YOU RE-ENTER THIS PROPERTY FOR OFFICIAL BUSINESS AT A GOVERNMENT BUILDING, YOU MUST FIRST CONTACT THE LOS SANTOS COUNTY SHERIFF'S OFFICE IN ADVANCE TO PROVIDE NOTICE OF YOUR NEED TO ACCESS THE FACILITY. THE SHERIFF'S OFFICE MUST APPROVE SUCH BUSINESS AND WILL ACCOMPANY YOU WHILE YOU ARE ON THE PROPERTY.
+                        </p>
+                        <p className="mb-2">
+                          IF YOU WISH TO HAVE THIS TRESPASS WARNING REVIEWED OR RESCINDED, YOU MAY TAKE THIS MATTER TO A COURT OF LAW. ONLY A JUDGE HAS THE AUTHORITY TO CHANGE OR REMOVE THIS ORDER.
+                        </p>
+                        <p className="font-bold text-white">DO YOU UNDERSTAND THIS WARNING?</p>
+                      </div>
+
+                      <div className="space-y-3 mb-4">
+                        <label className="flex items-start space-x-3 cursor-pointer">
+                          <input type="checkbox" checked={currentReportData.acknowledgesAdvisement || false} onChange={(e) => setCurrentReportData({...currentReportData, acknowledgesAdvisement: e.target.checked})} className="w-4 h-4 mt-1" />
+                          <span className="text-sm text-gray-300">PARTY NAMED ABOVE ACKNOWLEDGES TRESPASS ADVISEMENT</span>
+                        </label>
+                        <label className="flex items-start space-x-3 cursor-pointer">
+                          <input type="checkbox" checked={currentReportData.refusedAcknowledgement || false} onChange={(e) => setCurrentReportData({...currentReportData, refusedAcknowledgement: e.target.checked})} className="w-4 h-4 mt-1" />
+                          <span className="text-sm text-gray-300">PARTY NAMED ABOVE WAS INFORMED ABOUT TRESPASS ADVISEMENT BUT REFUSED TO ACKNOWLEDGE (SUBJECT WAS MADE AWARE VERBALLY THIS ORDER IS EFFECTIVE)</span>
+                        </label>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Date</label>
+                          <input type="date" value={currentReportData.acknowledgementDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, acknowledgementDate: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Time</label>
+                          <input type="time" value={currentReportData.acknowledgementTime || ''} onChange={(e) => setCurrentReportData({...currentReportData, acknowledgementTime: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Reason for Trespass Section */}
+                    <div className="bg-gray-700 rounded-lg p-4">
+                      <h4 className="text-md font-semibold text-green-400 mb-3 border-b border-gray-600 pb-2">Reason for Trespass</h4>
+                      <textarea value={currentReportData.reasonForTrespass || ''} onChange={(e) => setCurrentReportData({...currentReportData, reasonForTrespass: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 h-32 text-sm" placeholder="Enter detailed narrative of reason for trespass warning..." />
+                    </div>
+
+                    {/* Trespasser Photo Section */}
+                    <div className="bg-gray-700 rounded-lg p-4">
+                      <h4 className="text-md font-semibold text-cyan-400 mb-3 border-b border-gray-600 pb-2">Trespasser Photo</h4>
+                      {currentReportData.trespasserPhoto && (
+                        <div className="mb-4 bg-gray-800 rounded p-3">
+                          <div className="flex justify-between items-start mb-2">
+                            <span className="text-xs text-gray-400">Photo Attached</span>
+                            <button onClick={() => setCurrentReportData({...currentReportData, trespasserPhoto: null})} className="text-xs px-2 py-1 bg-red-600 hover:bg-red-500 rounded">Remove</button>
+                          </div>
+                          <input type="text" value={currentReportData.trespasserPhoto?.description || ''} onChange={(e) => setCurrentReportData({...currentReportData, trespasserPhoto: {...currentReportData.trespasserPhoto, description: e.target.value}})} placeholder="Photo description..." className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                        </div>
+                      )}
+                      <input type="file" accept="image/*" onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setCurrentReportData({...currentReportData, trespasserPhoto: { name: file.name, description: '' }});
+                        }
+                      }} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                    </div>
+
+                    {/* Administrative Section */}
+                    <div className="bg-gray-700 rounded-lg p-4">
+                      <h4 className="text-md font-semibold text-pink-400 mb-3 border-b border-gray-600 pb-2">Administrative</h4>
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs text-gray-400 mb-1">Officer Signature</label>
+                            <input type="text" value={currentReportData.officerSignature || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerSignature: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-400 mb-1">Any Associated Case Numbers</label>
+                            <input type="text" value={currentReportData.associatedCaseNumbers || ''} onChange={(e) => setCurrentReportData({...currentReportData, associatedCaseNumbers: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Attached below as well" />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs text-gray-400 mb-1">Supervisor Signature</label>
+                            <input type="text" value={currentReportData.supervisorSignature || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorSignature: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-400 mb-1">Date</label>
+                            <input type="date" value={currentReportData.adminDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, adminDate: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs text-gray-400 mb-1">Status</label>
+                            <select value={currentReportData.trespassStatus || ''} onChange={(e) => setCurrentReportData({...currentReportData, trespassStatus: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                              <option value="">Select...</option>
+                              <option value="APPROVED">Approved</option>
+                              <option value="PENDING">Pending</option>
+                              <option value="DENIED">Denied</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-400 mb-1">Trespass Is</label>
+                            <select value={currentReportData.trespassValidity || ''} onChange={(e) => setCurrentReportData({...currentReportData, trespassValidity: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                              <option value="">Select...</option>
+                              <option value="VALID">VALID - IN USE</option>
+                              <option value="CANCELLED">CANCELLED - NO LONGER VALID - TERMINATED</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Linked Records */}
+                      <div className="mt-4 pt-4 border-t border-gray-600">
+                        <h5 className="text-sm font-semibold text-blue-400 mb-2">Linked Records</h5>
+                        <div className="bg-gray-800 rounded p-3 min-h-20">
+                          {currentReportData.linkedRecords && currentReportData.linkedRecords.length > 0 ? (
+                            <ul className="space-y-2">
+                              {currentReportData.linkedRecords.map((record, index) => (
+                                <li key={index} className="text-sm text-blue-300 hover:text-blue-200 cursor-pointer flex justify-between items-center">
+                                  <span>{record}</span>
+                                  <button onClick={() => setCurrentReportData({...currentReportData, linkedRecords: currentReportData.linkedRecords.filter((_, i) => i !== index)})} className="text-xs px-2 py-1 bg-red-600 hover:bg-red-500 rounded">Remove</button>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-xs text-gray-500">No linked records yet</p>
+                          )}
+                        </div>
+                        <input type="text" placeholder="Enter record number to link..." onKeyPress={(e) => {
+                          if (e.key === 'Enter' && e.currentTarget.value) {
+                            setCurrentReportData({...currentReportData, linkedRecords: [...(currentReportData.linkedRecords || []), e.currentTarget.value]});
+                            e.currentTarget.value = '';
+                          }
+                        }} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm mt-2" />
+                      </div>
+                    </div>
+                  </>
                 ) : (
                   /* Fallback Generic Report Form for remaining types */
                   <>
