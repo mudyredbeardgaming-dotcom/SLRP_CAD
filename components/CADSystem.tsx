@@ -3151,6 +3151,7 @@ const CADSystem = () => {
                                   );
                                   setDmvRecordData({...dmvRecordData, charges: updated});
                                 }}
+                                codes={californiaCodes}
                                 placeholder="Type to search charges..."
                               />
                             </div>
@@ -3403,6 +3404,7 @@ const CADSystem = () => {
                                   );
                                   setDmvRecordData({...dmvRecordData, probationCharges: updated});
                                 }}
+                                codes={californiaCodes}
                                 placeholder="Type to search charges..."
                               />
                             </div>
@@ -3655,6 +3657,7 @@ const CADSystem = () => {
                                   );
                                   setDmvRecordData({...dmvRecordData, paroleCharges: updated});
                                 }}
+                                codes={californiaCodes}
                                 placeholder="Type to search charges..."
                               />
                             </div>
@@ -7903,6 +7906,7 @@ const CADSystem = () => {
                                       );
                                       setCurrentReportData({...currentReportData, charges: updated});
                                     }}
+                                    codes={californiaCodes}
                                     placeholder="Type to search charges..."
                                   />
                                 </div>
@@ -9026,6 +9030,7 @@ const CADSystem = () => {
                                       );
                                       setCurrentRecordData({...currentRecordData, charges: updated});
                                     }}
+                                    codes={californiaCodes}
                                     placeholder="Type to search charges..."
                                   />
                                 </div>
@@ -10231,7 +10236,7 @@ const CADSystem = () => {
   };
 
   // Charge Autocomplete Input Component
-  const ChargeAutocompleteInput = ({ value, onChange, onSelect, placeholder = "Type to search charges..." }) => {
+  const ChargeAutocompleteInput = ({ value, onChange, onSelect, placeholder = "Type to search charges...", codes }) => {
     const [searchTerm, setSearchTerm] = useState(value || '');
     const [filteredCodes, setFilteredCodes] = useState<any[]>([]);
     const [showDropdown, setShowDropdown] = useState(false);
@@ -10246,9 +10251,9 @@ const CADSystem = () => {
       setSearchTerm(term);
       onChange(term);
 
-      if (term.length >= 2) {
+      if (term.length >= 2 && codes && codes.codes) {
         // Filter codes by matching against code number, title, or full text
-        const filtered = californiaCodes.codes
+        const filtered = codes.codes
           .filter((code: any) =>
             code.code.toLowerCase().includes(term.toLowerCase()) ||
             code.title.toLowerCase().includes(term.toLowerCase()) ||
