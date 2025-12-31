@@ -15,6 +15,98 @@ const DEPARTMENTS = [
   'CSO-TOW', 'SO-COMMS', 'SO-WC', 'SO-ROAM', 'SO-HEAT'
 ];
 
+// Charge Autocomplete Input Component (Standalone to avoid circular dependencies)
+const ChargeAutocompleteInput = ({ value, onChange, onSelect, placeholder = "Type to search charges...", codes }: any) => {
+  const [searchTerm, setSearchTerm] = useState(value || '');
+  const [filteredCodes, setFilteredCodes] = useState<any[]>([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+
+  // Update searchTerm when value prop changes
+  useEffect(() => {
+    setSearchTerm(value || '');
+  }, [value]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const term = e.target.value;
+    setSearchTerm(term);
+    onChange(term);
+
+    if (term.length >= 2 && codes && codes.codes) {
+      // Filter codes by matching against code number, title, or full text
+      const filtered = codes.codes
+        .filter((code: any) =>
+          code.code.toLowerCase().includes(term.toLowerCase()) ||
+          code.title.toLowerCase().includes(term.toLowerCase()) ||
+          code.fullText.toLowerCase().includes(term.toLowerCase())
+        )
+        .slice(0, 50); // Limit to 50 results for performance
+
+      setFilteredCodes(filtered);
+      setShowDropdown(true);
+    } else {
+      setShowDropdown(false);
+    }
+  };
+
+  const handleSelect = (code: any) => {
+    setSearchTerm(code.fullText);
+    onChange(code.fullText);
+    onSelect(code); // Pass full code object to parent
+    setShowDropdown(false);
+  };
+
+  const handleFocus = () => {
+    if (searchTerm.length >= 2 && filteredCodes.length > 0) {
+      setShowDropdown(true);
+    }
+  };
+
+  const handleBlur = () => {
+    // Delay to allow click on dropdown items
+    setTimeout(() => setShowDropdown(false), 200);
+  };
+
+  return (
+    <div className="relative">
+      <input
+        type="text"
+        value={searchTerm}
+        onChange={handleInputChange}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        placeholder={placeholder}
+        className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+      />
+      {showDropdown && filteredCodes.length > 0 && (
+        <div className="absolute z-50 w-full mt-1 bg-gray-800 border border-gray-600 rounded max-h-64 overflow-y-auto shadow-lg">
+          {filteredCodes.map((code: any, idx: number) => (
+            <div
+              key={idx}
+              onClick={() => handleSelect(code)}
+              className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm text-white border-b border-gray-700 last:border-b-0"
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <span className="font-semibold text-blue-400">{code.code}</span>
+                {code.type === 'PC' && <span className="bg-red-600 px-2 py-0.5 rounded text-xs">Penal</span>}
+                {code.type === 'VC' && <span className="bg-blue-600 px-2 py-0.5 rounded text-xs">Vehicle</span>}
+                {code.type === 'HSC' && <span className="bg-green-600 px-2 py-0.5 rounded text-xs">Health</span>}
+              </div>
+              <div className="text-gray-300 text-xs">{code.title}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      {searchTerm.length >= 2 && filteredCodes.length === 0 && showDropdown && (
+        <div className="absolute z-50 w-full mt-1 bg-gray-800 border border-gray-600 rounded shadow-lg">
+          <div className="px-3 py-2 text-gray-400 text-sm italic">
+            No matches found. Continue typing to use "{searchTerm}" as custom charge.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const CADSystem = () => {
   // Helper function to format time in PST
   const formatPSTTime = (isoString: string) => {
@@ -11049,98 +11141,6 @@ const CADSystem = () => {
                 <button onClick={() => setShowPasteModal(false)} className="px-4 py-2 bg-gray-600 text-white rounded">Cancel</button>
                 <button onClick={handlePaste} className="px-4 py-2 bg-green-600 text-white rounded">Save</button>
               </div>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  // Charge Autocomplete Input Component
-  const ChargeAutocompleteInput = ({ value, onChange, onSelect, placeholder = "Type to search charges...", codes }) => {
-    const [searchTerm, setSearchTerm] = useState(value || '');
-    const [filteredCodes, setFilteredCodes] = useState<any[]>([]);
-    const [showDropdown, setShowDropdown] = useState(false);
-
-    // Update searchTerm when value prop changes
-    useEffect(() => {
-      setSearchTerm(value || '');
-    }, [value]);
-
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const term = e.target.value;
-      setSearchTerm(term);
-      onChange(term);
-
-      if (term.length >= 2 && codes && codes.codes) {
-        // Filter codes by matching against code number, title, or full text
-        const filtered = codes.codes
-          .filter((code: any) =>
-            code.code.toLowerCase().includes(term.toLowerCase()) ||
-            code.title.toLowerCase().includes(term.toLowerCase()) ||
-            code.fullText.toLowerCase().includes(term.toLowerCase())
-          )
-          .slice(0, 50); // Limit to 50 results for performance
-
-        setFilteredCodes(filtered);
-        setShowDropdown(true);
-      } else {
-        setShowDropdown(false);
-      }
-    };
-
-    const handleSelect = (code: any) => {
-      setSearchTerm(code.fullText);
-      onChange(code.fullText);
-      onSelect(code); // Pass full code object to parent
-      setShowDropdown(false);
-    };
-
-    const handleFocus = () => {
-      if (searchTerm.length >= 2 && filteredCodes.length > 0) {
-        setShowDropdown(true);
-      }
-    };
-
-    const handleBlur = () => {
-      // Delay to allow click on dropdown items
-      setTimeout(() => setShowDropdown(false), 200);
-    };
-
-    return (
-      <div className="relative">
-        <input
-          type="text"
-          value={searchTerm}
-          onChange={handleInputChange}
-          onFocus={handleFocus}
-          onBlur={handleBlur}
-          placeholder={placeholder}
-          className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
-        />
-        {showDropdown && filteredCodes.length > 0 && (
-          <div className="absolute z-50 w-full mt-1 bg-gray-800 border border-gray-600 rounded max-h-64 overflow-y-auto shadow-lg">
-            {filteredCodes.map((code: any, idx: number) => (
-              <div
-                key={idx}
-                onClick={() => handleSelect(code)}
-                className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm text-white border-b border-gray-700 last:border-b-0"
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="font-semibold text-blue-400">{code.code}</span>
-                  {code.type === 'PC' && <span className="bg-red-600 px-2 py-0.5 rounded text-xs">Penal</span>}
-                  {code.type === 'VC' && <span className="bg-blue-600 px-2 py-0.5 rounded text-xs">Vehicle</span>}
-                  {code.type === 'HSC' && <span className="bg-green-600 px-2 py-0.5 rounded text-xs">Health</span>}
-                </div>
-                <div className="text-gray-300 text-xs">{code.title}</div>
-              </div>
-            ))}
-          </div>
-        )}
-        {searchTerm.length >= 2 && filteredCodes.length === 0 && showDropdown && (
-          <div className="absolute z-50 w-full mt-1 bg-gray-800 border border-gray-600 rounded shadow-lg">
-            <div className="px-3 py-2 text-gray-400 text-sm italic">
-              No matches found. Continue typing to use "{searchTerm}" as custom charge.
             </div>
           </div>
         )}
