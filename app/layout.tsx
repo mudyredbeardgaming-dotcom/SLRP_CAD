@@ -7,6 +7,9 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'Silver Lining CAD System',
   description: 'Computer-Aided Dispatch System for Silver Lining Roleplay',
+  icons: {
+    icon: '/SLRPLogo.png',
+  },
 }
 
 export default function RootLayout({
