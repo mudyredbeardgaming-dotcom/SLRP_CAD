@@ -142,6 +142,9 @@ const CADSystem = () => {
   const [lookupSearchResults, setLookupSearchResults] = useState<any[]>([]);
   const [selectedLookupPerson, setSelectedLookupPerson] = useState<any>(null);
   const [lookupVehicleQuery, setLookupVehicleQuery] = useState('');
+
+  // California Codes Database state
+  const [californiaCodes, setCaliforniaCodes] = useState<any>({ codes: [], metadata: {} });
   const [lookupVehicleResults, setLookupVehicleResults] = useState<any[]>([]);
 
   // Report and Record types
@@ -575,6 +578,12 @@ const CADSystem = () => {
           if (data.officerCredentials) setOfficerCredentials(data.officerCredentials);
         })
         .catch(e => console.error('Error loading data from server:', e));
+
+      // Load California codes database
+      fetch('/data/california-codes.json')
+        .then(res => res.json())
+        .then(data => setCaliforniaCodes(data))
+        .catch(err => console.error('Failed to load CA codes:', err));
     } catch (e) {
       console.error('Error loading saved data:', e);
     }
@@ -3124,17 +3133,25 @@ const CADSystem = () => {
                           <div className="grid grid-cols-4 gap-2">
                             <div className="col-span-2">
                               <label className="block text-xs text-gray-400 mb-1">Charge</label>
-                              <input
-                                type="text"
+                              <ChargeAutocompleteInput
                                 value={charge.charge}
-                                onChange={(e) => {
+                                onChange={(value) => {
                                   const updated = dmvRecordData.charges.map(c =>
-                                    c.id === charge.id ? {...c, charge: e.target.value} : c
+                                    c.id === charge.id ? {...c, charge: value} : c
                                   );
                                   setDmvRecordData({...dmvRecordData, charges: updated});
                                 }}
-                                className="w-full bg-gray-600 text-white rounded px-2 py-1 text-sm"
-                                placeholder="e.g., Assault"
+                                onSelect={(code) => {
+                                  const updated = dmvRecordData.charges.map(c =>
+                                    c.id === charge.id ? {
+                                      ...c,
+                                      charge: code.title,
+                                      titleCode: code.code
+                                    } : c
+                                  );
+                                  setDmvRecordData({...dmvRecordData, charges: updated});
+                                }}
+                                placeholder="Type to search charges..."
                               />
                             </div>
                             <div>
@@ -3368,17 +3385,25 @@ const CADSystem = () => {
                           <div className="grid grid-cols-4 gap-2">
                             <div className="col-span-2">
                               <label className="block text-xs text-gray-400 mb-1">Charge</label>
-                              <input
-                                type="text"
+                              <ChargeAutocompleteInput
                                 value={charge.charge}
-                                onChange={(e) => {
+                                onChange={(value) => {
                                   const updated = dmvRecordData.probationCharges.map(c =>
-                                    c.id === charge.id ? {...c, charge: e.target.value} : c
+                                    c.id === charge.id ? {...c, charge: value} : c
                                   );
                                   setDmvRecordData({...dmvRecordData, probationCharges: updated});
                                 }}
-                                className="w-full bg-gray-600 text-white rounded px-2 py-1 text-sm"
-                                placeholder="e.g., DUI"
+                                onSelect={(code) => {
+                                  const updated = dmvRecordData.probationCharges.map(c =>
+                                    c.id === charge.id ? {
+                                      ...c,
+                                      charge: code.title,
+                                      titleCode: code.code
+                                    } : c
+                                  );
+                                  setDmvRecordData({...dmvRecordData, probationCharges: updated});
+                                }}
+                                placeholder="Type to search charges..."
                               />
                             </div>
                             <div>
@@ -3612,17 +3637,25 @@ const CADSystem = () => {
                           <div className="grid grid-cols-4 gap-2">
                             <div className="col-span-2">
                               <label className="block text-xs text-gray-400 mb-1">Charge</label>
-                              <input
-                                type="text"
+                              <ChargeAutocompleteInput
                                 value={charge.charge}
-                                onChange={(e) => {
+                                onChange={(value) => {
                                   const updated = dmvRecordData.paroleCharges.map(c =>
-                                    c.id === charge.id ? {...c, charge: e.target.value} : c
+                                    c.id === charge.id ? {...c, charge: value} : c
                                   );
                                   setDmvRecordData({...dmvRecordData, paroleCharges: updated});
                                 }}
-                                className="w-full bg-gray-600 text-white rounded px-2 py-1 text-sm"
-                                placeholder="e.g., Armed Robbery"
+                                onSelect={(code) => {
+                                  const updated = dmvRecordData.paroleCharges.map(c =>
+                                    c.id === charge.id ? {
+                                      ...c,
+                                      charge: code.title,
+                                      titleCode: code.code
+                                    } : c
+                                  );
+                                  setDmvRecordData({...dmvRecordData, paroleCharges: updated});
+                                }}
+                                placeholder="Type to search charges..."
                               />
                             </div>
                             <div>
@@ -7852,17 +7885,25 @@ const CADSystem = () => {
                               <div className="grid grid-cols-4 gap-2">
                                 <div className="col-span-2">
                                   <label className="block text-xs text-gray-400 mb-1">Charge</label>
-                                  <input
-                                    type="text"
+                                  <ChargeAutocompleteInput
                                     value={charge.charge}
-                                    onChange={(e) => {
+                                    onChange={(value) => {
                                       const updated = currentReportData.charges.map(c =>
-                                        c.id === charge.id ? {...c, charge: e.target.value} : c
+                                        c.id === charge.id ? {...c, charge: value} : c
                                       );
                                       setCurrentReportData({...currentReportData, charges: updated});
                                     }}
-                                    className="w-full bg-gray-600 text-white rounded px-2 py-1 text-sm"
-                                    placeholder="e.g., Assault"
+                                    onSelect={(code) => {
+                                      const updated = currentReportData.charges.map(c =>
+                                        c.id === charge.id ? {
+                                          ...c,
+                                          charge: code.title,
+                                          titleCode: code.code
+                                        } : c
+                                      );
+                                      setCurrentReportData({...currentReportData, charges: updated});
+                                    }}
+                                    placeholder="Type to search charges..."
                                   />
                                 </div>
                                 <div>
@@ -9545,6 +9586,98 @@ const CADSystem = () => {
                 <button onClick={() => setShowPasteModal(false)} className="px-4 py-2 bg-gray-600 text-white rounded">Cancel</button>
                 <button onClick={handlePaste} className="px-4 py-2 bg-green-600 text-white rounded">Save</button>
               </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Charge Autocomplete Input Component
+  const ChargeAutocompleteInput = ({ value, onChange, onSelect, placeholder = "Type to search charges..." }) => {
+    const [searchTerm, setSearchTerm] = useState(value || '');
+    const [filteredCodes, setFilteredCodes] = useState<any[]>([]);
+    const [showDropdown, setShowDropdown] = useState(false);
+
+    // Update searchTerm when value prop changes
+    useEffect(() => {
+      setSearchTerm(value || '');
+    }, [value]);
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const term = e.target.value;
+      setSearchTerm(term);
+      onChange(term);
+
+      if (term.length >= 2) {
+        // Filter codes by matching against code number, title, or full text
+        const filtered = californiaCodes.codes
+          .filter((code: any) =>
+            code.code.toLowerCase().includes(term.toLowerCase()) ||
+            code.title.toLowerCase().includes(term.toLowerCase()) ||
+            code.fullText.toLowerCase().includes(term.toLowerCase())
+          )
+          .slice(0, 50); // Limit to 50 results for performance
+
+        setFilteredCodes(filtered);
+        setShowDropdown(true);
+      } else {
+        setShowDropdown(false);
+      }
+    };
+
+    const handleSelect = (code: any) => {
+      setSearchTerm(code.fullText);
+      onChange(code.fullText);
+      onSelect(code); // Pass full code object to parent
+      setShowDropdown(false);
+    };
+
+    const handleFocus = () => {
+      if (searchTerm.length >= 2 && filteredCodes.length > 0) {
+        setShowDropdown(true);
+      }
+    };
+
+    const handleBlur = () => {
+      // Delay to allow click on dropdown items
+      setTimeout(() => setShowDropdown(false), 200);
+    };
+
+    return (
+      <div className="relative">
+        <input
+          type="text"
+          value={searchTerm}
+          onChange={handleInputChange}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          placeholder={placeholder}
+          className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+        />
+        {showDropdown && filteredCodes.length > 0 && (
+          <div className="absolute z-50 w-full mt-1 bg-gray-800 border border-gray-600 rounded max-h-64 overflow-y-auto shadow-lg">
+            {filteredCodes.map((code: any, idx: number) => (
+              <div
+                key={idx}
+                onClick={() => handleSelect(code)}
+                className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm text-white border-b border-gray-700 last:border-b-0"
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-semibold text-blue-400">{code.code}</span>
+                  {code.type === 'PC' && <span className="bg-red-600 px-2 py-0.5 rounded text-xs">Penal</span>}
+                  {code.type === 'VC' && <span className="bg-blue-600 px-2 py-0.5 rounded text-xs">Vehicle</span>}
+                  {code.type === 'HSC' && <span className="bg-green-600 px-2 py-0.5 rounded text-xs">Health</span>}
+                </div>
+                <div className="text-gray-300 text-xs">{code.title}</div>
+              </div>
+            ))}
+          </div>
+        )}
+        {searchTerm.length >= 2 && filteredCodes.length === 0 && showDropdown && (
+          <div className="absolute z-50 w-full mt-1 bg-gray-800 border border-gray-600 rounded shadow-lg">
+            <div className="px-3 py-2 text-gray-400 text-sm italic">
+              No matches found. Continue typing to use "{searchTerm}" as custom charge.
             </div>
           </div>
         )}

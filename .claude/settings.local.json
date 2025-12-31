@@ -10,7 +10,8 @@
       "Bash(pkill:*)",
       "Bash(xargs:*)",
       "Bash(npm install:*)",
-      "Bash(npm audit:*)"
+      "Bash(npm audit:*)",
+      "Bash(node scripts/scrape-ca-codes.js:*)"
     ]
   }
 }
