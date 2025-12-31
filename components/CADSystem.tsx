@@ -8504,51 +8504,688 @@ const CADSystem = () => {
                 {/* BOLO specific fields */}
                 {activeRecordForm === 'BOLO' && (
                   <>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm text-gray-300 mb-1">BOLO Type</label>
-                        <select
-                          value={currentRecordData.boloType || ''}
-                          onChange={(e) => setCurrentRecordData({...currentRecordData, boloType: e.target.value})}
-                          className="w-full bg-gray-700 text-white rounded px-3 py-2"
-                        >
-                          <option value="">Select Type</option>
-                          <option value="PERSON">Person</option>
-                          <option value="VEHICLE">Vehicle</option>
-                          <option value="OTHER">Other</option>
-                        </select>
+                    {/* Vehicle Information Section */}
+                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
+                      <h4 className="text-md font-semibold text-yellow-400 mb-3 border-b border-gray-600 pb-2">VEHICLE INFORMATION</h4>
+                      <div className="mb-3">
+                        <label className="block text-xs text-gray-400 mb-1">Search by Plate</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={vehicleSearchPlate1}
+                            onChange={(e) => setVehicleSearchPlate1(e.target.value)}
+                            placeholder="Enter plate number..."
+                            className="flex-1 bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                          />
+                          <button
+                            onClick={() => searchVehicleByPlate(vehicleSearchPlate1, 1)}
+                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500 text-sm"
+                          >
+                            Search
+                          </button>
+                        </div>
+                        {vehicleSearchResults1.length > 0 && (
+                          <div className="mt-2 bg-gray-800 rounded p-2 max-h-32 overflow-y-auto">
+                            {vehicleSearchResults1.map((v, i) => (
+                              <div
+                                key={i}
+                                onClick={() => {
+                                  setCurrentRecordData({
+                                    ...currentRecordData,
+                                    vehiclePlate: v.plate,
+                                    vehicleMake: v.make,
+                                    vehicleModel: v.model,
+                                    vehicleColor: v.color
+                                  });
+                                  setVehicleSearchResults1([]);
+                                  setVehicleSearchPlate1('');
+                                }}
+                                className="p-2 hover:bg-gray-700 cursor-pointer rounded text-sm"
+                              >
+                                {v.plate} - {v.make} {v.model} ({v.color})
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      <div>
-                        <label className="block text-sm text-gray-300 mb-1">Priority</label>
-                        <select
-                          value={currentRecordData.priority || ''}
-                          onChange={(e) => setCurrentRecordData({...currentRecordData, priority: e.target.value})}
-                          className="w-full bg-gray-700 text-white rounded px-3 py-2"
-                        >
-                          <option value="">Select Priority</option>
-                          <option value="HIGH">High</option>
-                          <option value="MEDIUM">Medium</option>
-                          <option value="LOW">Low</option>
-                        </select>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Plate Number</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.vehiclePlate || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, vehiclePlate: e.target.value})}
+                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Make</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.vehicleMake || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, vehicleMake: e.target.value})}
+                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Model</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.vehicleModel || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, vehicleModel: e.target.value})}
+                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Color</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.vehicleColor || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, vehicleColor: e.target.value})}
+                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                          />
+                        </div>
                       </div>
                     </div>
-                    <div>
-                      <label className="block text-sm text-gray-300 mb-1">Description</label>
+
+                    {/* Subject Information Section */}
+                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
+                      <h4 className="text-md font-semibold text-yellow-400 mb-3 border-b border-gray-600 pb-2">SUBJECT INFORMATION</h4>
+                      <div className="mb-3">
+                        <label className="block text-xs text-gray-400 mb-1">Search by Name</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={partySearchName1}
+                            onChange={(e) => setPartySearchName1(e.target.value)}
+                            placeholder="Enter name..."
+                            className="flex-1 bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                          />
+                          <button
+                            onClick={() => searchPersonByName(partySearchName1, 1)}
+                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500 text-sm"
+                          >
+                            Search
+                          </button>
+                        </div>
+                        {partySearchResults1.length > 0 && (
+                          <div className="mt-2 bg-gray-800 rounded p-2 max-h-32 overflow-y-auto">
+                            {partySearchResults1.map((p, i) => (
+                              <div
+                                key={i}
+                                onClick={() => {
+                                  setCurrentRecordData({
+                                    ...currentRecordData,
+                                    subjectName: `${p.firstName} ${p.lastName}`,
+                                    subjectDOB: p.dob,
+                                    subjectAddress: p.address,
+                                    subjectPhone: p.phone
+                                  });
+                                  setPartySearchResults1([]);
+                                  setPartySearchName1('');
+                                }}
+                                className="p-2 hover:bg-gray-700 cursor-pointer rounded text-sm"
+                              >
+                                {p.firstName} {p.lastName} - DOB: {p.dob}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Name</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.subjectName || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, subjectName: e.target.value})}
+                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Date of Birth</label>
+                          <input
+                            type="date"
+                            value={currentRecordData.subjectDOB || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, subjectDOB: e.target.value})}
+                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Phone</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.subjectPhone || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, subjectPhone: e.target.value})}
+                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Address</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.subjectAddress || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, subjectAddress: e.target.value})}
+                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Reason Section */}
+                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
+                      <h4 className="text-md font-semibold text-orange-400 mb-3 border-b border-gray-600 pb-2">REASON</h4>
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="flex items-center gap-2 text-sm text-gray-300">
+                          <input
+                            type="checkbox"
+                            checked={currentRecordData.reasonStolenVehicle || false}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, reasonStolenVehicle: e.target.checked})}
+                            className="w-4 h-4"
+                          />
+                          STOLEN VEHICLE
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-gray-300">
+                          <input
+                            type="checkbox"
+                            checked={currentRecordData.reasonWarrantSubject || false}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, reasonWarrantSubject: e.target.checked})}
+                            className="w-4 h-4"
+                          />
+                          WARRANT SUBJECT
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-gray-300">
+                          <input
+                            type="checkbox"
+                            checked={currentRecordData.reasonEvaded || false}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, reasonEvaded: e.target.checked})}
+                            className="w-4 h-4"
+                          />
+                          EVADED LAW ENFORCEMENT
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-gray-300">
+                          <input
+                            type="checkbox"
+                            checked={currentRecordData.reasonViolentCrime || false}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, reasonViolentCrime: e.target.checked})}
+                            className="w-4 h-4"
+                          />
+                          VIOLENT CRIME SUSPECT
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-gray-300">
+                          <input
+                            type="checkbox"
+                            checked={currentRecordData.reasonQuestioning || false}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, reasonQuestioning: e.target.checked})}
+                            className="w-4 h-4"
+                          />
+                          WANTED FOR QUESTIONING
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-gray-300">
+                          <input
+                            type="checkbox"
+                            checked={currentRecordData.reasonWelfareCheck || false}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, reasonWelfareCheck: e.target.checked})}
+                            className="w-4 h-4"
+                          />
+                          WELFARE CHECK
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-gray-300">
+                          <input
+                            type="checkbox"
+                            checked={currentRecordData.reasonMissingPerson || false}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, reasonMissingPerson: e.target.checked})}
+                            className="w-4 h-4"
+                          />
+                          MISSING PERSON
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-gray-300">
+                          <input
+                            type="checkbox"
+                            checked={currentRecordData.reasonRecklessDriver || false}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, reasonRecklessDriver: e.target.checked})}
+                            className="w-4 h-4"
+                          />
+                          RECKLESS DRIVER
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Officer Safety Section */}
+                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
+                      <h4 className="text-md font-semibold text-red-400 mb-3 border-b border-gray-600 pb-2">OFFICER SAFETY</h4>
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="flex items-center gap-2 text-sm text-gray-300">
+                          <input
+                            type="checkbox"
+                            checked={currentRecordData.safetyArmed || false}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, safetyArmed: e.target.checked})}
+                            className="w-4 h-4"
+                          />
+                          KNOWN TO BE ARMED
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-gray-300">
+                          <input
+                            type="checkbox"
+                            checked={currentRecordData.safetyViolent || false}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, safetyViolent: e.target.checked})}
+                            className="w-4 h-4"
+                          />
+                          KNOWN TO BE VIOLENT
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-gray-300">
+                          <input
+                            type="checkbox"
+                            checked={currentRecordData.safetySuicidal || false}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, safetySuicidal: e.target.checked})}
+                            className="w-4 h-4"
+                          />
+                          SUICIDAL
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-gray-300">
+                          <input
+                            type="checkbox"
+                            checked={currentRecordData.safetyGang || false}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, safetyGang: e.target.checked})}
+                            className="w-4 h-4"
+                          />
+                          GANG INVOLVEMENT
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-gray-300">
+                          <input
+                            type="checkbox"
+                            checked={currentRecordData.safetyMental || false}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, safetyMental: e.target.checked})}
+                            className="w-4 h-4"
+                          />
+                          MENTAL ISSUES
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Last Known Location Section */}
+                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
+                      <h4 className="text-md font-semibold text-purple-400 mb-3 border-b border-gray-600 pb-2">LAST KNOWN LOCATION</h4>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Area Seen</label>
+                        <input
+                          type="text"
+                          value={currentRecordData.lastKnownLocation || ''}
+                          onChange={(e) => setCurrentRecordData({...currentRecordData, lastKnownLocation: e.target.value})}
+                          className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                          placeholder="Enter last known location or area seen..."
+                        />
+                      </div>
+                    </div>
+
+                    {/* Brief Information Section */}
+                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
+                      <h4 className="text-md font-semibold text-cyan-400 mb-3 border-b border-gray-600 pb-2">BRIEF INFORMATION</h4>
                       <textarea
-                        value={currentRecordData.description || ''}
-                        onChange={(e) => setCurrentRecordData({...currentRecordData, description: e.target.value})}
-                        className="w-full bg-gray-700 text-white rounded px-3 py-2 h-24"
-                        placeholder="Detailed description of BOLO subject..."
+                        value={currentRecordData.briefInformation || ''}
+                        onChange={(e) => setCurrentRecordData({...currentRecordData, briefInformation: e.target.value})}
+                        className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm h-32"
+                        placeholder="ADD DETAILS AS NEEDED"
                       />
                     </div>
-                    <div>
-                      <label className="block text-sm text-gray-300 mb-1">Last Known Location</label>
-                      <input
-                        type="text"
-                        value={currentRecordData.lastLocation || ''}
-                        onChange={(e) => setCurrentRecordData({...currentRecordData, lastLocation: e.target.value})}
-                        className="w-full bg-gray-700 text-white rounded px-3 py-2"
-                      />
+
+                    {/* Issuing Agency Information Section */}
+                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
+                      <h4 className="text-md font-semibold text-green-400 mb-3 border-b border-gray-600 pb-2">ISSUING AGENCY INFORMATION</h4>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Issuing Agency</label>
+                          <select
+                            value={currentRecordData.issuingAgency || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, issuingAgency: e.target.value})}
+                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                          >
+                            <option value="">Select Agency</option>
+                            <option value="LSSO PATROL">LSSO PATROL</option>
+                            <option value="LSSO INVESTIGATION SERVICES UNIT">LSSO INVESTIGATION SERVICES UNIT</option>
+                            <option value="LSSO TRAFFIC ENFORCEMENT">LSSO TRAFFIC ENFORCEMENT</option>
+                            <option value="LSSO MARINE">LSSO MARINE</option>
+                            <option value="LSSO CONTRACT AGENCY">LSSO CONTRACT AGENCY</option>
+                            <option value="LSSO CORRECTIONS DEPARTMENT">LSSO CORRECTIONS DEPARTMENT</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Date Issued</label>
+                          <input
+                            type="date"
+                            value={currentRecordData.dateIssued || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, dateIssued: e.target.value})}
+                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Time Issued</label>
+                          <input
+                            type="time"
+                            value={currentRecordData.timeIssued || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, timeIssued: e.target.value})}
+                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Report Filed Information Section */}
+                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
+                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">REPORT FILED INFORMATION</h4>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Report Filed?</label>
+                          <select
+                            value={currentRecordData.reportFiled || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, reportFiled: e.target.value})}
+                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                          >
+                            <option value="">Select Option</option>
+                            <option value="YES">YES</option>
+                            <option value="NO">NO</option>
+                            <option value="UNKNOWN-DISPATCH CREATED">UNKNOWN-DISPATCH CREATED</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Record/Report Case # Reference/Info</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.reportCaseReference || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, reportCaseReference: e.target.value})}
+                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Contact Information (If Found) Section */}
+                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
+                      <h4 className="text-md font-semibold text-pink-400 mb-3 border-b border-gray-600 pb-2">CONTACT INFORMATION (IF FOUND)</h4>
+                      <div className="grid grid-cols-2 gap-3 mb-3">
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Officer Name</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.contactOfficerName || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, contactOfficerName: e.target.value})}
+                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Officer Badge #</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.contactOfficerBadge || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, contactOfficerBadge: e.target.value})}
+                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Agency</label>
+                          <select
+                            value={currentRecordData.contactAgency || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, contactAgency: e.target.value})}
+                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                          >
+                            <option value="">Select Agency</option>
+                            <option value="LSSO">LSSO</option>
+                            <option value="LSSO INVESTIGATION SERVICES">LSSO INVESTIGATION SERVICES</option>
+                            <option value="LSSO TRAFFIC ENFORCEMENT">LSSO TRAFFIC ENFORCEMENT</option>
+                            <option value="LSSO MARINE">LSSO MARINE</option>
+                            <option value="LSSO CORRECTIONS DEPARTMENT">LSSO CORRECTIONS DEPARTMENT</option>
+                            <option value="LSSO CONTRACT AGENCY">LSSO CONTRACT AGENCY</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Officer Phone Number</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.contactOfficerPhone || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, contactOfficerPhone: e.target.value})}
+                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Additional Contact Info</label>
+                        <textarea
+                          value={currentRecordData.contactAdditionalInfo || ''}
+                          onChange={(e) => setCurrentRecordData({...currentRecordData, contactAdditionalInfo: e.target.value})}
+                          className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm h-20"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Possible Charges Section */}
+                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
+                      <div className="flex justify-between items-center mb-3">
+                        <h4 className="text-md font-semibold text-red-400">POSSIBLE CHARGES</h4>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newCharge = {
+                              id: Date.now(),
+                              charge: '',
+                              chargeType: 'MISDEMEANOR',
+                              counts: 1,
+                              titleCode: '',
+                              bondType: 'CASH',
+                              bondAmount: 0,
+                              jailTime: ''
+                            };
+                            setCurrentRecordData({
+                              ...currentRecordData,
+                              charges: [...(currentRecordData.charges || []), newCharge]
+                            });
+                          }}
+                          className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-500 flex items-center gap-1"
+                        >
+                          <Plus size={16} /> Add Charge
+                        </button>
+                      </div>
+                      {(!currentRecordData.charges || currentRecordData.charges.length === 0) ? (
+                        <p className="text-gray-500 text-center py-4">No charges added. Click "Add Charge" to add possible charges.</p>
+                      ) : (
+                        <div className="space-y-3">
+                          {currentRecordData.charges.map((charge, index) => (
+                            <div key={charge.id} className="bg-gray-600 rounded-lg p-3">
+                              <div className="flex justify-between items-start mb-2">
+                                <span className="text-xs text-gray-400">Charge #{index + 1}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setCurrentRecordData({
+                                      ...currentRecordData,
+                                      charges: currentRecordData.charges.filter(c => c.id !== charge.id)
+                                    });
+                                  }}
+                                  className="text-red-400 hover:text-red-300"
+                                >
+                                  <X size={16} />
+                                </button>
+                              </div>
+                              <div className="grid grid-cols-4 gap-2">
+                                <div className="col-span-2">
+                                  <label className="block text-xs text-gray-400 mb-1">Charge</label>
+                                  <ChargeAutocompleteInput
+                                    value={charge.charge}
+                                    onChange={(value) => {
+                                      const updated = currentRecordData.charges.map(c =>
+                                        c.id === charge.id ? {...c, charge: value} : c
+                                      );
+                                      setCurrentRecordData({...currentRecordData, charges: updated});
+                                    }}
+                                    onSelect={(code) => {
+                                      const updated = currentRecordData.charges.map(c =>
+                                        c.id === charge.id ? {
+                                          ...c,
+                                          charge: code.title,
+                                          titleCode: code.code
+                                        } : c
+                                      );
+                                      setCurrentRecordData({...currentRecordData, charges: updated});
+                                    }}
+                                    placeholder="Type to search charges..."
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs text-gray-400 mb-1">Type</label>
+                                  <select
+                                    value={charge.chargeType}
+                                    onChange={(e) => {
+                                      const updated = currentRecordData.charges.map(c =>
+                                        c.id === charge.id ? {...c, chargeType: e.target.value} : c
+                                      );
+                                      setCurrentRecordData({...currentRecordData, charges: updated});
+                                    }}
+                                    className="w-full bg-gray-700 text-white rounded px-2 py-1 text-sm"
+                                  >
+                                    <option value="INFRACTION">INFRACTION</option>
+                                    <option value="MISDEMEANOR">MISDEMEANOR</option>
+                                    <option value="FELONY">FELONY</option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="block text-xs text-gray-400 mb-1">Title/Code</label>
+                                  <input
+                                    type="text"
+                                    value={charge.titleCode}
+                                    onChange={(e) => {
+                                      const updated = currentRecordData.charges.map(c =>
+                                        c.id === charge.id ? {...c, titleCode: e.target.value} : c
+                                      );
+                                      setCurrentRecordData({...currentRecordData, charges: updated});
+                                    }}
+                                    className="w-full bg-gray-700 text-white rounded px-2 py-1 text-sm"
+                                    placeholder="e.g., PC 242"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Linked Reports/Records Section */}
+                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
+                      <div className="flex justify-between items-center mb-3">
+                        <h4 className="text-md font-semibold text-purple-400">LINKED REPORTS/RECORDS</h4>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newLink = { id: Date.now(), recordNumber: '', description: '' };
+                            setCurrentRecordData({
+                              ...currentRecordData,
+                              linkedRecords: [...(currentRecordData.linkedRecords || []), newLink]
+                            });
+                          }}
+                          className="px-3 py-1 bg-purple-600 text-white rounded text-sm hover:bg-purple-500 flex items-center gap-1"
+                        >
+                          <Plus size={16} /> Add Link
+                        </button>
+                      </div>
+                      {(!currentRecordData.linkedRecords || currentRecordData.linkedRecords.length === 0) ? (
+                        <p className="text-gray-500 text-center py-4">No linked records. Click "Add Link" to link reports or records.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {currentRecordData.linkedRecords.map((link, index) => (
+                            <div key={link.id} className="flex gap-2 items-start">
+                              <div className="flex-1 grid grid-cols-2 gap-2">
+                                <input
+                                  type="text"
+                                  value={link.recordNumber}
+                                  onChange={(e) => {
+                                    const updated = currentRecordData.linkedRecords.map(l =>
+                                      l.id === link.id ? {...l, recordNumber: e.target.value} : l
+                                    );
+                                    setCurrentRecordData({...currentRecordData, linkedRecords: updated});
+                                  }}
+                                  placeholder="Record #"
+                                  className="bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                                />
+                                <input
+                                  type="text"
+                                  value={link.description}
+                                  onChange={(e) => {
+                                    const updated = currentRecordData.linkedRecords.map(l =>
+                                      l.id === link.id ? {...l, description: e.target.value} : l
+                                    );
+                                    setCurrentRecordData({...currentRecordData, linkedRecords: updated});
+                                  }}
+                                  placeholder="Description"
+                                  className="bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                                />
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCurrentRecordData({
+                                    ...currentRecordData,
+                                    linkedRecords: currentRecordData.linkedRecords.filter(l => l.id !== link.id)
+                                  });
+                                }}
+                                className="text-red-400 hover:text-red-300 p-2"
+                              >
+                                <X size={16} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Agency Information Section */}
+                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
+                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">AGENCY INFORMATION</h4>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Callsign</label>
+                          <input
+                            type="text"
+                            value={loggedInOfficer?.callsign || ''}
+                            readOnly
+                            className="w-full bg-gray-600 text-gray-400 rounded px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Department</label>
+                          <input
+                            type="text"
+                            value={loggedInOfficer?.department || ''}
+                            readOnly
+                            className="w-full bg-gray-600 text-gray-400 rounded px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Officer Name</label>
+                          <input
+                            type="text"
+                            value={loggedInOfficer?.name || ''}
+                            readOnly
+                            className="w-full bg-gray-600 text-gray-400 rounded px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Date</label>
+                          <input
+                            type="text"
+                            value={new Date().toLocaleDateString()}
+                            readOnly
+                            className="w-full bg-gray-600 text-gray-400 rounded px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Record #</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.recordId || `BOLO-${nextReportRecordId}`}
+                            readOnly
+                            className="w-full bg-gray-600 text-gray-400 rounded px-3 py-2 text-sm"
+                          />
+                        </div>
+                      </div>
                     </div>
                   </>
                 )}
