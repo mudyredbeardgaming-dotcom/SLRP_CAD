@@ -8473,34 +8473,341 @@ const CADSystem = () => {
                 {/* ARREST specific fields */}
                 {activeRecordForm === 'ARREST' && (
                   <>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm text-gray-300 mb-1">Date of Arrest</label>
-                        <input
-                          type="datetime-local"
-                          value={currentRecordData.arrestDate || ''}
-                          onChange={(e) => setCurrentRecordData({...currentRecordData, arrestDate: e.target.value})}
-                          className="w-full bg-gray-700 text-white rounded px-3 py-2"
-                        />
+                    {/* Arrestee Information Section */}
+                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
+                      <h4 className="text-md font-semibold text-red-400 mb-3 border-b border-gray-600 pb-2">ARRESTEE INFORMATION</h4>
+                      <div className="mb-3">
+                        <label className="block text-xs text-gray-400 mb-1">Search by Name</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={partySearchName1}
+                            onChange={(e) => setPartySearchName1(e.target.value)}
+                            placeholder="Enter name..."
+                            className="flex-1 bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                          />
+                          <button
+                            onClick={() => searchPersonByName(partySearchName1, 1)}
+                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500 text-sm"
+                          >
+                            Search
+                          </button>
+                        </div>
+                        {partySearchResults1.length > 0 && (
+                          <div className="mt-2 bg-gray-800 rounded p-2 max-h-32 overflow-y-auto">
+                            {partySearchResults1.map((p, i) => (
+                              <div
+                                key={i}
+                                onClick={() => {
+                                  setCurrentRecordData({
+                                    ...currentRecordData,
+                                    arresteeName: `${p.firstName} ${p.lastName}`,
+                                    arresteeDOB: p.dob,
+                                    arresteeAddress: p.address,
+                                    arresteePhone: p.phone
+                                  });
+                                  setPartySearchResults1([]);
+                                  setPartySearchName1('');
+                                }}
+                                className="p-2 hover:bg-gray-700 cursor-pointer rounded text-sm"
+                              >
+                                {p.firstName} {p.lastName} - DOB: {p.dob}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      <div>
-                        <label className="block text-sm text-gray-300 mb-1">Location of Arrest</label>
-                        <input
-                          type="text"
-                          value={currentRecordData.location || ''}
-                          onChange={(e) => setCurrentRecordData({...currentRecordData, location: e.target.value})}
-                          className="w-full bg-gray-700 text-white rounded px-3 py-2"
-                        />
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Name</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.arresteeName || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, arresteeName: e.target.value})}
+                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Date of Birth</label>
+                          <input
+                            type="date"
+                            value={currentRecordData.arresteeDOB || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, arresteeDOB: e.target.value})}
+                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Phone</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.arresteePhone || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, arresteePhone: e.target.value})}
+                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Address</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.arresteeAddress || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, arresteeAddress: e.target.value})}
+                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                          />
+                        </div>
                       </div>
                     </div>
-                    <div>
-                      <label className="block text-sm text-gray-300 mb-1">Charges</label>
-                      <textarea
-                        value={currentRecordData.charges || ''}
-                        onChange={(e) => setCurrentRecordData({...currentRecordData, charges: e.target.value})}
-                        className="w-full bg-gray-700 text-white rounded px-3 py-2 h-24"
-                        placeholder="List all charges..."
-                      />
+
+                    {/* Arrest Details Section */}
+                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
+                      <h4 className="text-md font-semibold text-orange-400 mb-3 border-b border-gray-600 pb-2">ARREST DETAILS</h4>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Date of Arrest</label>
+                          <input
+                            type="date"
+                            value={currentRecordData.arrestDate || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, arrestDate: e.target.value})}
+                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Time of Arrest</label>
+                          <input
+                            type="time"
+                            value={currentRecordData.arrestTime || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, arrestTime: e.target.value})}
+                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div className="col-span-2">
+                          <label className="block text-xs text-gray-400 mb-1">Location of Arrest</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.arrestLocation || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, arrestLocation: e.target.value})}
+                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Arresting Officer</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.arrestingOfficer || loggedInOfficer?.name || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, arrestingOfficer: e.target.value})}
+                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Badge #</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.arrestingOfficerBadge || loggedInOfficer?.badgeNumber || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, arrestingOfficerBadge: e.target.value})}
+                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Charges Section */}
+                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
+                      <div className="flex justify-between items-center mb-3">
+                        <h4 className="text-md font-semibold text-red-400">CHARGES</h4>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newCharge = {
+                              id: Date.now(),
+                              charge: '',
+                              chargeType: 'MISDEMEANOR',
+                              counts: 1,
+                              titleCode: '',
+                              bondType: 'CASH',
+                              bondAmount: 0,
+                              jailTime: ''
+                            };
+                            setCurrentRecordData({
+                              ...currentRecordData,
+                              charges: [...(currentRecordData.charges || []), newCharge]
+                            });
+                          }}
+                          className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-500 flex items-center gap-1"
+                        >
+                          <Plus size={16} /> Add Charge
+                        </button>
+                      </div>
+                      {(!currentRecordData.charges || currentRecordData.charges.length === 0) ? (
+                        <p className="text-gray-500 text-center py-4">No charges added. Click "Add Charge" to add charges.</p>
+                      ) : (
+                        <div className="space-y-3">
+                          {currentRecordData.charges.map((charge, index) => (
+                            <div key={charge.id} className="bg-gray-600 rounded-lg p-3">
+                              <div className="flex justify-between items-start mb-2">
+                                <span className="text-xs text-gray-400">Charge #{index + 1}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setCurrentRecordData({
+                                      ...currentRecordData,
+                                      charges: currentRecordData.charges.filter(c => c.id !== charge.id)
+                                    });
+                                  }}
+                                  className="text-red-400 hover:text-red-300"
+                                >
+                                  <X size={16} />
+                                </button>
+                              </div>
+                              <div className="grid grid-cols-4 gap-2">
+                                <div className="col-span-2">
+                                  <label className="block text-xs text-gray-400 mb-1">Charge</label>
+                                  <ChargeAutocompleteInput
+                                    value={charge.charge}
+                                    onChange={(value) => {
+                                      const updated = currentRecordData.charges.map(c =>
+                                        c.id === charge.id ? {...c, charge: value} : c
+                                      );
+                                      setCurrentRecordData({...currentRecordData, charges: updated});
+                                    }}
+                                    onSelect={(code) => {
+                                      const updated = currentRecordData.charges.map(c =>
+                                        c.id === charge.id ? {
+                                          ...c,
+                                          charge: code.title,
+                                          titleCode: code.code
+                                        } : c
+                                      );
+                                      setCurrentRecordData({...currentRecordData, charges: updated});
+                                    }}
+                                    codes={californiaCodes}
+                                    placeholder="Type to search charges..."
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs text-gray-400 mb-1">Type</label>
+                                  <select
+                                    value={charge.chargeType}
+                                    onChange={(e) => {
+                                      const updated = currentRecordData.charges.map(c =>
+                                        c.id === charge.id ? {...c, chargeType: e.target.value} : c
+                                      );
+                                      setCurrentRecordData({...currentRecordData, charges: updated});
+                                    }}
+                                    className="w-full bg-gray-700 text-white rounded px-2 py-1 text-sm"
+                                  >
+                                    <option value="INFRACTION">INFRACTION</option>
+                                    <option value="MISDEMEANOR">MISDEMEANOR</option>
+                                    <option value="FELONY">FELONY</option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="block text-xs text-gray-400 mb-1">Counts</label>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    value={charge.counts}
+                                    onChange={(e) => {
+                                      const updated = currentRecordData.charges.map(c =>
+                                        c.id === charge.id ? {...c, counts: parseInt(e.target.value) || 1} : c
+                                      );
+                                      setCurrentRecordData({...currentRecordData, charges: updated});
+                                    }}
+                                    className="w-full bg-gray-700 text-white rounded px-2 py-1 text-sm"
+                                  />
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-3 gap-2 mt-2">
+                                <div>
+                                  <label className="block text-xs text-gray-400 mb-1">Title/Code</label>
+                                  <input
+                                    type="text"
+                                    value={charge.titleCode}
+                                    onChange={(e) => {
+                                      const updated = currentRecordData.charges.map(c =>
+                                        c.id === charge.id ? {...c, titleCode: e.target.value} : c
+                                      );
+                                      setCurrentRecordData({...currentRecordData, charges: updated});
+                                    }}
+                                    className="w-full bg-gray-700 text-white rounded px-2 py-1 text-sm"
+                                    placeholder="e.g., PC 242"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs text-gray-400 mb-1">Bond Type</label>
+                                  <select
+                                    value={charge.bondType}
+                                    onChange={(e) => {
+                                      const updated = currentRecordData.charges.map(c =>
+                                        c.id === charge.id ? {...c, bondType: e.target.value} : c
+                                      );
+                                      setCurrentRecordData({...currentRecordData, charges: updated});
+                                    }}
+                                    className="w-full bg-gray-700 text-white rounded px-2 py-1 text-sm"
+                                  >
+                                    <option value="CASH">CASH</option>
+                                    <option value="SURETY">SURETY</option>
+                                    <option value="OWN RECOGNIZANCE">OWN RECOGNIZANCE</option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="block text-xs text-gray-400 mb-1">Bond Amount</label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={charge.bondAmount}
+                                    onChange={(e) => {
+                                      const updated = currentRecordData.charges.map(c =>
+                                        c.id === charge.id ? {...c, bondAmount: parseFloat(e.target.value) || 0} : c
+                                      );
+                                      setCurrentRecordData({...currentRecordData, charges: updated});
+                                    }}
+                                    className="w-full bg-gray-700 text-white rounded px-2 py-1 text-sm"
+                                    placeholder="0.00"
+                                  />
+                                </div>
+                              </div>
+                              <div className="mt-2">
+                                <label className="block text-xs text-gray-400 mb-1">Jail Time</label>
+                                <input
+                                  type="text"
+                                  value={charge.jailTime}
+                                  onChange={(e) => {
+                                    const updated = currentRecordData.charges.map(c =>
+                                      c.id === charge.id ? {...c, jailTime: e.target.value} : c
+                                    );
+                                    setCurrentRecordData({...currentRecordData, charges: updated});
+                                  }}
+                                  className="w-full bg-gray-700 text-white rounded px-2 py-1 text-sm"
+                                  placeholder="e.g., 6 months"
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {currentRecordData.charges && currentRecordData.charges.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-gray-600">
+                          <div className="text-right">
+                            <span className="text-gray-400 text-sm">Total Bond/Fine: </span>
+                            <span className="text-green-400 font-semibold text-lg">
+                              ${currentRecordData.charges.reduce((sum, c) => sum + (parseFloat(c.bondAmount) || 0), 0).toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Additional Information Section */}
+                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
+                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">ADDITIONAL INFORMATION</h4>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Notes</label>
+                        <textarea
+                          value={currentRecordData.arrestNotes || ''}
+                          onChange={(e) => setCurrentRecordData({...currentRecordData, arrestNotes: e.target.value})}
+                          className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm h-24"
+                          placeholder="Additional arrest details, circumstances, evidence, etc."
+                        />
+                      </div>
                     </div>
                   </>
                 )}
