@@ -8583,24 +8583,41 @@ const CADSystem = () => {
                     {/* Agency Information Section */}
                     <div className="bg-gray-700 rounded-lg p-4 mb-4">
                       <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">AGENCY INFORMATION</h4>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Agency Name</label>
+                          <label className="block text-xs text-gray-400 mb-1">Callsign</label>
                           <input
                             type="text"
-                            value={currentRecordData.agencyName || 'Los Santos Sheriff Office'}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, agencyName: e.target.value})}
+                            value={currentRecordData.callsign || ''}
+                            readOnly
                             className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Agency Address</label>
+                          <label className="block text-xs text-gray-400 mb-1">Department</label>
                           <input
                             type="text"
-                            value={currentRecordData.agencyAddress || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, agencyAddress: e.target.value})}
+                            value={currentRecordData.department || ''}
+                            readOnly
                             className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
-                            placeholder="Agency address..."
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Officer Name</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.officer || ''}
+                            readOnly
+                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Record#</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.recordNumber || ''}
+                            readOnly
+                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
                           />
                         </div>
                       </div>
