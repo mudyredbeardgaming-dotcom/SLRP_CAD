@@ -1,40 +1,160 @@
 /**
- * California Legal Codes Scraper
+ * California Legal Codes Scraper - Enhanced Version
  *
- * Scrapes Penal Code (PC), Vehicle Code (VC), and Health & Safety Code (HSC)
- * from California Legislative Information website.
+ * Generates comprehensive charge data including charge type, bond type, bond amount, and jail time
  *
  * Output: data/california-codes.json
  */
 
-const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
-// California codes to scrape
-const CODE_TYPES = [
-  {
-    type: 'PC',
-    name: 'Penal Code',
-    tocCode: 'PEN',
-    category: 'Crimes & Punishments'
-  },
-  {
-    type: 'VC',
-    name: 'Vehicle Code',
-    tocCode: 'VEH',
-    category: 'Traffic & Vehicle'
-  },
-  {
-    type: 'HSC',
-    name: 'Health & Safety Code',
-    tocCode: 'HSC',
-    category: 'Health & Safety'
-  }
-];
+// Helper function to determine charge details based on code and category
+function getChargeDetails(code, title, category) {
+  const codeStr = code.toLowerCase();
+  const titleLower = title.toLowerCase();
 
-// Manual curated list of common California codes for GTA V roleplay
-// This is a comprehensive starter database that can be used immediately
+  // Determine charge type and details
+  let chargeType = 'MISDEMEANOR';
+  let bondType = 'CASH BAIL';
+  let bondAmount = 5000;
+  let jailTime = '1 year';
+
+  // FELONIES - Serious crimes
+  if (titleLower.includes('murder') || titleLower.includes('manslaughter') ||
+      titleLower.includes('kidnapping') || titleLower.includes('rape') ||
+      titleLower.includes('arson') || titleLower.includes('robbery') ||
+      titleLower.includes('carjacking') || codeStr.includes('pc 187') ||
+      codeStr.includes('pc 192') || codeStr.includes('pc 207') ||
+      codeStr.includes('pc 209') || codeStr.includes('pc 211') ||
+      codeStr.includes('pc 215') || codeStr.includes('pc 261') ||
+      codeStr.includes('pc 451') || titleLower.includes('ransom') ||
+      titleLower.includes('drive-by')) {
+    chargeType = 'FELONY';
+    bondType = 'NO BAIL';
+    bondAmount = 0;
+    jailTime = '25 years to life';
+  }
+  else if (titleLower.includes('assault with deadly') || titleLower.includes('shooting at') ||
+           titleLower.includes('mayhem') || codeStr.includes('pc 245') ||
+           codeStr.includes('pc 246') || codeStr.includes('pc 203') ||
+           codeStr.includes('pc 220')) {
+    chargeType = 'FELONY';
+    bondType = 'CASH BAIL';
+    bondAmount = 50000;
+    jailTime = '5-10 years';
+  }
+  else if (titleLower.includes('burglary') || titleLower.includes('grand theft') ||
+           titleLower.includes('felon in possession') || titleLower.includes('forgery') ||
+           titleLower.includes('embezzlement') || titleLower.includes('identity theft') ||
+           codeStr.includes('pc 459') || codeStr.includes('pc 487') ||
+           codeStr.includes('pc 29800') || codeStr.includes('pc 470') ||
+           codeStr.includes('pc 503') || codeStr.includes('pc 530.5')) {
+    chargeType = 'FELONY';
+    bondType = 'SURETY BOND';
+    bondAmount = 25000;
+    jailTime = '2-5 years';
+  }
+  else if (titleLower.includes('assault on') || titleLower.includes('battery on peace') ||
+           titleLower.includes('witness intimidation') || titleLower.includes('gang enhancement') ||
+           titleLower.includes('carrying loaded') || codeStr.includes('pc 241') ||
+           codeStr.includes('pc 243') || codeStr.includes('pc 136.1') ||
+           codeStr.includes('pc 186.22') || codeStr.includes('pc 25850')) {
+    chargeType = 'FELONY';
+    bondType = 'CASH BAIL';
+    bondAmount = 15000;
+    jailTime = '1-3 years';
+  }
+  // MISDEMEANORS - Less serious crimes
+  else if (titleLower.includes('assault') || titleLower.includes('battery') ||
+           titleLower.includes('brandishing') || titleLower.includes('criminal threats') ||
+           titleLower.includes('domestic battery') || titleLower.includes('petty theft') ||
+           titleLower.includes('receiving stolen') || titleLower.includes('vandalism') ||
+           titleLower.includes('trespassing') || titleLower.includes('resisting') ||
+           titleLower.includes('carrying concealed') || codeStr.includes('pc 240') ||
+           codeStr.includes('pc 242') || codeStr.includes('pc 417') ||
+           codeStr.includes('pc 422') || codeStr.includes('pc 273.5') ||
+           codeStr.includes('pc 488') || codeStr.includes('pc 496') ||
+           codeStr.includes('pc 594') || codeStr.includes('pc 602') ||
+           codeStr.includes('pc 148') || codeStr.includes('pc 25400')) {
+    chargeType = 'MISDEMEANOR';
+    bondType = 'RECOGNIZANCE RELEASE';
+    bondAmount = 2500;
+    jailTime = '6 months';
+  }
+  else if (titleLower.includes('disturbing the peace') || titleLower.includes('false report') ||
+           titleLower.includes('prostitution') || titleLower.includes('indecent exposure') ||
+           titleLower.includes('public intoxication') || titleLower.includes('disorderly') ||
+           codeStr.includes('pc 415') || codeStr.includes('pc 148.5') ||
+           codeStr.includes('pc 647(b)') || codeStr.includes('pc 314') ||
+           codeStr.includes('pc 647(f)')) {
+    chargeType = 'MISDEMEANOR';
+    bondType = 'CITATION RELEASE';
+    bondAmount = 500;
+    jailTime = '90 days';
+  }
+  // VEHICLE CODE - Mostly infractions with some misdemeanors
+  else if (codeStr.includes('vc 23152') || titleLower.includes('dui')) {
+    chargeType = 'MISDEMEANOR';
+    bondType = 'CASH BAIL';
+    bondAmount = 5000;
+    jailTime = '6 months';
+  }
+  else if (codeStr.includes('vc 2800') || titleLower.includes('evading') ||
+           titleLower.includes('fleeing')) {
+    chargeType = 'FELONY';
+    bondType = 'CASH BAIL';
+    bondAmount = 10000;
+    jailTime = '1-3 years';
+  }
+  else if (codeStr.includes('vc 10851') || titleLower.includes('vehicle theft') ||
+           titleLower.includes('unlawful taking')) {
+    chargeType = 'FELONY';
+    bondType = 'SURETY BOND';
+    bondAmount = 20000;
+    jailTime = '2-4 years';
+  }
+  else if (codeStr.includes('vc 23103') || titleLower.includes('reckless')) {
+    chargeType = 'MISDEMEANOR';
+    bondType = 'CITATION RELEASE';
+    bondAmount = 1000;
+    jailTime = '90 days';
+  }
+  else if (codeStr.startsWith('vc')) {
+    chargeType = 'INFRACTION';
+    bondType = 'CITATION RELEASE';
+    bondAmount = 250;
+    jailTime = 'N/A';
+  }
+  // HEALTH & SAFETY CODE - Drug crimes
+  else if (titleLower.includes('possession with intent') || titleLower.includes('sale of') ||
+           titleLower.includes('manufacturing') || titleLower.includes('trafficking') ||
+           codeStr.includes('hsc 11351') || codeStr.includes('hsc 11352') ||
+           codeStr.includes('hsc 11378') || codeStr.includes('hsc 11379')) {
+    chargeType = 'FELONY';
+    bondType = 'CASH BAIL';
+    bondAmount = 30000;
+    jailTime = '2-5 years';
+  }
+  else if (titleLower.includes('possession of controlled') || titleLower.includes('possession of narcotic') ||
+           codeStr.includes('hsc 11350') || codeStr.includes('hsc 11377')) {
+    chargeType = 'MISDEMEANOR';
+    bondType = 'RECOGNIZANCE RELEASE';
+    bondAmount = 2000;
+    jailTime = '1 year';
+  }
+  else if (titleLower.includes('possession of marijuana') || titleLower.includes('under the influence') ||
+           codeStr.includes('hsc 11357') || codeStr.includes('hsc 11550')) {
+    chargeType = 'INFRACTION';
+    bondType = 'CITATION RELEASE';
+    bondAmount = 100;
+    jailTime = 'N/A';
+  }
+
+  return { chargeType, bondType, bondAmount, jailTime };
+}
+
+// Comprehensive curated list with charge details
 const CURATED_CODES = [
   // Penal Code - Crimes Against Person
   { code: 'PC 187', title: 'Murder', type: 'PC', section: '187', category: 'Crimes Against Person' },
@@ -56,7 +176,7 @@ const CURATED_CODES = [
   { code: 'PC 273.5', title: 'Domestic Battery', type: 'PC', section: '273.5', category: 'Crimes Against Person' },
   { code: 'PC 288', title: 'Lewd Acts with Child', type: 'PC', section: '288', category: 'Crimes Against Person' },
 
-  // Penal Code - Property Crimes
+  // Penal Code - Public Order & Property Crimes
   { code: 'PC 415', title: 'Disturbing the Peace', type: 'PC', section: '415', category: 'Public Order' },
   { code: 'PC 417', title: 'Brandishing a Weapon', type: 'PC', section: '417', category: 'Public Order' },
   { code: 'PC 422', title: 'Criminal Threats', type: 'PC', section: '422', category: 'Public Order' },
@@ -82,6 +202,8 @@ const CURATED_CODES = [
   { code: 'PC 30305', title: 'Possession of Ammunition by Prohibited Person', type: 'PC', section: '30305', category: 'Weapons' },
 
   // Penal Code - Obstructing Justice
+  { code: 'PC 31', title: 'Aiding and Abetting', type: 'PC', section: '31', category: 'Obstruction' },
+  { code: 'PC 32', title: 'Accessory After the Fact', type: 'PC', section: '32', category: 'Obstruction' },
   { code: 'PC 69', title: 'Resisting Executive Officer', type: 'PC', section: '69', category: 'Obstruction' },
   { code: 'PC 118', title: 'Perjury', type: 'PC', section: '118', category: 'Obstruction' },
   { code: 'PC 136.1', title: 'Witness Intimidation', type: 'PC', section: '136.1', category: 'Obstruction' },
@@ -89,178 +211,113 @@ const CURATED_CODES = [
   { code: 'PC 148.5', title: 'False Report to Police', type: 'PC', section: '148.5', category: 'Obstruction' },
   { code: 'PC 182', title: 'Conspiracy', type: 'PC', section: '182', category: 'Obstruction' },
   { code: 'PC 186.22', title: 'Gang Enhancement', type: 'PC', section: '186.22', category: 'Gang Activity' },
-  { code: 'PC 32', title: 'Accessory After the Fact', type: 'PC', section: '32', category: 'Obstruction' },
-  { code: 'PC 31', title: 'Aiding and Abetting', type: 'PC', section: '31', category: 'Obstruction' },
 
   // Penal Code - Sex Offenses
-  { code: 'PC 647(b)', title: 'Prostitution', type: 'PC', section: '647(b)', category: 'Sex Offenses' },
   { code: 'PC 266h', title: 'Pimping', type: 'PC', section: '266h', category: 'Sex Offenses' },
   { code: 'PC 266i', title: 'Pandering', type: 'PC', section: '266i', category: 'Sex Offenses' },
   { code: 'PC 314', title: 'Indecent Exposure', type: 'PC', section: '314', category: 'Sex Offenses' },
+  { code: 'PC 647(b)', title: 'Prostitution', type: 'PC', section: '647(b)', category: 'Sex Offenses' },
+  { code: 'PC 647(f)', title: 'Public Intoxication', type: 'PC', section: '647(f)', category: 'Public Order' },
 
-  // Penal Code - Miscellaneous
-  { code: 'PC 25658', title: 'Furnishing Alcohol to Minor', type: 'PC', section: '25658', category: 'Public Order' },
-  { code: 'PC 148.9', title: 'False Impersonation of Another', type: 'PC', section: '148.9', category: 'Public Order' },
-  { code: 'PC 529', title: 'False Personation', type: 'PC', section: '529', category: 'Public Order' },
-  { code: 'PC 653m', title: 'Annoying Phone Calls', type: 'PC', section: '653m', category: 'Public Order' },
-
-  // Vehicle Code - DUI & Reckless Driving
+  // Vehicle Code - DUI & Serious Offenses
   { code: 'VC 23152(a)', title: 'DUI - Alcohol', type: 'VC', section: '23152(a)', category: 'DUI' },
   { code: 'VC 23152(b)', title: 'DUI - BAC 0.08% or Higher', type: 'VC', section: '23152(b)', category: 'DUI' },
   { code: 'VC 23152(f)', title: 'DUI - Drugs', type: 'VC', section: '23152(f)', category: 'DUI' },
-  { code: 'VC 23153', title: 'DUI Causing Injury', type: 'VC', section: '23153', category: 'DUI' },
-  { code: 'VC 2800.1', title: 'Evading Peace Officer', type: 'VC', section: '2800.1', category: 'Reckless Driving' },
-  { code: 'VC 2800.2', title: 'Evading with Wanton Disregard', type: 'VC', section: '2800.2', category: 'Reckless Driving' },
-  { code: 'VC 2800.3', title: 'Evading Causing Injury or Death', type: 'VC', section: '2800.3', category: 'Reckless Driving' },
-  { code: 'VC 2800.4', title: 'Evading While DUI', type: 'VC', section: '2800.4', category: 'Reckless Driving' },
+  { code: 'VC 2800.1', title: 'Evading Peace Officer', type: 'VC', section: '2800.1', category: 'Evading' },
+  { code: 'VC 2800.2', title: 'Evading with Disregard for Safety', type: 'VC', section: '2800.2', category: 'Evading' },
+  { code: 'VC 2800.3', title: 'Evading Causing Injury/Death', type: 'VC', section: '2800.3', category: 'Evading' },
+  { code: 'VC 10851', title: 'Vehicle Theft / Unlawful Taking', type: 'VC', section: '10851', category: 'Vehicle Theft' },
   { code: 'VC 23103', title: 'Reckless Driving', type: 'VC', section: '23103', category: 'Reckless Driving' },
-  { code: 'VC 23104', title: 'Reckless Driving Causing Injury', type: 'VC', section: '23104', category: 'Reckless Driving' },
-  { code: 'VC 23109', title: 'Speed Contest/Racing', type: 'VC', section: '23109', category: 'Reckless Driving' },
-  { code: 'VC 23109(c)', title: 'Exhibition of Speed', type: 'VC', section: '23109(c)', category: 'Reckless Driving' },
-  { code: 'VC 20001', title: 'Hit and Run - Injury', type: 'VC', section: '20001', category: 'Hit and Run' },
-  { code: 'VC 20002', title: 'Hit and Run - Property Damage', type: 'VC', section: '20002', category: 'Hit and Run' },
 
-  // Vehicle Code - License & Registration
-  { code: 'VC 12500', title: 'Driving Without License', type: 'VC', section: '12500', category: 'License & Registration' },
-  { code: 'VC 14601', title: 'Driving on Suspended License', type: 'VC', section: '14601', category: 'License & Registration' },
-  { code: 'VC 14601.1', title: 'Driving on Suspended License - DUI', type: 'VC', section: '14601.1', category: 'License & Registration' },
-  { code: 'VC 14601.2', title: 'Driving on Suspended License - Repeat', type: 'VC', section: '14601.2', category: 'License & Registration' },
-  { code: 'VC 14601.5', title: 'Driving on Suspended License - Reckless', type: 'VC', section: '14601.5', category: 'License & Registration' },
-  { code: 'VC 10851', title: 'Vehicle Theft/Joyriding', type: 'VC', section: '10851', category: 'Vehicle Theft' },
-  { code: 'VC 4461', title: 'False Vehicle Registration', type: 'VC', section: '4461', category: 'License & Registration' },
-  { code: 'VC 5204', title: 'Display of License Plates', type: 'VC', section: '5204', category: 'License & Registration' },
-
-  // Vehicle Code - Traffic Violations
+  // Vehicle Code - Traffic Infractions
+  { code: 'VC 12500', title: 'Unlicensed Driver', type: 'VC', section: '12500', category: 'License Violations' },
+  { code: 'VC 14601', title: 'Driving on Suspended License', type: 'VC', section: '14601', category: 'License Violations' },
+  { code: 'VC 16028', title: 'Failure to Provide Insurance', type: 'VC', section: '16028', category: 'Insurance Violations' },
   { code: 'VC 21453', title: 'Failure to Stop at Red Light', type: 'VC', section: '21453', category: 'Traffic Violations' },
-  { code: 'VC 22349', title: 'Speed Limit Violation', type: 'VC', section: '22349', category: 'Traffic Violations' },
-  { code: 'VC 22350', title: 'Basic Speed Law', type: 'VC', section: '22350', category: 'Traffic Violations' },
-  { code: 'VC 22107', title: 'Unsafe Lane Change', type: 'VC', section: '22107', category: 'Traffic Violations' },
-  { code: 'VC 21750', title: 'Crossing Yellow Line', type: 'VC', section: '21750', category: 'Traffic Violations' },
+  { code: 'VC 21461', title: 'Failure to Obey Traffic Device', type: 'VC', section: '21461', category: 'Traffic Violations' },
+  { code: 'VC 21650', title: 'Wrong Side of Road', type: 'VC', section: '21650', category: 'Traffic Violations' },
+  { code: 'VC 21651', title: 'Driving Over Divided Highway', type: 'VC', section: '21651', category: 'Traffic Violations' },
+  { code: 'VC 21750', title: 'Unsafe Passing', type: 'VC', section: '21750', category: 'Traffic Violations' },
+  { code: 'VC 21801', title: 'Failure to Yield', type: 'VC', section: '21801', category: 'Traffic Violations' },
+  { code: 'VC 22100', title: 'Illegal Turn', type: 'VC', section: '22100', category: 'Traffic Violations' },
+  { code: 'VC 22348', title: 'Excessive Speed', type: 'VC', section: '22348', category: 'Speed Violations' },
+  { code: 'VC 22349', title: 'Speeding', type: 'VC', section: '22349', category: 'Speed Violations' },
+  { code: 'VC 22350', title: 'Unsafe Speed', type: 'VC', section: '22350', category: 'Speed Violations' },
   { code: 'VC 22450', title: 'Failure to Stop at Stop Sign', type: 'VC', section: '22450', category: 'Traffic Violations' },
-  { code: 'VC 27315', title: 'Child Seat Violation', type: 'VC', section: '27315', category: 'Traffic Violations' },
-  { code: 'VC 27360', title: 'Seatbelt Violation', type: 'VC', section: '27360', category: 'Traffic Violations' },
-  { code: 'VC 24250', title: 'Headlight Violation', type: 'VC', section: '24250', category: 'Equipment Violations' },
-  { code: 'VC 26708', title: 'Window Tint Violation', type: 'VC', section: '26708', category: 'Equipment Violations' },
-  { code: 'VC 27150', title: 'Muffler/Exhaust Violation', type: 'VC', section: '27150', category: 'Equipment Violations' },
+  { code: 'VC 23109', title: 'Exhibition of Speed / Street Racing', type: 'VC', section: '23109', category: 'Reckless Driving' },
+  { code: 'VC 24002', title: 'Unsafe Vehicle', type: 'VC', section: '24002', category: 'Equipment Violations' },
+  { code: 'VC 26708', title: 'Obstructed Windshield', type: 'VC', section: '26708', category: 'Equipment Violations' },
+  { code: 'VC 27153', title: 'Loud Exhaust', type: 'VC', section: '27153', category: 'Equipment Violations' },
+  { code: 'VC 27315', title: 'Child Safety Seat Violation', type: 'VC', section: '27315', category: 'Safety Violations' },
+  { code: 'VC 27360', title: 'Seatbelt Violation', type: 'VC', section: '27360', category: 'Safety Violations' },
 
   // Health & Safety Code - Narcotics
   { code: 'HSC 11350', title: 'Possession of Controlled Substance', type: 'HSC', section: '11350', category: 'Narcotics' },
-  { code: 'HSC 11351', title: 'Possession for Sale - Narcotics', type: 'HSC', section: '11351', category: 'Narcotics' },
-  { code: 'HSC 11352', title: 'Sale/Transportation of Controlled Substance', type: 'HSC', section: '11352', category: 'Narcotics' },
-  { code: 'HSC 11353', title: 'Possession for Sale in Jail', type: 'HSC', section: '11353', category: 'Narcotics' },
-  { code: 'HSC 11354', title: 'Possession of Heroin', type: 'HSC', section: '11354', category: 'Narcotics' },
+  { code: 'HSC 11351', title: 'Possession with Intent to Sell', type: 'HSC', section: '11351', category: 'Narcotics' },
+  { code: 'HSC 11352', title: 'Sale of Controlled Substance', type: 'HSC', section: '11352', category: 'Narcotics' },
   { code: 'HSC 11357', title: 'Possession of Marijuana', type: 'HSC', section: '11357', category: 'Narcotics' },
   { code: 'HSC 11358', title: 'Cultivation of Marijuana', type: 'HSC', section: '11358', category: 'Narcotics' },
   { code: 'HSC 11359', title: 'Possession of Marijuana for Sale', type: 'HSC', section: '11359', category: 'Narcotics' },
-  { code: 'HSC 11360', title: 'Sale/Transportation of Marijuana', type: 'HSC', section: '11360', category: 'Narcotics' },
-  { code: 'HSC 11364', title: 'Possession of Drug Paraphernalia', type: 'HSC', section: '11364', category: 'Narcotics' },
-  { code: 'HSC 11366', title: 'Maintaining Drug House', type: 'HSC', section: '11366', category: 'Narcotics' },
+  { code: 'HSC 11360', title: 'Sale of Marijuana', type: 'HSC', section: '11360', category: 'Narcotics' },
   { code: 'HSC 11377', title: 'Possession of Methamphetamine', type: 'HSC', section: '11377', category: 'Narcotics' },
-  { code: 'HSC 11378', title: 'Possession of Meth for Sale', type: 'HSC', section: '11378', category: 'Narcotics' },
-  { code: 'HSC 11379', title: 'Sale/Transportation of Methamphetamine', type: 'HSC', section: '11379', category: 'Narcotics' },
-  { code: 'HSC 11379.6', title: 'Manufacturing Controlled Substance', type: 'HSC', section: '11379.6', category: 'Narcotics' },
-  { code: 'HSC 11380', title: 'Manufacturing Controlled Substance', type: 'HSC', section: '11380', category: 'Narcotics' },
-  { code: 'HSC 11550', title: 'Under the Influence of Controlled Substance', type: 'HSC', section: '11550', category: 'Narcotics' },
-
-  // Health & Safety Code - Alcohol
-  { code: 'HSC 11014.5', title: 'Drunk in Public', type: 'HSC', section: '11014.5', category: 'Alcohol' },
-  { code: 'HSC 25662', title: 'Minor in Possession of Alcohol', type: 'HSC', section: '25662', category: 'Alcohol' },
+  { code: 'HSC 11378', title: 'Possession of Meth with Intent to Sell', type: 'HSC', section: '11378', category: 'Narcotics' },
+  { code: 'HSC 11379', title: 'Sale of Methamphetamine', type: 'HSC', section: '11379', category: 'Narcotics' },
+  { code: 'HSC 11550', title: 'Under Influence of Controlled Substance', type: 'HSC', section: '11550', category: 'Narcotics' },
 ];
 
-/**
- * Fetch URL using HTTPS module
- */
-function fetchUrl(url) {
-  return new Promise((resolve, reject) => {
-    https.get(url, (res) => {
-      let data = '';
-      res.on('data', (chunk) => data += chunk);
-      res.on('end', () => resolve(data));
-    }).on('error', reject);
-  });
-}
-
-/**
- * Basic HTML parsing to extract code sections
- * Note: This is a simplified parser. Real scraping might need a library like cheerio.
- */
-function parseCodeSections(html, codeType) {
-  const sections = [];
-  // This is a placeholder - actual scraping would require proper HTML parsing
-  // For now, we'll use the curated list
-  console.log(`Parsing ${codeType} codes...`);
-  return sections;
-}
-
-/**
- * Generate the california-codes.json database
- */
-async function generateCodesDatabase() {
-  console.log('🚀 California Legal Codes Database Generator');
-  console.log('===========================================\n');
-
-  const allCodes = [];
-
-  // Use curated database for now
-  console.log('📋 Using curated database of common California codes...');
-  console.log(`   - Penal Code (PC): ${CURATED_CODES.filter(c => c.type === 'PC').length} codes`);
-  console.log(`   - Vehicle Code (VC): ${CURATED_CODES.filter(c => c.type === 'VC').length} codes`);
-  console.log(`   - Health & Safety Code (HSC): ${CURATED_CODES.filter(c => c.type === 'HSC').length} codes`);
-  console.log(`   - Total: ${CURATED_CODES.length} codes\n`);
-
-  // Add fullText field to all codes
-  const codesWithFullText = CURATED_CODES.map(code => ({
+// Generate full database with charge details
+const codesWithDetails = CURATED_CODES.map(code => {
+  const details = getChargeDetails(code.code, code.title, code.category);
+  return {
     ...code,
-    fullText: `${code.code} - ${code.title}`
-  }));
-
-  // Create database structure
-  const database = {
-    codes: codesWithFullText,
-    metadata: {
-      lastUpdated: new Date().toISOString().split('T')[0],
-      totalCodes: codesWithFullText.length,
-      sources: ['PC', 'VC', 'HSC'],
-      version: '1.0.0',
-      description: 'Curated California legal codes for GTA V roleplay'
-    }
+    fullText: `${code.code} - ${code.title}`,
+    ...details
   };
+});
 
-  // Write to file
-  const outputPath = path.join(__dirname, '..', 'data', 'california-codes.json');
-  const outputDir = path.dirname(outputPath);
-
-  // Create data directory if it doesn't exist
-  if (!fs.existsSync(outputDir)) {
-    fs.mkdirSync(outputDir, { recursive: true });
+// Create final database structure
+const database = {
+  codes: codesWithDetails,
+  metadata: {
+    lastUpdated: new Date().toISOString().split('T')[0],
+    totalCodes: codesWithDetails.length,
+    sources: ['PC', 'VC', 'HSC'],
+    chargeTypes: ['FELONY', 'MISDEMEANOR', 'INFRACTION', 'WARNING', 'CORRECTABLE'],
+    bondTypes: [
+      'CITATION RELEASE',
+      'RECOGNIZANCE RELEASE',
+      'CASH BAIL',
+      'SURETY BOND',
+      'PROPERTY BOND',
+      'FEDERAL BAIL BOND',
+      'IMMIGRATION BAIL BOND',
+      'NO BAIL',
+      'PROBATION'
+    ]
   }
+};
 
-  fs.writeFileSync(outputPath, JSON.stringify(database, null, 2));
+// Write to file
+const outputDir = path.join(__dirname, '..', 'data');
+const outputPath = path.join(outputDir, 'california-codes.json');
+const publicOutputPath = path.join(__dirname, '..', 'public', 'data', 'california-codes.json');
 
-  console.log('✅ Database created successfully!');
-  console.log(`📁 Output: ${outputPath}`);
-  console.log(`📊 File size: ${(fs.statSync(outputPath).size / 1024).toFixed(2)} KB\n`);
-
-  // Print statistics
-  console.log('📈 Statistics:');
-  console.log(`   - Total codes: ${database.codes.length}`);
-  console.log(`   - Penal Code: ${database.codes.filter(c => c.type === 'PC').length}`);
-  console.log(`   - Vehicle Code: ${database.codes.filter(c => c.type === 'VC').length}`);
-  console.log(`   - Health & Safety: ${database.codes.filter(c => c.type === 'HSC').length}`);
-
-  const categories = [...new Set(database.codes.map(c => c.category))];
-  console.log(`   - Categories: ${categories.length}`);
-  categories.forEach(cat => {
-    const count = database.codes.filter(c => c.category === cat).length;
-    console.log(`     • ${cat}: ${count}`);
-  });
-
-  console.log('\n✨ Done! You can now use this database in your CAD system.');
+// Ensure directories exist
+if (!fs.existsSync(outputDir)) {
+  fs.mkdirSync(outputDir, { recursive: true });
 }
 
-// Run the generator
-if (require.main === module) {
-  generateCodesDatabase().catch(console.error);
+const publicDataDir = path.join(__dirname, '..', 'public', 'data');
+if (!fs.existsSync(publicDataDir)) {
+  fs.mkdirSync(publicDataDir, { recursive: true });
 }
 
-module.exports = { generateCodesDatabase };
+// Write to both locations
+fs.writeFileSync(outputPath, JSON.stringify(database, null, 2));
+fs.writeFileSync(publicOutputPath, JSON.stringify(database, null, 2));
+
+console.log(`✓ California codes database generated successfully!`);
+console.log(`✓ Total codes: ${database.codes.length}`);
+console.log(`✓ Output: ${outputPath}`);
+console.log(`✓ Public: ${publicOutputPath}`);
+console.log(`✓ File size: ${(fs.statSync(outputPath).size / 1024).toFixed(2)} KB`);

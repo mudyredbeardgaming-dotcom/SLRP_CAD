@@ -3186,7 +3186,7 @@ const CADSystem = () => {
                           chargeType: 'MISDEMEANOR',
                           counts: 1,
                           titleCode: '',
-                          bondType: 'CASH',
+                          bondType: 'CASH BAIL',
                           bondAmount: 0,
                           jailTime: ''
                         };
@@ -3238,7 +3238,11 @@ const CADSystem = () => {
                                     c.id === charge.id ? {
                                       ...c,
                                       charge: code.title,
-                                      titleCode: code.code
+                                      titleCode: code.code,
+                                      chargeType: code.chargeType || 'MISDEMEANOR',
+                                      bondType: code.bondType || 'CASH BAIL',
+                                      bondAmount: code.bondAmount || 0,
+                                      jailTime: code.jailTime || ''
                                     } : c
                                   );
                                   setDmvRecordData({...dmvRecordData, charges: updated});
@@ -3259,9 +3263,11 @@ const CADSystem = () => {
                                 }}
                                 className="w-full bg-gray-600 text-white rounded px-2 py-1 text-sm"
                               >
-                                <option value="INFRACTION">INFRACTION</option>
-                                <option value="MISDEMEANOR">MISDEMEANOR</option>
                                 <option value="FELONY">FELONY</option>
+                                <option value="MISDEMEANOR">MISDEMEANOR</option>
+                                <option value="INFRACTION">INFRACTION</option>
+                                <option value="WARNING">WARNING</option>
+                                <option value="CORRECTABLE">CORRECTABLE</option>
                               </select>
                             </div>
                             <div>
@@ -3306,11 +3312,15 @@ const CADSystem = () => {
                                 }}
                                 className="w-full bg-gray-600 text-white rounded px-2 py-1 text-sm"
                               >
-                                <option value="CASH">CASH</option>
-                                <option value="SURETY">SURETY</option>
+                                <option value="CITATION RELEASE">CITATION RELEASE</option>
+                                <option value="RECOGNIZANCE RELEASE">RECOGNIZANCE RELEASE</option>
+                                <option value="CASH BAIL">CASH BAIL</option>
+                                <option value="SURETY BOND">SURETY BOND</option>
+                                <option value="PROPERTY BOND">PROPERTY BOND</option>
+                                <option value="FEDERAL BAIL BOND">FEDERAL BAIL BOND</option>
+                                <option value="IMMIGRATION BAIL BOND">IMMIGRATION BAIL BOND</option>
                                 <option value="NO BAIL">NO BAIL</option>
-                                <option value="OR">O.R.</option>
-                                <option value="CITATION">CITATION</option>
+                                <option value="PROBATION">PROBATION</option>
                               </select>
                             </div>
                             <div>
@@ -3439,7 +3449,7 @@ const CADSystem = () => {
                           chargeType: 'MISDEMEANOR',
                           counts: 1,
                           titleCode: '',
-                          bondType: 'CASH',
+                          bondType: 'CASH BAIL',
                           bondAmount: 0,
                           jailTime: ''
                         };
@@ -3512,9 +3522,11 @@ const CADSystem = () => {
                                 }}
                                 className="w-full bg-gray-600 text-white rounded px-2 py-1 text-sm"
                               >
-                                <option value="INFRACTION">INFRACTION</option>
-                                <option value="MISDEMEANOR">MISDEMEANOR</option>
                                 <option value="FELONY">FELONY</option>
+                                <option value="MISDEMEANOR">MISDEMEANOR</option>
+                                <option value="INFRACTION">INFRACTION</option>
+                                <option value="WARNING">WARNING</option>
+                                <option value="CORRECTABLE">CORRECTABLE</option>
                               </select>
                             </div>
                             <div>
@@ -3559,11 +3571,15 @@ const CADSystem = () => {
                                 }}
                                 className="w-full bg-gray-600 text-white rounded px-2 py-1 text-sm"
                               >
-                                <option value="CASH">CASH</option>
-                                <option value="SURETY">SURETY</option>
+                                <option value="CITATION RELEASE">CITATION RELEASE</option>
+                                <option value="RECOGNIZANCE RELEASE">RECOGNIZANCE RELEASE</option>
+                                <option value="CASH BAIL">CASH BAIL</option>
+                                <option value="SURETY BOND">SURETY BOND</option>
+                                <option value="PROPERTY BOND">PROPERTY BOND</option>
+                                <option value="FEDERAL BAIL BOND">FEDERAL BAIL BOND</option>
+                                <option value="IMMIGRATION BAIL BOND">IMMIGRATION BAIL BOND</option>
                                 <option value="NO BAIL">NO BAIL</option>
-                                <option value="OR">O.R.</option>
-                                <option value="CITATION">CITATION</option>
+                                <option value="PROBATION">PROBATION</option>
                               </select>
                             </div>
                             <div>
@@ -3765,9 +3781,11 @@ const CADSystem = () => {
                                 }}
                                 className="w-full bg-gray-600 text-white rounded px-2 py-1 text-sm"
                               >
-                                <option value="INFRACTION">INFRACTION</option>
-                                <option value="MISDEMEANOR">MISDEMEANOR</option>
                                 <option value="FELONY">FELONY</option>
+                                <option value="MISDEMEANOR">MISDEMEANOR</option>
+                                <option value="INFRACTION">INFRACTION</option>
+                                <option value="WARNING">WARNING</option>
+                                <option value="CORRECTABLE">CORRECTABLE</option>
                               </select>
                             </div>
                             <div>
@@ -3812,11 +3830,15 @@ const CADSystem = () => {
                                 }}
                                 className="w-full bg-gray-600 text-white rounded px-2 py-1 text-sm"
                               >
-                                <option value="CASH">CASH</option>
-                                <option value="SURETY">SURETY</option>
+                                <option value="CITATION RELEASE">CITATION RELEASE</option>
+                                <option value="RECOGNIZANCE RELEASE">RECOGNIZANCE RELEASE</option>
+                                <option value="CASH BAIL">CASH BAIL</option>
+                                <option value="SURETY BOND">SURETY BOND</option>
+                                <option value="PROPERTY BOND">PROPERTY BOND</option>
+                                <option value="FEDERAL BAIL BOND">FEDERAL BAIL BOND</option>
+                                <option value="IMMIGRATION BAIL BOND">IMMIGRATION BAIL BOND</option>
                                 <option value="NO BAIL">NO BAIL</option>
-                                <option value="OR">O.R.</option>
-                                <option value="CITATION">CITATION</option>
+                                <option value="PROBATION">PROBATION</option>
                               </select>
                             </div>
                             <div>
@@ -7993,7 +8015,11 @@ const CADSystem = () => {
                                         c.id === charge.id ? {
                                           ...c,
                                           charge: code.title,
-                                          titleCode: code.code
+                                          titleCode: code.code,
+                                          chargeType: code.chargeType || 'MISDEMEANOR',
+                                          bondType: code.bondType || 'CASH BAIL',
+                                          bondAmount: code.bondAmount || 0,
+                                          jailTime: code.jailTime || ''
                                         } : c
                                       );
                                       setCurrentReportData({...currentReportData, charges: updated});
@@ -8939,7 +8965,11 @@ const CADSystem = () => {
                                         c.id === charge.id ? {
                                           ...c,
                                           charge: code.title,
-                                          titleCode: code.code
+                                          titleCode: code.code,
+                                          chargeType: code.chargeType || 'MISDEMEANOR',
+                                          bondType: code.bondType || 'CASH BAIL',
+                                          bondAmount: code.bondAmount || 0,
+                                          jailTime: code.jailTime || ''
                                         } : c
                                       );
                                       setCurrentRecordData({...currentRecordData, charges: updated});
@@ -9927,7 +9957,11 @@ const CADSystem = () => {
                                         c.id === charge.id ? {
                                           ...c,
                                           charge: code.title,
-                                          titleCode: code.code
+                                          titleCode: code.code,
+                                          chargeType: code.chargeType || 'MISDEMEANOR',
+                                          bondType: code.bondType || 'CASH BAIL',
+                                          bondAmount: code.bondAmount || 0,
+                                          jailTime: code.jailTime || ''
                                         } : c
                                       );
                                       setCurrentRecordData({...currentRecordData, charges: updated});
