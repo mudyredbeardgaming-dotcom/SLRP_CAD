@@ -11,7 +11,11 @@
       "Bash(xargs:*)",
       "Bash(npm install:*)",
       "Bash(npm audit:*)",
-      "Bash(node scripts/scrape-ca-codes.js:*)"
+      "Bash(node scripts/scrape-ca-codes.js:*)",
+      "Bash(cat:*)",
+      "Bash(git show:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

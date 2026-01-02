@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AlertCircle, Radio, MapPin, Clock, User, Phone, FileText, Plus, X, Check, Shield, AlertTriangle, Lock, LogOut, Search, Database, Pin, PinOff, Car, Flame, Truck } from 'lucide-react';
 
 // App version - increment this to force re-login after updates
-const APP_VERSION = '1.2.2';
+const APP_VERSION = '1.2.3';
 
 const CALL_CODES = ['CALL FOR SERVICE', 'ASSAULT', 'BURGLARY', 'TRAFFIC STOP', 'DOMESTIC DISTURBANCE', 'THEFT', 'SUSPICIOUS ACTIVITY', 'WELFARE CHECK', 'NOISE COMPLAINT', 'TRESPASSING'];
 
