@@ -8136,24 +8136,37 @@ const CADSystem = () => {
                     <div className="bg-gray-700 rounded-lg p-4">
                       <h4 className="text-md font-semibold text-yellow-400 mb-3 border-b border-gray-600 pb-2">Evidence or Property Log</h4>
                       <div className="mb-4">
-                        <label className="block text-xs text-gray-400 mb-1">Evidence Locker #</label>
-                        <input type="text" value={currentReportData.evidenceLockerNumber || ''} onChange={(e) => setCurrentReportData({...currentReportData, evidenceLockerNumber: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                        <label className="block text-xs text-gray-400 mb-1">Did You Book Evidence in Regards to This Report?</label>
+                        <select value={currentReportData.bookedEvidence || ''} onChange={(e) => setCurrentReportData({...currentReportData, bookedEvidence: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <option value="">Select...</option>
+                          <option value="YES">Yes</option>
+                          <option value="NO">No</option>
+                        </select>
                       </div>
 
-                      <div className="space-y-4">
-                        {['A', 'B', 'C', 'D'].map(letter => (
-                          <div key={letter} className="grid grid-cols-3 gap-4">
-                            <div className="col-span-1">
-                              <label className="block text-xs text-gray-400 mb-1">Item {letter} Quantity</label>
-                              <input type="number" min="0" value={currentReportData[`item${letter}Quantity`] || ''} onChange={(e) => setCurrentReportData({...currentReportData, [`item${letter}Quantity`]: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
-                            </div>
-                            <div className="col-span-2">
-                              <label className="block text-xs text-gray-400 mb-1">Item {letter} Description</label>
-                              <input type="text" value={currentReportData[`item${letter}Description`] || ''} onChange={(e) => setCurrentReportData({...currentReportData, [`item${letter}Description`]: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Description..." />
-                            </div>
+                      {currentReportData.bookedEvidence === 'YES' && (
+                        <>
+                          <div className="mb-4">
+                            <label className="block text-xs text-gray-400 mb-1">Evidence Locker #</label>
+                            <input type="text" value={currentReportData.evidenceLockerNumber || ''} onChange={(e) => setCurrentReportData({...currentReportData, evidenceLockerNumber: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
                           </div>
-                        ))}
-                      </div>
+
+                          <div className="space-y-4">
+                            {['A', 'B', 'C', 'D'].map(letter => (
+                              <div key={letter} className="grid grid-cols-3 gap-4">
+                                <div className="col-span-1">
+                                  <label className="block text-xs text-gray-400 mb-1">Item {letter} Quantity</label>
+                                  <input type="number" min="0" value={currentReportData[`item${letter}Quantity`] || ''} onChange={(e) => setCurrentReportData({...currentReportData, [`item${letter}Quantity`]: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                                </div>
+                                <div className="col-span-2">
+                                  <label className="block text-xs text-gray-400 mb-1">Item {letter} Description</label>
+                                  <input type="text" value={currentReportData[`item${letter}Description`] || ''} onChange={(e) => setCurrentReportData({...currentReportData, [`item${letter}Description`]: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Description..." />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      )}
                     </div>
 
                     {/* Narrative Section */}
@@ -11530,24 +11543,28 @@ const CADSystem = () => {
                             <option value="NO">NO</option>
                           </select>
                         </div>
-                        <div>
-                          <label className="block text-xs text-gray-400 mb-1">If YES - What Evidence Locker # Was Evidence Booked Into</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.evidenceLockerNumber || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, evidenceLockerNumber: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs text-gray-400 mb-1">List Item(s) Description Booked</label>
-                          <textarea
-                            value={currentRecordData.evidenceItemsBooked || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, evidenceItemsBooked: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm h-24"
-                            placeholder="List all evidence items booked..."
-                          />
-                        </div>
+                        {currentRecordData.evidenceBooked === 'YES' && (
+                          <>
+                            <div>
+                              <label className="block text-xs text-gray-400 mb-1">If YES - What Evidence Locker # Was Evidence Booked Into</label>
+                              <input
+                                type="text"
+                                value={currentRecordData.evidenceLockerNumber || ''}
+                                onChange={(e) => setCurrentRecordData({...currentRecordData, evidenceLockerNumber: e.target.value})}
+                                className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-gray-400 mb-1">List Item(s) Description Booked</label>
+                              <textarea
+                                value={currentRecordData.evidenceItemsBooked || ''}
+                                onChange={(e) => setCurrentRecordData({...currentRecordData, evidenceItemsBooked: e.target.value})}
+                                className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm h-24"
+                                placeholder="List all evidence items booked..."
+                              />
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
 
