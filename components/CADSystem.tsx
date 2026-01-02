@@ -9156,14 +9156,34 @@ const CADSystem = () => {
                       <h4 className="text-md font-semibold text-orange-400 mb-3 border-b border-gray-600 pb-2">IMAGE ATTACHMENTS</h4>
                       <div className="space-y-3">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Image URL 1</label>
+                          <label className="block text-xs text-gray-400 mb-1">Image File 1</label>
                           <input
-                            type="text"
-                            value={currentRecordData.imageUrl1 || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, imageUrl1: e.target.value})}
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                  setCurrentRecordData({...currentRecordData, imageUrl1: reader.result as string});
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
                             className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm mb-2"
-                            placeholder="https://..."
                           />
+                          {currentRecordData.imageUrl1 && (
+                            <div className="mb-2">
+                              <img src={currentRecordData.imageUrl1} alt="Attachment 1" className="max-h-32 rounded border border-gray-500" />
+                              <button
+                                type="button"
+                                onClick={() => setCurrentRecordData({...currentRecordData, imageUrl1: ''})}
+                                className="mt-1 text-xs text-red-400 hover:text-red-300"
+                              >
+                                Remove Image
+                              </button>
+                            </div>
+                          )}
                           <label className="block text-xs text-gray-400 mb-1">Image 1 Description</label>
                           <input
                             type="text"
@@ -9174,14 +9194,34 @@ const CADSystem = () => {
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Image URL 2</label>
+                          <label className="block text-xs text-gray-400 mb-1">Image File 2</label>
                           <input
-                            type="text"
-                            value={currentRecordData.imageUrl2 || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, imageUrl2: e.target.value})}
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                  setCurrentRecordData({...currentRecordData, imageUrl2: reader.result as string});
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
                             className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm mb-2"
-                            placeholder="https://..."
                           />
+                          {currentRecordData.imageUrl2 && (
+                            <div className="mb-2">
+                              <img src={currentRecordData.imageUrl2} alt="Attachment 2" className="max-h-32 rounded border border-gray-500" />
+                              <button
+                                type="button"
+                                onClick={() => setCurrentRecordData({...currentRecordData, imageUrl2: ''})}
+                                className="mt-1 text-xs text-red-400 hover:text-red-300"
+                              >
+                                Remove Image
+                              </button>
+                            </div>
+                          )}
                           <label className="block text-xs text-gray-400 mb-1">Image 2 Description</label>
                           <input
                             type="text"
@@ -9192,14 +9232,34 @@ const CADSystem = () => {
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Image URL 3</label>
+                          <label className="block text-xs text-gray-400 mb-1">Image File 3</label>
                           <input
-                            type="text"
-                            value={currentRecordData.imageUrl3 || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, imageUrl3: e.target.value})}
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                  setCurrentRecordData({...currentRecordData, imageUrl3: reader.result as string});
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
                             className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm mb-2"
-                            placeholder="https://..."
                           />
+                          {currentRecordData.imageUrl3 && (
+                            <div className="mb-2">
+                              <img src={currentRecordData.imageUrl3} alt="Attachment 3" className="max-h-32 rounded border border-gray-500" />
+                              <button
+                                type="button"
+                                onClick={() => setCurrentRecordData({...currentRecordData, imageUrl3: ''})}
+                                className="mt-1 text-xs text-red-400 hover:text-red-300"
+                              >
+                                Remove Image
+                              </button>
+                            </div>
+                          )}
                           <label className="block text-xs text-gray-400 mb-1">Image 3 Description</label>
                           <input
                             type="text"
