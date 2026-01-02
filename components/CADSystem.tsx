@@ -8551,20 +8551,6 @@ const CADSystem = () => {
                   </div>
                 </div>
 
-                {/* Subject Name - Hide for BOLO since it has Subject Information section */}
-                {activeRecordForm !== 'BOLO' && (
-                  <div>
-                    <label className="block text-sm text-gray-300 mb-1">Subject Name</label>
-                    <input
-                      type="text"
-                      value={currentRecordData.subject || ''}
-                      onChange={(e) => setCurrentRecordData({...currentRecordData, subject: e.target.value})}
-                      className="w-full bg-gray-700 text-white rounded px-3 py-2"
-                      placeholder="Name of person this record is for"
-                    />
-                  </div>
-                )}
-
                 {/* ARREST specific fields */}
                 {activeRecordForm === 'ARREST' && (
                   <>
