@@ -1,24 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
+import { withDataLock, writeDataFile } from '@/lib/dataStore';
+import { replayGameChanges } from '@/lib/fivem/characters';
 
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
 
-    // Path to data file (in project root/data directory)
-    const dataFilePath = path.join(process.cwd(), 'data', 'cad-data.json');
-
-    // Ensure data directory exists
-    const dataDir = path.join(process.cwd(), 'data');
-    try {
-      await fs.access(dataDir);
-    } catch {
-      await fs.mkdir(dataDir, { recursive: true });
-    }
-
-    // Save data to file
-    await fs.writeFile(dataFilePath, JSON.stringify(data, null, 2), 'utf-8');
+    await withDataLock(async () => {
+      // Keep characters/licenses/vehicles the game added since this browser last loaded
+      replayGameChanges(data);
+      await writeDataFile(data);
+    });
 
     return NextResponse.json({ success: true, message: 'Data saved successfully' });
   } catch (error) {

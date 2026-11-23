@@ -1,15 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireGameServer } from '@/lib/fivem/auth';
 import { applyInboundEvent, markSeen } from '@/lib/fivem/store';
+import { linkAccount, registerVehicle, setLicense, upsertCharacter } from '@/lib/fivem/characters';
 import { FiveMInboundEvent } from '@/lib/fivem/types';
 
 export const dynamic = 'force-dynamic';
 
 const MAX_EVENTS_PER_REQUEST = 100;
 
+/** Character-sync events are written to the CAD data file and return a result. */
+async function applyPersisted(event: any): Promise<unknown | undefined> {
+  switch (event?.type) {
+    case 'account_link':
+      return linkAccount(event.code, event.owner, event.playerName);
+    case 'character_upsert':
+      return upsertCharacter(event.owner, event.character);
+    case 'license_set':
+      return setLicense(event.characterId, event.license);
+    case 'vehicle_register':
+      return registerVehicle(event.characterId, event.vehicle);
+    default:
+      return undefined;
+  }
+}
+
 /**
  * Game server -> CAD.
  * Body: a single event `{ "type": "...", ... }` or a batch `{ "events": [ ... ] }`.
+ * Response: { ok, accepted, errors: [{ index, error }], results: [{ index, result }] }
  */
 export async function POST(request: NextRequest) {
   const denied = requireGameServer(request);
@@ -28,9 +46,24 @@ export async function POST(request: NextRequest) {
   }
 
   markSeen();
-  const errors = events
-    .map((event, index) => ({ index, error: applyInboundEvent(event) }))
-    .filter(r => r.error);
+  const errors: { index: number; error: string }[] = [];
+  const results: { index: number; result: unknown }[] = [];
 
-  return NextResponse.json({ ok: errors.length === 0, accepted: events.length - errors.length, errors });
+  // In order: a character must exist before its licenses/vehicles
+  for (let index = 0; index < events.length; index++) {
+    const event = events[index];
+    try {
+      const result = await applyPersisted(event);
+      if (result !== undefined) {
+        results.push({ index, result });
+        continue;
+      }
+      const error = applyInboundEvent(event);
+      if (error) errors.push({ index, error });
+    } catch (e: any) {
+      errors.push({ index, error: e?.message || 'failed' });
+    }
+  }
+
+  return NextResponse.json({ ok: errors.length === 0, accepted: events.length - errors.length, errors, results });
 }

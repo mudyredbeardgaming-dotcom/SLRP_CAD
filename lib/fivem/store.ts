@@ -89,6 +89,7 @@ export function applyInboundEvent(raw: FiveMInboundEvent): string | null {
         playerCount: raw.playerCount,
         maxPlayers: raw.maxPlayers,
         resourceVersion: raw.resourceVersion ?? store.server.resourceVersion,
+        commands: raw.commands ?? store.server.commands,
         lastHeartbeat: now,
       };
       return null;

@@ -9,6 +9,55 @@
 
 Config = {}
 
+-- Prefix shown on chat messages from the resource.
+Config.ChatPrefix = 'StrataMDT'
+
+-- Print CAD responses/errors to the server console.
+Config.Debug = false
+
+-- ---------------------------------------------------------------------------
+-- Commands
+-- ---------------------------------------------------------------------------
+-- Rename any command, add aliases, or switch it off to fit your server.
+--   name     the command players type (without the slash)
+--   aliases  extra names for the same command
+--   enabled  false = not registered at all (e.g. if another resource owns /911)
+--   leo      true  = requires Config.LeoAce (when that is set)
+--   ace      a specific ACE permission for this command (overrides `leo`)
+Config.Commands = {
+  callsign = { name = 'callsign', aliases = {},         enabled = true, leo = true },
+  status   = { name = 'status',   aliases = {},         enabled = true, leo = true },
+  panic    = { name = 'panic',    aliases = {},         enabled = true, leo = true },
+  call911  = { name = '911',      aliases = {},         enabled = true },
+  runplate = { name = 'runplate', aliases = { 'rp' },   enabled = true, leo = true },
+  runname  = { name = 'runname',  aliases = { 'rn' },   enabled = true, leo = true },
+  aop      = { name = 'aop',      aliases = {},         enabled = true, ace = 'strata.aop' },
+  linkcad  = { name = 'linkcad',  aliases = {},         enabled = true },  -- link a CAD account: /linkcad CODE
+  cadsync  = { name = 'cadsync',  aliases = {},         enabled = true },  -- push my current character to the CAD now
+}
+
+-- ACE permission for commands marked `leo = true`. nil = anyone can use them.
+-- Grant it in server.cfg:  add_ace group.leo strata.leo allow
+Config.LeoAce = nil
+
+-- Words accepted by the status command, mapped to CAD statuses
+-- (available, busy, unavailable, enroute, onscene).
+Config.StatusAliases = {
+  available = 'available', ['10-8'] = 'available', ['108'] = 'available',
+  busy = 'busy', ['10-6'] = 'busy',
+  unavailable = 'unavailable', ['10-7'] = 'unavailable',
+  enroute = 'enroute', ['10-76'] = 'enroute',
+  onscene = 'onscene', ['10-23'] = 'onscene',
+}
+
+-- Also register each StatusAliases key that starts with "10-" as its own command
+-- (e.g. /10-8, /10-23). Set false if those clash with another resource.
+Config.StatusShortcutCommands = true
+
+-- ---------------------------------------------------------------------------
+-- Live units
+-- ---------------------------------------------------------------------------
+
 -- How often each player reports their position to the game server (ms).
 -- Together with UnitUpdateInterval this sets how smoothly units move on the CAD live map.
 Config.TelemetryInterval = 2500
@@ -22,18 +71,94 @@ Config.OutboxInterval = 3000
 -- Heartbeat to the CAD (ms). The CAD shows "FiveM offline" after ~45s without one.
 Config.HeartbeatInterval = 15000
 
--- Seconds a player must wait between /911 calls.
+-- Seconds a player must wait between 911 calls.
 Config.Call911Cooldown = 30
 
 -- Optional postal resource. Set to nil if you don't run one.
 -- Expected export: exports[Config.PostalResource]:getPostal()
 Config.PostalResource = 'nearest-postal'
 
--- Optional ACE permission required to use /callsign, /panic, /status,
--- /runplate and /runname (e.g. 'strata.leo'). nil = anyone can use them.
--- Grant it in server.cfg:  add_ace group.leo strata.leo allow
-Config.LeoAce = nil
+-- ---------------------------------------------------------------------------
+-- Character sync: in-game characters, licenses and vehicles -> CAD civilians
+-- ---------------------------------------------------------------------------
+-- 'auto' detects qbx_core, qb-core or es_extended. Use 'standalone' when you
+-- run something else and call the exports yourself (see fivem/README.md).
+Config.Framework = 'auto'
 
--- ACE permission required to change the AOP with /aop.
--- Grant it in server.cfg:  add_ace group.admin strata.aop allow
-Config.AopAce = 'strata.aop'
+Config.CharacterSync = {
+  enabled = true,
+
+  -- Player identifier used to tie characters to a CAD account ('license', 'discord', 'fivem', 'steam').
+  identifier = 'license',
+
+  -- Seconds between license/vehicle checks for online players. Catches licenses and
+  -- vehicles from any source (DMV, phone apps, dealerships, admin commands...).
+  interval = 60,
+
+  syncLicenses = true,
+  syncVehicles = true,
+
+  -- Status sent to the CAD when a license the player had is taken away in game.
+  revokedLicenseStatus = 'SUSPENDED',
+
+  -- Defaults for newly created CAD records.
+  licenseValidYears = 4,
+  vehicleValidYears = 1,
+  vehicleInsuranceStatus = 'VALID',
+
+  -- Re-check a player right away when one of these server events fires
+  -- (a few seconds later, so the other resource has finished saving).
+  --   name    event name
+  --   net     true if it's a client -> server event (the player is the event source)
+  --   player  for server events: which argument holds the player's server id
+  resyncDelay = 3000,
+  resyncEvents = {
+    { name = 'esx_identity:completedRegistration', player = 1 },
+    { name = 'esx_license:addLicense', player = 1 },
+    { name = 'qb-vehicleshop:server:buyShowroomVehicle', net = true },
+    { name = 'qb-vehicleshop:server:financeVehicle', net = true },
+    { name = 'qb-cityhall:server:requestId', net = true },
+  },
+}
+
+-- Framework license name -> CAD license. A string is the CAD license type; a table
+-- can also set class / motorcycle endorsement. false = don't send it to the CAD.
+-- CAD license types: DRIVER LICENSE, PILOT LICENSE, BOAT LICENSE, FISHING LICENSE,
+-- HUNTING LICENSE, MEDICAL MARIJUANA (others are stored as-is).
+Config.LicenseMap = {
+  -- QBCore / Qbox (PlayerData.metadata.licences)
+  driver = { type = 'DRIVER LICENSE', class = 'C' },
+  weapon = false,
+  business = false,
+  -- ESX (esx_license / esx_dmvschool)
+  dmv = false,                                         -- theory test only
+  drive = { type = 'DRIVER LICENSE', class = 'C' },
+  drive_bike = { type = 'DRIVER LICENSE', motorcycle = 'M1' },
+  drive_truck = { type = 'DRIVER LICENSE', class = 'A' },
+  weapon_license = false,
+  -- Common extras
+  pilot = 'PILOT LICENSE',
+  boat = 'BOAT LICENSE',
+  fishing = 'FISHING LICENSE',
+  hunting = 'HUNTING LICENSE',
+}
+
+-- SQL used to read owned vehicles / licenses (requires oxmysql). Adjust if your
+-- tables differ. Each query gets the character id as its only parameter.
+Config.Queries = {
+  qb = {
+    vehicles = 'SELECT plate, vehicle AS model FROM player_vehicles WHERE citizenid = ?',
+  },
+  esx = {
+    licenses = 'SELECT type FROM user_licenses WHERE owner = ?',
+    vehicles = 'SELECT plate, vehicle AS props FROM owned_vehicles WHERE owner = ?',
+  },
+}
+
+-- GTA vehicle class -> CAD vehicle type.
+Config.VehicleClassTypes = {
+  [0] = 'COMPACT', [1] = 'SEDAN', [2] = 'SUV', [3] = 'COUPE', [4] = 'COUPE', [5] = 'COUPE',
+  [6] = 'COUPE', [7] = 'COUPE', [8] = 'MOTORCYCLE', [9] = 'OFFROAD', [10] = 'COMMERCIAL',
+  [11] = 'TRUCK', [12] = 'VAN', [13] = 'OTHER', [14] = 'MARINE', [15] = 'AIRCRAFT',
+  [16] = 'AIRCRAFT', [17] = 'COMMERCIAL', [18] = 'OTHER', [19] = 'OTHER', [20] = 'COMMERCIAL', [21] = 'OTHER',
+}

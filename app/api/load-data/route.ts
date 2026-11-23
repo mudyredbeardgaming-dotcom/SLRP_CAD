@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
+import { readDataFile, withDataLock } from '@/lib/dataStore';
 
 // Must run on every request. Without this Next.js prerenders the route at build
 // time and serves that snapshot forever, so saved data never comes back.
@@ -8,15 +7,11 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    // Path to data file
-    const dataFilePath = path.join(process.cwd(), 'data', 'cad-data.json');
-
-    // Try to read the file
-    try {
-      const fileContent = await fs.readFile(dataFilePath, 'utf-8');
-      const data = JSON.parse(fileContent);
+    // Read inside the data lock so we never see a save that's half done
+    const data = await withDataLock(readDataFile);
+    if (data) {
       return NextResponse.json(data);
-    } catch (error) {
+    } else {
       // If file doesn't exist, return empty data structure
       console.log('No saved data found, returning defaults');
       return NextResponse.json({

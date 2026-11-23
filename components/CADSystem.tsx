@@ -289,7 +289,7 @@ const CADSystem = () => {
 
   // User login credentials - officers, firefighters, tow drivers
   // In production, this would be stored in a database with hashed passwords
-  const [officerCredentials, setOfficerCredentials] = useState([
+  const [officerCredentials, setOfficerCredentials] = useState<any[]>([
     // Police Officers
     {
       username: 'johnson',
@@ -896,12 +896,13 @@ const CADSystem = () => {
   // re-render would remount the nested form components and drop typed input.
   const [newCallPrefill, setNewCallPrefill] = useState<any>(null);
   const [policeView, setPoliceView] = useState<'unit' | 'map'>('unit');
+  const [fivemLinkCode, setFivemLinkCode] = useState<any>(null);
   const fivemPaused = showLogin || showNewCall || !!selectedCall || showUnitInfo || showComModal ||
     civilianView === 'add' || civilianView === 'edit' || !!activeReportForm || !!activeRecordForm;
   const fivem = useFiveMBridge({
-    active: isClient && isAuthenticated && !!selectedRole && selectedRole !== 'civilian',
+    active: isClient && isAuthenticated && !!selectedRole,
     paused: fivemPaused,
-    fastPollMs: selectedRole === 'police' && policeView === 'map' ? 1500 : undefined,
+    fastPollMs: selectedRole === 'civilian' ? 15000 : selectedRole === 'police' && policeView === 'map' ? 1500 : undefined,
     onEvent: (event) => {
       // Game-originated changes: apply locally only (don't echo back to the game)
       if (event.type === 'unit_status' || event.type === 'panic') {
@@ -1184,7 +1185,7 @@ const CADSystem = () => {
       },
       {
         key: 'police',
-        label: 'Sheriff',
+        label: 'Law Enforcement',
         description: 'Unit status, active calls & records',
         Icon: Shield,
         allowed: (permissions.canAccessPolice && role === 'police') || isAdmin,
@@ -1510,6 +1511,7 @@ const CADSystem = () => {
         const newCharacter = {
           ...currentForm,
           id: `CIV-${Date.now()}`,
+          ownerUsername: loggedInOfficer?.username || null,
           createdAt: new Date().toISOString()
         };
         setCivilians([...civilians, newCharacter]);
@@ -1563,6 +1565,86 @@ const CADSystem = () => {
       setSelectedCivilian(updatedCivilian);
     };
 
+    // Characters this account owns. Admins see everyone's. Characters created
+    // before ownership existed (no owner, not from FiveM) stay visible to all.
+    const myCivilians = loggedInOfficer?.role === 'admin'
+      ? civilians
+      : civilians.filter(c => c.ownerUsername ? c.ownerUsername === loggedInOfficer?.username : !c.fivem);
+    const myCredential = officerCredentials.find((c: any) => c.username === loggedInOfficer?.username);
+    const fivemLink = myCredential?.fivemLink;
+    const linkCommand = fivem.server.commands?.linkcad || 'linkcad';
+    const linkCodeLive = fivemLinkCode && fivemLinkCode.expiresAt > Date.now() && !fivemLink;
+
+    const requestLinkCode = () => {
+      fetch('/api/fivem/link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'code', username: loggedInOfficer?.username })
+      })
+        .then(r => r.json())
+        .then(r => r.ok && setFivemLinkCode({ code: r.code, expiresAt: r.expiresAt }))
+        .catch(() => {});
+    };
+    const unlinkFiveM = () => {
+      if (!confirm('Unlink your FiveM account? Characters already synced stay in the CAD.')) return;
+      const username = loggedInOfficer?.username;
+      fetch('/api/fivem/link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'unlink', username })
+      }).catch(() => {});
+      setOfficerCredentials((prev: any[]) => prev.map(c => {
+        if (c.username !== username) return c;
+        const { fivemLink: _removed, ...rest } = c;
+        return rest;
+      }));
+      setFivemLinkCode(null);
+    };
+
+    const renderFiveMLinkCard = () => {
+      if (!fivem.enabled || !loggedInOfficer?.username) return null;
+      return (
+        <div className="panel p-4 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className={`inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ring-1 ${fivemLink ? 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/25' : 'bg-purple-500/10 text-purple-400 ring-purple-500/25'}`}>
+              <Radio size={18} />
+            </span>
+            <div className="min-w-0">
+              {fivemLink ? (
+                <>
+                  <p className="font-medium text-white">FiveM account linked</p>
+                  <p className="text-sm text-gray-400 truncate">
+                    {fivemLink.playerName || 'Player'} · characters, driver licenses and vehicles you get in game sync here automatically.
+                  </p>
+                </>
+              ) : linkCodeLive ? (
+                <>
+                  <p className="font-medium text-white">
+                    In game, type <span className="font-mono text-purple-300">/{linkCommand} {fivemLinkCode.code}</span>
+                  </p>
+                  <p className="text-sm text-gray-400">This code works for 10 minutes. This page updates once you're linked.</p>
+                </>
+              ) : (
+                <>
+                  <p className="font-medium text-white">Link your FiveM account</p>
+                  <p className="text-sm text-gray-400">Characters you create in game, plus their driver licenses and vehicles, will be added here automatically.</p>
+                </>
+              )}
+            </div>
+          </div>
+          {fivemLink ? (
+            <button onClick={unlinkFiveM} className="btn btn-secondary btn-sm">Unlink</button>
+          ) : linkCodeLive ? (
+            <span className="rounded-lg border border-purple-500/30 bg-purple-500/10 px-4 py-2 font-mono text-xl font-bold tracking-[0.3em] text-purple-200">
+              {fivemLinkCode.code}
+            </span>
+          ) : (
+            <button onClick={requestLinkCode} className="btn bg-purple-600 text-white hover:bg-purple-500 btn-sm">Get link code</button>
+          )}
+        </div>
+      );
+    };
+
     // Character List View
     const renderCharacterList = () => (
       <div className="space-y-6">
@@ -1571,9 +1653,9 @@ const CADSystem = () => {
             <div className="eyebrow mb-1.5">Civilian Portal</div>
             <h2 className="text-2xl font-semibold tracking-tight text-white">My Characters</h2>
             <p className="text-sm text-gray-400 mt-1">
-              {civilians.length === 0
+              {myCivilians.length === 0
                 ? 'You have not created any characters yet.'
-                : `${civilians.length} character${civilians.length === 1 ? '' : 's'} on file`}
+                : `${myCivilians.length} character${myCivilians.length === 1 ? '' : 's'} on file`}
             </p>
           </div>
           <button
@@ -1588,7 +1670,9 @@ const CADSystem = () => {
           </button>
         </div>
 
-        {civilians.length === 0 ? (
+        {renderFiveMLinkCard()}
+
+        {myCivilians.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-white/[0.1] bg-white/[0.02] px-8 py-16 text-center">
             <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-purple-500/10 text-purple-400 ring-1 ring-purple-500/25">
               <User size={30} />
@@ -1608,7 +1692,7 @@ const CADSystem = () => {
           </div>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {civilians.map(char => (
+            {myCivilians.map(char => (
               <div
                 key={char.id}
                 onClick={() => {
@@ -1636,6 +1720,9 @@ const CADSystem = () => {
                       </h3>
                       {char.deceased && (
                         <span className="rounded-full border border-red-500/30 bg-red-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-red-300">Deceased</span>
+                      )}
+                      {char.fivem && (
+                        <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-300" title="Synced from FiveM">In-game</span>
                       )}
                     </div>
                     <p className="text-gray-400 text-sm">DOB: {char.dateOfBirth || 'N/A'}</p>
@@ -12875,7 +12962,7 @@ const CADSystem = () => {
 
   const ROLE_THEME = {
     dispatch: { label: 'Dispatch', dot: 'bg-emerald-400', pill: 'border-emerald-500/25 bg-emerald-500/10 text-emerald-300', line: 'via-emerald-500/50' },
-    police: { label: 'Sheriff', dot: 'bg-blue-400', pill: 'border-blue-500/25 bg-blue-500/10 text-blue-300', line: 'via-blue-500/50' },
+    police: { label: 'Law Enforcement', dot: 'bg-blue-400', pill: 'border-blue-500/25 bg-blue-500/10 text-blue-300', line: 'via-blue-500/50' },
     fire: { label: 'Fire / EMS', dot: 'bg-red-400', pill: 'border-red-500/25 bg-red-500/10 text-red-300', line: 'via-red-500/50' },
     tow: { label: 'Tow', dot: 'bg-orange-400', pill: 'border-orange-500/25 bg-orange-500/10 text-orange-300', line: 'via-orange-500/50' },
   };
@@ -13070,7 +13157,7 @@ const CADSystem = () => {
         {selectedRole === 'police' && policeView === 'map' && (
           <div className="space-y-4">
             <div>
-              <div className="eyebrow mb-1.5">Sheriff</div>
+              <div className="eyebrow mb-1.5">Law Enforcement</div>
               <h2 className="text-2xl font-semibold tracking-tight">Live Map</h2>
             </div>
             <LiveMap

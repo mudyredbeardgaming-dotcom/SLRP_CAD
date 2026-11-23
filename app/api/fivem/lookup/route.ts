@@ -1,19 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
+import { readDataFile } from '@/lib/dataStore';
 import { requireGameServer } from '@/lib/fivem/auth';
 import { markSeen } from '@/lib/fivem/store';
 
 export const dynamic = 'force-dynamic';
 
-const readData = async () => {
-  try {
-    const file = await fs.readFile(path.join(process.cwd(), 'data', 'cad-data.json'), 'utf-8');
-    return JSON.parse(file);
-  } catch {
-    return {};
-  }
-};
+const readData = async () => (await readDataFile()) || {};
 
 const fullName = (c: any) => `${c.firstName || ''} ${c.lastName || ''}`.trim();
 
@@ -68,9 +60,9 @@ export async function GET(request: NextRequest) {
     .map(c => ({
       id: c.id,
       name: fullName(c),
-      dob: c.dob,
-      phone: c.phone,
-      address: c.address,
+      dob: c.dateOfBirth || c.dob,
+      phone: c.cellPhone || c.phone,
+      address: c.streetResidence || c.address,
       licenses: (c.dmvRecords || [])
         .filter((r: any) => r.type === 'LICENSE')
         .map((r: any) => ({ type: r.data?.licenseType, number: r.data?.licenseNumber, status: r.data?.status })),

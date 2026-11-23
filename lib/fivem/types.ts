@@ -42,6 +42,59 @@ export interface UnitTelemetry {
   updatedAt?: number;
 }
 
+/** The player behind a character. `identifier` is the server's primary one (e.g. "license:abc..."). */
+export interface FiveMOwner {
+  identifier: string;
+  identifiers?: string[];
+  name?: string;
+}
+
+/** A framework character (QBCore citizenid, ESX identifier, ...). */
+export interface GameCharacter {
+  id: string;
+  firstName: string;
+  lastName: string;
+  middleInitial?: string;
+  /** Any of YYYY-MM-DD, MM/DD/YYYY, YYYY/MM/DD */
+  dob?: string;
+  /** 0/1, "m"/"f", "male"/"female" */
+  gender?: string | number;
+  phone?: string;
+  address?: string;
+  postal?: string;
+  height?: string;
+  weight?: string;
+}
+
+export interface GameLicense {
+  /** CAD license type, e.g. "DRIVER LICENSE" (the resource maps framework names via Config.LicenseMap). */
+  type: string;
+  /** VALID (default), SUSPENDED, EXPIRED, PENDING */
+  status?: string;
+  number?: string;
+  class?: string;
+  motorcycle?: string;
+  expires?: string;
+  restrictions?: string;
+  /** Years until expiry for a new license (default 4). */
+  validYears?: number;
+}
+
+export interface GameVehicle {
+  plate: string;
+  model?: string;
+  make?: string;
+  color?: string;
+  year?: string;
+  vin?: string;
+  /** CAD vehicle type: SEDAN, COUPE, SUV, TRUCK, MOTORCYCLE, ... */
+  vehicleType?: string;
+  registrationStatus?: string;
+  insuranceStatus?: string;
+  /** Years until registration/insurance expiry for a new vehicle (default 1). */
+  validYears?: number;
+}
+
 // ---------------------------------------------------------------------------
 // Inbound: game server -> CAD
 // ---------------------------------------------------------------------------
@@ -53,6 +106,8 @@ export type FiveMInboundEvent =
       playerCount?: number;
       maxPlayers?: number;
       resourceVersion?: string;
+      /** Command names as configured on the server, e.g. { linkcad: "linkcad" } */
+      commands?: Record<string, string>;
     }
   | { type: 'unit_update'; units: UnitTelemetry[] }
   | { type: 'unit_left'; callsign: string }
@@ -66,7 +121,15 @@ export type FiveMInboundEvent =
       location?: GameLocation;
       serverId?: number;
     }
-  | { type: 'aop_update'; aop: string; setBy?: string };
+  | { type: 'aop_update'; aop: string; setBy?: string }
+  // Character sync (persisted to data/cad-data.json; see lib/fivem/characters.ts)
+  | { type: 'account_link'; code: string; owner: FiveMOwner; playerName?: string }
+  | { type: 'character_upsert'; owner: FiveMOwner; character: GameCharacter }
+  | { type: 'license_set'; characterId: string; license: GameLicense }
+  | { type: 'vehicle_register'; characterId: string; vehicle: GameVehicle };
+
+/** Event types handled by lib/fivem/characters.ts instead of the in-memory store. */
+export const PERSISTED_EVENT_TYPES = ['account_link', 'character_upsert', 'license_set', 'vehicle_register'] as const;
 
 /**
  * Events re-broadcast to CAD browsers. Every connected CAD applies these
@@ -130,6 +193,7 @@ export interface FiveMServerInfo {
   playerCount?: number;
   maxPlayers?: number;
   resourceVersion?: string;
+  commands?: Record<string, string>;
   lastHeartbeat?: number;
 }
 

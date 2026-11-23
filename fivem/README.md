@@ -25,9 +25,11 @@ The game server starts every request, so you don't need to open an inbound port 
      set strata_api_key "same value as FIVEM_API_KEY"
      ensure strata-mdt
      ```
+   - Put `ensure strata-mdt` **after** your framework (`qb-core`, `qbx_core` or `es_extended`) and `oxmysql`.
    - Use `set`, not `setr`, so the key is never sent to players.
 3. **Optional:**
    - Set your postal resource in `config.lua`. It defaults to `nearest-postal`.
+   - Rename or turn off any command in `Config.Commands` (see [Customizing commands](#customizing-commands)).
    - Set `Config.LeoAce` to lock the LEO commands to a group, then grant it:
      ```cfg
      add_ace group.leo strata.leo allow
@@ -38,15 +40,41 @@ Once it's running, the CAD top bar shows a green **FiveM** chip with the player 
 
 ## In-game commands
 
+These are the default names. Every one can be renamed, given aliases or turned off; see [Customizing commands](#customizing-commands).
+
 | Command | Who | What it does |
 |---|---|---|
 | `/callsign A-101` | LEO | Links you to the CAD unit with that callsign and starts position tracking. `/callsign off` stops it. |
-| `/status enroute` | LEO | Sets your CAD unit status: `available`, `busy`, `unavailable`, `enroute` or `onscene`. |
+| `/status enroute` | LEO | Sets your CAD unit status. Accepts `available`, `busy`, `unavailable`, `enroute`, `onscene` or a 10-code such as `10-8`. |
+| `/10-8`, `/10-23`, ... | LEO | Shortcuts for `/status`. Turn them off with `Config.StatusShortcutCommands = false`. |
 | `/panic` | LEO | Sets your unit to PANIC and alerts dispatch with your location. |
 | `/911 <message>` | Anyone | Sends a 911 call to the dispatch board, with your location. Limited to one per 30s. |
-| `/runplate <plate>` | LEO | Looks up a vehicle registration in the CAD. |
-| `/runname <first last>` | LEO | Looks up a person in the CAD. |
+| `/runplate <plate>` (`/rp`) | LEO | Looks up a vehicle registration in the CAD. |
+| `/runname <first last>` (`/rn`) | LEO | Looks up a person in the CAD. |
 | `/aop <area>` | `strata.aop` | Sets the server AOP, which is shown in the CAD top bar and announced to players. |
+| `/linkcad CODE` | Anyone | Links your FiveM identity to your CAD account (get the code in the CAD civilian portal). |
+| `/cadsync` | Anyone | Sends your current character, licenses and vehicles to the CAD right now. |
+
+### Customizing commands
+
+All command settings are in `config.lua` → `Config.Commands`:
+
+```lua
+Config.Commands = {
+  call911  = { name = '911',     aliases = { 'emergency' }, enabled = true },
+  runplate = { name = 'plate',   aliases = { 'rp' },        enabled = true, leo = true },
+  aop      = { name = 'aop',     aliases = {},              enabled = false },          -- another resource owns /aop
+  linkcad  = { name = 'cadlink', aliases = {},              enabled = true },
+  ...
+}
+```
+
+- `name` is what players type. `aliases` adds more names for the same command.
+- `enabled = false` doesn't register the command at all, so it can't clash with another resource.
+- `leo = true` requires `Config.LeoAce` (when that's set). `ace = 'some.permission'` requires that specific ACE instead.
+- The words `/status` accepts, including your own 10-codes, are in `Config.StatusAliases`.
+- The chat prefix is `Config.ChatPrefix`.
+- The CAD learns the configured names from the heartbeat. For example, the civilian portal tells players to type `/cadlink CODE` if that's what you named it.
 
 ## How it maps to the CAD
 
@@ -61,9 +89,75 @@ Once it's running, the CAD top bar shows a green **FiveM** chip with the player 
   - their call is closed;
   - their status is changed from the CAD.
 
-## Live map (Sheriff → Live Map)
+## Character sync (characters, driver licenses, vehicles)
 
-The Sheriff view has a **Live Map** tab that shows every unit the bridge is tracking, meaning everyone who has run `/callsign`:
+Players can build their CAD civilian just by playing. The bridge sends three things to the CAD:
+
+- **Characters:** each character a player creates or loads in game becomes a CAD civilian with the same name, date of birth, sex and phone number. It's marked **In-game** in the portal.
+- **Driver licenses (and other licenses):** when the character gets a license in game, for example from a DMV test or a phone app, it's added to that character's DMV records as a valid license with a generated license number. If the license is taken away in game, it's marked `SUSPENDED` in the CAD.
+- **Vehicles:** when the character gets a vehicle in game, it's registered to that character with plate, make, model, vehicle type, a generated VIN, and valid registration and insurance. If the vehicle changes hands in game, the registration moves to the new owner.
+
+### Linking a player to their CAD account
+
+1. In the CAD, the player signs in, opens **Civilian** and clicks **Get link code**.
+2. In game they type `/linkcad CODE` (or whatever you've named the command). The code is valid for 10 minutes.
+3. The portal shows **FiveM account linked**. Every character this player has made in game, and any new one, now appears under their account.
+
+Characters created before linking are still added to the CAD, so officers can look them up straight away. They're attached to the player's account once they link. The player is identified by `Config.CharacterSync.identifier`, which defaults to their Rockstar `license`.
+
+The civilian portal now shows each account only its own characters; admins see everyone's. Characters made before this change, which have no owner, stay visible to everyone.
+
+### Where the data comes from
+
+`Config.Framework = 'auto'` detects the framework:
+
+| Framework | Characters | Licenses | Vehicles |
+|---|---|---|---|
+| **QBCore / Qbox** | `QBCore:Server:PlayerLoaded` → `charinfo` | `metadata.licences` (`driver` → DRIVER LICENSE) | `player_vehicles` table |
+| **ESX** | `esx:playerLoaded` → `firstName`, `lastName`, `dateofbirth`, `sex` | `user_licenses` table (`drive`, `drive_bike`, `drive_truck` → DRIVER LICENSE) | `owned_vehicles` table |
+| **Standalone / other** | `exports['strata-mdt']:SetCharacter(...)` | exports | exports |
+
+- **Timing:** online players are re-checked every `Config.CharacterSync.interval` seconds (default 60). That catches licenses and vehicles from any source: DMV, phone apps, dealerships or admin commands. Only changes are sent to the CAD.
+- **Immediate checks:** for an immediate update, list the events your resources fire in `Config.CharacterSync.resyncEvents`. Defaults are included for `esx_license`, `esx_identity`, `qb-vehicleshop` and `qb-cityhall`.
+- **Mapping:** `Config.LicenseMap` decides which framework licenses go to the CAD and as what. For example, `driver = { type = 'DRIVER LICENSE', class = 'C' }`, or `weapon = false` to skip one.
+- **Custom tables:** if your vehicle or license tables differ, edit the SQL in `Config.Queries`. Vehicle and ESX license sync need `oxmysql`.
+- **Vehicle names:** make, model and type are looked up on the player's game client, so they match the game's own names. Add-on vehicles show whatever name the vehicle's creator gave them.
+
+### Hooking in a phone app, DMV or dealership (any framework)
+
+Call these from your own server scripts. They always use the character the player is **currently** on.
+
+```lua
+-- Character selected (standalone/custom frameworks; QBCore/Qbox/ESX do this automatically)
+exports['strata-mdt']:SetCharacter(source, {
+  id = 'CHAR123', firstName = 'Jamie', lastName = 'Rivera', dob = '1994-03-14', gender = 'f', phone = '555-0199',
+})
+
+-- Phone DMV app passed the driving test
+exports['strata-mdt']:SetLicense(source, 'driver')                         -- a Config.LicenseMap key...
+exports['strata-mdt']:SetLicense(source, 'PILOT LICENSE', { class = 'A' }) -- ...or a CAD license type
+exports['strata-mdt']:SetLicense(source, 'driver', { status = 'SUSPENDED' })
+
+-- Dealership / phone garage app
+exports['strata-mdt']:RegisterVehicle(source, { plate = 'ABC123', model = 'sultan', color = 'Black' })
+
+-- Force a full re-check (e.g. right after your own app saves)
+exports['strata-mdt']:ResyncPlayer(source, true)
+```
+
+The same calls exist as server events: `strata-mdt:setCharacter`, `strata-mdt:setLicense`, `strata-mdt:registerVehicle`, `strata-mdt:clearCharacter` and `strata-mdt:resync`. Trigger them with `TriggerEvent('strata-mdt:setLicense', source, 'driver')`. They're server-only, so players can't trigger them.
+
+### What happens to CAD edits
+
+- **What the game controls:** name, date of birth, sex and phone come from the game, so a later sync overwrites CAD edits to those fields.
+- **What the CAD keeps:** everything else is never touched by the sync, such as photo, address, height, scars, notes and restrictions on a license.
+- **Deleting characters:** a synced character deleted in the CAD less than 15 minutes after a game update may come back.
+  - Why: during that window the server re-adds recent game changes whenever a browser saves, so a browser holding older data can't erase them.
+  - The fix: wait 15 minutes before deleting.
+
+## Live map (Law Enforcement → Live Map)
+
+The Law Enforcement view has a **Live Map** tab that shows every unit the bridge is tracking, meaning everyone who has run `/callsign`:
 
 - Blips are colored by the unit's CAD status, with a white ring on your own unit. A wedge shows the direction the unit is facing, and PANIC pulses.
 - Blips glide between position updates and fade once a unit hasn't reported for 15 seconds.
@@ -101,7 +195,22 @@ The body is a single event, or a batch in the form `{ "events": [ ... ] }` (up t
 { "type": "aop_update", "aop": "Blaine County", "setBy": "admin" }
 ```
 
-The response is `{ ok, accepted, errors: [{ index, error }] }`.
+Character sync events. These are saved to `data/cad-data.json` and return a result:
+
+```jsonc
+{ "type": "account_link", "code": "7AMWLB", "owner": { "identifier": "license:abc", "identifiers": ["license:abc", "discord:42"] }, "playerName": "Jamie" }
+{ "type": "character_upsert", "owner": { "identifier": "license:abc" },
+  "character": { "id": "ABC12345", "firstName": "Jamie", "lastName": "Rivera", "dob": "1994-03-14", "gender": 1, "phone": "555-0199" } }
+{ "type": "license_set", "characterId": "ABC12345", "license": { "type": "DRIVER LICENSE", "class": "C", "status": "VALID" } }
+{ "type": "vehicle_register", "characterId": "ABC12345", "vehicle": { "plate": "8JR123", "model": "Sultan", "make": "Karin", "vehicleType": "SEDAN" } }
+```
+
+The response is `{ ok, accepted, errors: [{ index, error }], results: [{ index, result }] }`. Events in a batch are applied in order, so send a character before its licenses and vehicles.
+
+### `POST /api/fivem/link` (CAD portal)
+
+- `{ "action": "code", "username": "civilian1" }` returns `{ code, expiresAt }`.
+- `{ "action": "unlink", "username": "civilian1" }` removes the link.
 
 ### `GET /api/fivem/outbox?since=<cursor>`
 
@@ -139,8 +248,8 @@ curl "$CAD/api/fivem/outbox?since=0" -H "Authorization: Bearer $KEY"
 ## Limits and next steps
 
 - **Single instance only.** Bridge state is held in memory in one Next.js process. That fits the current Railway setup, but running more than one instance would need a shared store such as Redis.
-- **Open browser endpoints.** `/api/fivem/state` and `/api/fivem/command` are unauthenticated, like the rest of the CAD API today. Add them to your auth when JWT login lands.
+- **Open browser endpoints.** `/api/fivem/state`, `/api/fivem/command` and `/api/fivem/link` are unauthenticated, like the rest of the CAD API today. Add them to your auth when JWT login lands.
 - **Possible next steps:**
   - waypoints for assigned calls, which needs postal → coordinates;
-  - a live map from the `x`/`y` telemetry;
-  - framework job sync (ESX/QBCore) so players don't have to run `/callsign` by hand.
+  - framework job sync (ESX/QBCore) so players don't have to run `/callsign` by hand;
+  - vehicle colors from the framework's saved vehicle mods.

@@ -1,5 +1,6 @@
 -- StrataMDT bridge: client side.
--- Collects the player's location and handles notifications from the CAD.
+-- Collects the player's location, handles notifications from the CAD, and
+-- resolves vehicle model names for the character sync.
 
 local callsign = GetResourceKvpString('strata_callsign')
 
@@ -49,7 +50,9 @@ end
 -- Restore the saved callsign when the player joins.
 CreateThread(function()
   while not NetworkIsPlayerActive(PlayerId()) do Wait(500) end
-  if callsign and callsign ~= '' then TriggerServerEvent('strata:setCallsign', callsign) end
+  if callsign and callsign ~= '' and #Strata.CommandNames('callsign') > 0 then
+    TriggerServerEvent('strata:setCallsign', callsign)
+  end
 end)
 
 -- Position reports (only while on duty with a callsign).
@@ -63,41 +66,60 @@ CreateThread(function()
 end)
 
 -- ---------------------------------------------------------------------------
--- Commands
+-- Commands (names, aliases and on/off come from Config.Commands)
 -- ---------------------------------------------------------------------------
 
-RegisterCommand('callsign', function(_, args)
+local function suggest(key, help, params)
+  for _, name in ipairs(Strata.CommandNames(key)) do
+    TriggerEvent('chat:addSuggestion', '/' .. name, help, params)
+  end
+end
+
+Strata.RegisterCommand('callsign', function(_, args)
   local cs = (args[1] or ''):upper()
-  if cs == '' then return notify('Usage: /callsign A-101  (or /callsign off)') end
+  if cs == '' then return notify(('Usage: /%s A-101  (or /%s off)'):format(Config.Commands.callsign.name, Config.Commands.callsign.name)) end
   if cs == 'OFF' then
     callsign = nil
     DeleteResourceKvp('strata_callsign')
+    TriggerServerEvent('strata:clearCallsign')
     return notify('Callsign cleared. The CAD no longer tracks you.')
   end
   callsign = cs
   SetResourceKvp('strata_callsign', cs)
   TriggerServerEvent('strata:setCallsign', cs)
-end, false)
+end)
 
-RegisterCommand('911', function(_, args)
+Strata.RegisterCommand('call911', function(_, args)
   TriggerServerEvent('strata:911', table.concat(args, ' '), getLocation())
-end, false)
+end)
 
-RegisterCommand('panic', function()
+Strata.RegisterCommand('panic', function()
   TriggerServerEvent('strata:panic', getLocation())
-end, false)
+end)
 
-RegisterCommand('status', function(_, args)
+Strata.RegisterCommand('status', function(_, args)
   TriggerServerEvent('strata:status', args[1])
-end, false)
+end)
 
-TriggerEvent('chat:addSuggestion', '/callsign', 'Set your CAD callsign', { { name = 'callsign', help = 'e.g. A-101, or "off"' } })
-TriggerEvent('chat:addSuggestion', '/911', 'Call 911', { { name = 'message', help = 'What is happening?' } })
-TriggerEvent('chat:addSuggestion', '/panic', 'Send a PANIC alert to dispatch')
-TriggerEvent('chat:addSuggestion', '/status', 'Set your CAD status', { { name = 'status', help = 'available | busy | unavailable | enroute | onscene' } })
-TriggerEvent('chat:addSuggestion', '/runplate', 'Run a plate through the CAD', { { name = 'plate', help = 'Plate number' } })
-TriggerEvent('chat:addSuggestion', '/runname', 'Run a name through the CAD', { { name = 'name', help = 'First Last' } })
-TriggerEvent('chat:addSuggestion', '/aop', 'Set the area of play', { { name = 'area', help = 'e.g. Blaine County' } })
+-- /10-8, /10-23 ... shortcuts
+if Config.StatusShortcutCommands and Config.Commands.status and Config.Commands.status.enabled ~= false then
+  for word in pairs(Config.StatusAliases) do
+    if word:sub(1, 3) == '10-' then
+      RegisterCommand(word, function() TriggerServerEvent('strata:status', word) end, false)
+      TriggerEvent('chat:addSuggestion', '/' .. word, ('Set CAD status: %s'):format(Config.StatusAliases[word]))
+    end
+  end
+end
+
+suggest('callsign', 'Set your CAD callsign', { { name = 'callsign', help = 'e.g. A-101, or "off"' } })
+suggest('call911', 'Call 911', { { name = 'message', help = 'What is happening?' } })
+suggest('panic', 'Send a PANIC alert to dispatch')
+suggest('status', 'Set your CAD status', { { name = 'status', help = 'available | busy | unavailable | enroute | onscene, or a 10-code' } })
+suggest('runplate', 'Run a plate through the CAD', { { name = 'plate', help = 'Plate number' } })
+suggest('runname', 'Run a name through the CAD', { { name = 'name', help = 'First Last' } })
+suggest('aop', 'Set the area of play', { { name = 'area', help = 'e.g. Blaine County' } })
+suggest('linkcad', 'Link your CAD account', { { name = 'code', help = 'Code from the CAD civilian portal' } })
+suggest('cadsync', 'Send your current character, licenses and vehicles to the CAD')
 
 -- ---------------------------------------------------------------------------
 -- CAD -> player
@@ -117,4 +139,31 @@ end)
 
 RegisterNetEvent('strata:aop', function(aop)
   notify(('~b~AOP~s~ is now ~y~%s'):format(tostring(aop)))
+end)
+
+-- ---------------------------------------------------------------------------
+-- Character sync helper: model -> { model = "Sultan", make = "Karin", class = 1 }
+-- ---------------------------------------------------------------------------
+
+local function label(key)
+  if not key or key == '' then return nil end
+  local text = GetLabelText(key)
+  if text == 'NULL' then return key end
+  return text
+end
+
+RegisterNetEvent('strata:resolveModels', function(id, models)
+  local out = {}
+  for i, m in ipairs(models or {}) do
+    local hash = type(m) == 'number' and m or GetHashKey(tostring(m))
+    local entry = {}
+    if hash ~= 0 and IsModelInCdimage(hash) then
+      local display = GetDisplayNameFromVehicleModel(hash)
+      if display and display ~= 'CARNOTFOUND' then entry.model = label(display) end
+      entry.make = label(GetMakeNameFromVehicleModel(hash))
+      entry.class = GetVehicleClassFromName(hash)
+    end
+    out[i] = entry
+  end
+  TriggerServerEvent('strata:resolvedModels', id, out)
 end)

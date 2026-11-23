@@ -26,9 +26,10 @@ StrataMDT/
 │   └── globals.css     # Tailwind imports + StrataMDT design system classes
 ├── components/
 │   ├── Brand.tsx       # BRAND config, BrandMark, BrandLockup (logo swap point)
-│   ├── LiveMap.tsx     # FiveM live unit map (Sheriff → Live Map)
+│   ├── LiveMap.tsx     # FiveM live unit map (Law Enforcement → Live Map)
 │   └── CADSystem.tsx   # Main application component (monolithic)
-├── lib/fivem/          # FiveM bridge: protocol types, in-memory store, API-key auth, useFiveMBridge hook
+├── lib/dataStore.ts    # Locked, atomic access to data/cad-data.json (server)
+├── lib/fivem/          # FiveM bridge: protocol types, in-memory store, API-key auth, character sync, useFiveMBridge hook
 ├── fivem/strata-mdt/   # Sample FiveM resource (Lua) + fivem/README.md protocol docs
 ├── public/             # Static assets (legacy role logos still live here)
 ├── package.json
@@ -43,7 +44,7 @@ The entire application lives in `components/CADSystem.tsx`. This is a large mono
 
 ### Roles/Views
 1. **Dispatch** - Full CAD interface for dispatchers
-2. **Police (Sheriff)** - Officer view with unit status, active calls, records management
+2. **Police (Law Enforcement)** - Officer view with unit status, active calls, records management
 3. **Fire/EMS** - Unit status and active call view
 4. **Tow** - Tow unit view
 5. **Civilian** - Character management with DMV records
@@ -182,7 +183,7 @@ The UI is a sleek dark theme built from layered surfaces, hairline borders, and 
 Role color is a highlight (pill, dot, icon chip, header underline), not a thick border:
 - **Dispatch**: emerald/green
 - **Civilian**: purple
-- **Sheriff (Police)**: blue
+- **Law Enforcement (Police)**: blue
 - **Fire/EMS**: red
 - **Tow**: orange
 - **Admin**: Full access to all roles
@@ -199,7 +200,7 @@ Role color is a highlight (pill, dot, icon chip, header underline), not a thick 
 
 - **Login**: centered card over an ambient gradient/grid background, StrataMDT mark + wordmark, inputs with leading icons, show/hide password toggle, accent sign-in button, version footer.
 - **Role selection**: top bar (lockup, user chip, Sign Out), "Where are you working today?" heading, five role cards with icon chips; unavailable roles are dimmed with a "No access" label.
-- **Operational shell (Dispatch/Sheriff/Fire/Tow)**: sticky top bar (lockup, role pill, segmented nav, dispatcher COM button), a unit status strip for unit roles (identity card, status buttons with 10-codes and active-state highlight, separated PANIC button), and a bottom taskbar (Menu button, pinned Records shortcuts, PST clock).
+- **Operational shell (Dispatch/Law Enforcement/Fire/Tow)**: sticky top bar (lockup, role pill, segmented nav, dispatcher COM button), a unit status strip for unit roles (identity card, status buttons with 10-codes and active-state highlight, separated PANIC button), and a bottom taskbar (Menu button, pinned Records shortcuts, PST clock).
 - **Civilian portal**: sticky top bar with purple role pill and Change Role button; character cards grid; dashed empty state.
 
 ## Common Issues & Solutions
@@ -230,7 +231,7 @@ All test credentials are stored in `/data/cad-data.json` under `officerCredentia
 
 ## Role Permissions Matrix
 
-| Role | Dispatch | Civilian | Sheriff | Fire/EMS | Tow |
+| Role | Dispatch | Civilian | Law Enforcement | Fire/EMS | Tow |
 |------|----------|----------|---------|----------|-----|
 | Police | ❌ | ✅ | ✅ | ❌ | ❌ |
 | Fire | ❌ | ✅ | ❌ | ✅ | ❌ |
@@ -246,7 +247,10 @@ Basis for connecting a FiveM server. Full protocol and setup: `fivem/README.md`.
 - Game -> CAD: `POST /api/fivem/ingest` (heartbeat, unit_update, unit_left, unit_status, panic, call_911, aop_update). CAD -> game: the game polls `GET /api/fivem/outbox?since=`. Lookups: `GET /api/fivem/lookup?plate=|name=`.
 - CAD UI: `useFiveMBridge` polls `/api/fivem/state` (paused while forms/modals are open, same reason as the clock). It drives the top-bar FiveM chip, the "Incoming from FiveM" queue on the Dispatch board, and live locations on unit cards.
 - Units are matched to players by **callsign** (case-insensitive).
-- Live map: `components/LiveMap.tsx` (top-level component so pan/zoom survive CADSystem re-renders), shown via the Sheriff **Live Map** tab (`policeView` state). Map image is the GTA V atlas in `public/map/` (overview + HD for close zoom, dark/atlas style toggle); calibration in `lib/fivem/mapConfig.ts`. Setting `image: null` falls back to a grid with region labels.
+- Character sync (`lib/fivem/characters.ts`): in-game characters, licenses and vehicles become civilians and DMV records in `cad-data.json` (ids `FIVEM-<characterId>`, `FIVEM-...-LIC-<TYPE>`, `FIVEM-VEH-<PLATE>`). Game writes go through `lib/dataStore.ts` (`withDataLock`, atomic writes), and `/api/save-data` calls `replayGameChanges` so a browser saving stale data can't drop recent game changes (15 min window).
+- Account linking: civilian portal "Get link code" → player types `/linkcad CODE` → `officerCredentials[].fivemLink`. Civilians carry `ownerUsername`; the portal shows only the user's own (admins see all; owner-less legacy civilians stay visible).
+- Lua resource commands are all configurable in `fivem/strata-mdt/config.lua` (`Config.Commands`); the heartbeat reports the configured names (`fivem.server.commands`).
+- Live map: `components/LiveMap.tsx` (top-level component so pan/zoom survive CADSystem re-renders), shown via the Law Enforcement **Live Map** tab (`policeView` state). Map image is the GTA V atlas in `public/map/` (overview + HD for close zoom, dark/atlas style toggle); calibration in `lib/fivem/mapConfig.ts`. Setting `image: null` falls back to a grid with region labels.
 - Bridge state is in memory (`lib/fivem/store.ts`, on `globalThis`), not in `cad-data.json`, so a single server instance is assumed.
 - CAD actions that should reach the game call `fivem.send(...)` (see createCall, assignUnit, closeCall, updateUnitStatus). Game-originated changes are applied locally and saved, never echoed back.
 
