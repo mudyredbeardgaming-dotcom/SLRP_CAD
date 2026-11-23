@@ -1201,7 +1201,7 @@ const CADSystem = () => {
       setShowNewReportDropdown(false);
       setShowNewRecordDropdown(false);
       setActiveRecordsPanel(null);
-      setShowRecordsMenu(true);
+      // The panels open from the taskbar, so going back just closes the panel
       return true;
     }
     if (showRecordsMenu) {
@@ -1224,7 +1224,12 @@ const CADSystem = () => {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
   const renderBackButton = (label: string) => (
-    <button onClick={() => goBackInRecords()} className="icon-btn" title={`Back to ${label} (Backspace)`} aria-label={`Back to ${label}`}>
+    <button
+      onClick={() => goBackInRecords()}
+      className="icon-btn"
+      title={label === 'Records Management' ? 'Back (Backspace)' : `Back to ${label} (Backspace)`}
+      aria-label={label === 'Records Management' ? 'Back' : `Back to ${label}`}
+    >
       <ArrowLeft size={18} />
     </button>
   );
@@ -14827,6 +14832,34 @@ const CADSystem = () => {
   const activeCallList = calls.filter(c => c.status !== 'CLOSED');
   const priorityStripe = (p) => (p === '1' ? 'before:bg-red-500' : p === '2' ? 'before:bg-yellow-500' : p === '3' ? 'before:bg-blue-500' : 'before:bg-gray-500');
 
+  // ---- Taskbar (Law Enforcement / Fire-EMS) ----------------------------------
+  // LE gets Lookup, Records, BOLO and (supervisors) Supervisor Panel as buttons;
+  // both roles get Change Role next to the clock. Sign Out is on role selection.
+  const unitRole = selectedRole === 'police' || selectedRole === 'fire';
+  const changeRole = () => {
+    setActiveRecordsPanel(null);
+    setShowRecordsMenu(false);
+    setShowRoleMenu(false);
+    setActiveReportForm(null);
+    setActiveRecordForm(null);
+    setSelectedRole(null);
+  };
+  const renderTaskbarButton = (panel: string, label: string, icon: any, count = 0, countLabel = '', tone: 'alert' | 'neutral' = 'alert') => (
+    <button
+      key={panel}
+      onClick={() => { setShowRecordsMenu(false); setActiveRecordsPanel(activeRecordsPanel === panel ? null : panel); }}
+      className={`btn btn-secondary h-[52px] flex-shrink-0 ${activeRecordsPanel === panel ? '!border-accent-500/40 !bg-accent-500/10' : ''}`}
+      data-taskbar-button={panel}
+      title={count > 0 ? `${label}: ${count} ${countLabel}` : label}
+    >
+      {icon}
+      {label}
+      {count > 0 && (
+        <span className={`rounded-full px-1.5 text-xs font-bold ${tone === 'alert' ? 'bg-red-500/20 text-red-300' : 'bg-white/[0.08] text-gray-300'}`}>{count}</span>
+      )}
+    </button>
+  );
+
   // The unit dashboard and the dispatch map fill the screen between header and taskbar.
   const showUnitGroups = (selectedRole === 'police' || selectedRole === 'fire') && unitScreen === 'units' && groupUnitsAllowed;
   const fullHeightView = ((selectedRole === 'police' || selectedRole === 'fire') && !showUnitGroups) || (selectedRole === 'dispatch' && activeTab === 'map');
@@ -15212,6 +15245,19 @@ const CADSystem = () => {
       {/* Taskbar */}
       <footer className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.06] bg-gray-900/85 backdrop-blur-xl">
         <div className="px-4 md:px-6 h-[72px] flex justify-between items-center gap-3">
+          {unitRole ? (
+            /* Law Enforcement / Fire-EMS: Records Management buttons (LE), no Menu */
+            <div className="flex items-center gap-2 min-w-0 overflow-x-auto" data-taskbar="unit">
+              {selectedRole === 'police' && loggedInOfficer && (
+                <>
+                  {renderTaskbarButton('lookup', 'Lookup', <Search size={16} className="text-blue-400" />)}
+                  {renderTaskbarButton('records', 'Records', <FileText size={16} className="text-purple-400" />, myDenied.length, 'returned by a supervisor')}
+                  {renderTaskbarButton('bolo', 'BOLO', <AlertTriangle size={16} className="text-red-400" />, boloCounts.active, 'active BOLOs', 'neutral')}
+                  {supervisorAllowed && renderTaskbarButton('supervisor', 'Supervisor Panel', <ShieldCheck size={16} className="text-red-300" />, pendingReviewCount, 'waiting for review')}
+                </>
+              )}
+            </div>
+          ) : (
           <div className="flex items-center gap-2 min-w-0">
             <button
               onClick={() => setShowRoleMenu(!showRoleMenu)}
@@ -15226,48 +15272,24 @@ const CADSystem = () => {
               <span className="hidden sm:block text-sm font-medium text-gray-200">Menu</span>
             </button>
 
-            {/* Pinned Records Buttons - Only show for Police role */}
-            {selectedRole === 'police' && (
-              <>
-                {(pinnedRecordsButtons.lookup || pinnedRecordsButtons.records || pinnedRecordsButtons.bolo || (pinnedRecordsButtons.supervisor && supervisorAllowed)) && (
-                  <div className="mx-1 h-8 w-px bg-white/[0.08]" />
-                )}
-                {pinnedRecordsButtons.lookup && (
-                  <button onClick={() => setActiveRecordsPanel('lookup')} className="btn btn-secondary">
-                    <Search size={16} className="text-blue-400" />
-                    Lookup
-                  </button>
-                )}
-                {pinnedRecordsButtons.records && (
-                  <button onClick={() => setActiveRecordsPanel('records')} className="btn btn-secondary">
-                    <FileText size={16} className="text-purple-400" />
-                    Records
-                  </button>
-                )}
-                {pinnedRecordsButtons.bolo && (
-                  <button onClick={() => setActiveRecordsPanel('bolo')} className="btn btn-secondary">
-                    <AlertTriangle size={16} className="text-red-400" />
-                    BOLO
-                  </button>
-                )}
-                {pinnedRecordsButtons.supervisor && supervisorAllowed && (
-                  <button onClick={() => setActiveRecordsPanel('supervisor')} className="btn btn-secondary">
-                    <ShieldCheck size={16} className="text-red-300" />
-                    Supervisor
-                    {pendingReviewCount > 0 && <span className="rounded-full bg-red-500/20 px-1.5 text-xs font-bold text-red-300">{pendingReviewCount}</span>}
-                  </button>
-                )}
-              </>
-            )}
           </div>
+          )}
+          <div className="flex items-center gap-2">
+            {unitRole && (
+              <button onClick={changeRole} className="btn btn-secondary h-[52px]" title="Return to role selection">
+                <LayoutGrid size={16} />
+                <span className="hidden sm:inline">Change Role</span>
+              </button>
+            )}
           <div className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.03] px-4 py-2">
-            <Clock size={16} className="text-accent-400 hidden sm:block" />
-            <div className="leading-tight text-right">
-              <div className="font-mono text-base font-medium text-white tabular-nums">
-                {currentTime.toLocaleTimeString('en-US', { timeZone: 'America/Los_Angeles', hour12: true })}
-              </div>
-              <div className="text-[11px] text-gray-500 tabular-nums">
-                {currentTime.toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles', month: '2-digit', day: '2-digit', year: 'numeric' })} · PST
+              <Clock size={16} className="text-accent-400 hidden sm:block" />
+              <div className="leading-tight text-right">
+                <div className="font-mono text-base font-medium text-white tabular-nums">
+                  {currentTime.toLocaleTimeString('en-US', { timeZone: 'America/Los_Angeles', hour12: true })}
+                </div>
+                <div className="text-[11px] text-gray-500 tabular-nums">
+                  {currentTime.toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles', month: '2-digit', day: '2-digit', year: 'numeric' })} · PST
+                </div>
               </div>
             </div>
           </div>
