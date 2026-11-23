@@ -22,7 +22,7 @@ StrataMDT/
 │   ├── api/            # load-data, save-data, fivem/* (bridge endpoints)
 │   ├── layout.tsx      # Root layout, metadata, fonts
 │   ├── page.tsx        # Main page that renders CADSystem
-│   ├── icon.svg        # Favicon (StrataMDT mark)
+│   ├── icon.png        # Favicon (StrataMDT badge); apple-icon.png for iOS
 │   └── globals.css     # Tailwind imports + StrataMDT design system classes
 ├── components/
 │   ├── Brand.tsx       # BRAND config, BrandMark, BrandLockup (logo swap point)
@@ -168,7 +168,7 @@ Records (BOLO, warrant, arrest, citation) show in Lookup's "Involved In Reports 
 
 ### Unit dashboard (Law Enforcement / Fire-EMS)
 `renderUnitDashboard()` shows Active Call, Call History and Live Map as tiled windows on one screen (`renderDashWindow`). Layout state `unitLayout` `{preset: side|top|columns, order, s1, s2, maximized}` is saved per role in localStorage (`strataUnitLayout:<role>`).
-- Drag a window's title bar onto another window to swap them (HTML5 drag and drop).
+- Layout presets, Reset and a help tooltip are in the taskbar (middle). Drag a window's title bar onto another window to swap them (HTML5 drag and drop).
 - Drag the gaps to resize. Resizing writes the `--s1`/`--s2` CSS variables directly and commits on release.
 - Double-click a title bar, or use its button, to maximize a window.
 - Windows keep a fixed DOM order and are only repositioned, so the map keeps its pan and zoom.
@@ -226,7 +226,7 @@ Every charge list stores `counts` per charge (times charged with the same offens
 
 - Product name: **StrataMDT** (wordmark renders as "Strata" + accent-colored "MDT").
 - All brand values live in `components/Brand.tsx` (`BRAND`). Never hard-code the name or logo paths in `CADSystem.tsx`; use `BRAND.name`, `<BrandMark />`, or `<BrandLockup />`.
-- **Logos**: final artwork is still pending. Until then `BrandMark` renders a built-in SVG "strata" mark, and role cards use Lucide icons. To use real logos, put the files in `/public` and set `BRAND.logo` and/or `BRAND.roleLogos.{dispatch,civilian,police,fire,tow}`.
+- **Logo**: the StrataMDT badge. The source artwork is `StrataMDT.png` in the repo root; the trimmed 256px copy is `public/strata-logo.png` (`BRAND.logo`); the favicon is `app/icon.png`. `BrandMark` draws the image at 1.3× its `size`. Role cards still use Lucide icons (`BRAND.roleLogos`).
 - The legacy PNGs in `/public` (`SLRPLogo.png`, `COMLogo.png`, etc.) are no longer referenced.
 
 ## Design System (UI v2.0)
@@ -281,10 +281,11 @@ Role color is a highlight (pill, dot, icon chip, header underline), not a thick 
 - **Operational shell (Dispatch/Law Enforcement/Fire/Tow)**: a sticky top bar and a bottom taskbar with the PST clock.
   - Taskbar, Dispatch and Tow: a Menu button (Change Role / Sign Out).
   - Taskbar, Law Enforcement: Lookup, Records, BOLO and, for supervisors, Supervisor Panel buttons (`renderTaskbarButton`, with count badges).
-  - Taskbar, Law Enforcement and Fire/EMS: no Menu button. Change Role sits next to the clock, and Sign Out is on role selection.
+  - Taskbar, Law Enforcement and Fire/EMS: no Menu button. The window layout controls sit in the middle (`renderLayoutControls`: presets, reset, help tooltip). The FiveM chip (`renderFiveMChip`) and Change Role sit next to the clock, and Sign Out is on role selection.
   - Backspace and the panel back arrow close the panel.
   - Dispatch: lockup, role pill, segmented nav and the COM button.
-  - Law Enforcement and Fire/EMS (`unitTopBar`): one row with the lockup, the unit identity (opens Unit Information), "Riding with", the status buttons, a Units toggle for supervisors, the FiveM chip (`renderFiveMChip`) and PANIC (LE only). There is no nav label. 10-code tags hide below 1400px.
+  - Law Enforcement and Fire/EMS (`unitTopBar`): one row with the lockup, the unit identity (opens Unit Information), "Riding with", the status buttons, a Units toggle for supervisors, and PANIC (LE only). There is no nav label. 10-code tags hide below 1400px.
+  - **PANIC sits alone on the right with a wide gap. Keep other controls away from it** so it isn't clicked by accident.
   - Tow: a separate status strip.
 - **Civilian portal**: sticky top bar with purple role pill and Change Role button; character cards grid; dashed empty state.
 
@@ -347,7 +348,6 @@ The `railway.json` configuration handles the deployment settings.
 
 ## Future Considerations
 
-- Final StrataMDT logo artwork (wire up via `components/Brand.tsx`)
 - Database integration (currently using JSON file persistence)
 - Real-time sync between users (WebSocket/Server-Sent Events)
 - FiveM: waypoints for assigned calls, finer map calibration / tiled map, ESX/QBCore job sync, shared store (Redis) for multi-instance
