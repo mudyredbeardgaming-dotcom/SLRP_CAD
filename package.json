@@ -1,7 +1,7 @@
 {
-  "name": "silver-lining-cad-system",
+  "name": "stratamdt",
   "version": "1.0.0",
-  "description": "Computer-Aided Dispatch System for Silver Lining Roleplay",
+  "description": "StrataMDT - Mobile Data Terminal & Computer-Aided Dispatch",
   "private": true,
   "scripts": {
     "dev": "next dev",

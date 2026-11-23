@@ -1,6 +1,6 @@
 # Railway Deployment Guide - Step by Step
 
-This guide will walk you through deploying the Silver Lining CAD System to Railway, making it accessible to anyone with the URL.
+This guide will walk you through deploying StrataMDT to Railway, making it accessible to anyone with the URL.
 
 ## Prerequisites
 
@@ -23,7 +23,7 @@ Open your terminal/command prompt in the project folder and run:
 ```bash
 git init
 git add .
-git commit -m "Initial commit - Silver Lining CAD System"
+git commit -m "Initial commit - StrataMDT"
 ```
 
 ## Step 2: Create GitHub Repository
@@ -115,7 +115,7 @@ To add custom settings:
 3. Click "New Variable"
 4. Add variables like:
    ```
-   NEXT_PUBLIC_APP_NAME=Silver Lining CAD
+   NEXT_PUBLIC_APP_NAME=StrataMDT
    NEXT_PUBLIC_SERVER_NAME=Your Server Name
    ```
 

@@ -86,7 +86,7 @@ Ctrl+C (or Cmd+C on Mac)
 
 Edit `components/CADSystem.tsx` and find:
 ```typescript
-<h1>Silver Lining Roleplay</h1>
+<h1>StrataMDT</h1>
 <p>Los Santos Sheriff Office</p>
 ```
 

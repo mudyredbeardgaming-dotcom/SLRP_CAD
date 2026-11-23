@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Silver Lining CAD system uses JSON-based data storage with the following files:
+The StrataMDT uses JSON-based data storage with the following files:
 
 ### Primary Data File: `/data/cad-data.json`
 

@@ -8,7 +8,7 @@
 
 ## What Was Integrated
 
-Your Silver Lining CAD system now uses JSON-based data persistence. All character data, DMV records, dispatch calls, police reports, and records are automatically saved to and loaded from JSON files.
+Your StrataMDT now uses JSON-based data persistence. All character data, DMV records, dispatch calls, police reports, and records are automatically saved to and loaded from JSON files.
 
 ### System Architecture
 
@@ -301,7 +301,7 @@ The JSON file will grow as you add data. Monitor:
 ## File Locations Reference
 
 ```
-SilverLining-CAD/
+StrataMDT/
 ├── data/                              # JSON Data storage
 │   ├── cad-data.json                 # Main operational database
 │   └── dispatch-data.json            # Reference data

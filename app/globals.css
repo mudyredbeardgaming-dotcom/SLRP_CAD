@@ -2,18 +2,270 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --foreground-rgb: 255, 255, 255;
-  --background-start-rgb: 17, 24, 39;
-  --background-end-rgb: 0, 0, 0;
+/* ==========================================================================
+   StrataMDT design system
+   --------------------------------------------------------------------------
+   Base: dark layered surfaces, hairline borders, one accent (sky/cyan).
+   Role accents (dispatch green, civilian purple, sheriff blue, fire red,
+   tow orange) are kept as small highlights rather than heavy borders.
+   ========================================================================== */
+
+@layer base {
+  :root {
+    color-scheme: dark; /* dark native selects, date pickers, scrollbars */
+    --surface-0: 12 15 22;   /* page */
+    --surface-1: 22 27 37;   /* panels */
+    --surface-2: 35 42 55;   /* raised */
+    --hairline: 255 255 255;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-gray-900 text-gray-100 font-sans;
+    background-image:
+      radial-gradient(1200px 600px at 10% -10%, rgb(14 168 233 / 0.07), transparent 60%),
+      radial-gradient(900px 500px at 110% 0%, rgb(99 102 241 / 0.05), transparent 60%);
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+
+  ::selection {
+    background: rgb(14 168 233 / 0.35);
+    color: #fff;
+  }
+
+  /* Smooth, consistent interaction on every control */
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    @apply transition-colors duration-150;
+  }
+
+  button:not(:disabled) {
+    cursor: pointer;
+  }
+
+  button:focus-visible,
+  a:focus-visible {
+    @apply outline-none ring-2 ring-accent-500/60 ring-offset-2 ring-offset-gray-900;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
+
+  /* Every form control gets a calm accent focus state, even ones that were
+     not migrated to the .field class. */
+  input:focus,
+  select:focus,
+  textarea:focus {
+    @apply outline-none;
+  }
+
+  input:not([type='checkbox']):not([type='radio']):not([type='file']):focus,
+  select:focus,
+  textarea:focus {
+    box-shadow: 0 0 0 2px rgb(14 168 233 / 0.28);
+  }
+
+  input[type='checkbox'],
+  input[type='radio'] {
+    accent-color: #0ea8e9;
+  }
+
+  ::placeholder {
+    color: rgb(104 115 135);
+    opacity: 1;
+  }
+
+  select option,
+  select optgroup {
+    background-color: #161b25;
+    color: #e9edf3;
+  }
+
+  /* Slim scrollbars */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(255 255 255 / 0.14) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: rgb(255 255 255 / 0.12);
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(255 255 255 / 0.22);
+  }
 }
 
-body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+@layer components {
+  /* ---- Forms --------------------------------------------------------- */
+  .field-label {
+    @apply mb-1.5 block text-xs font-medium tracking-wide text-gray-400;
+  }
+
+  .field {
+    @apply w-full rounded-md border border-white/[0.08] bg-gray-950/50 px-3 py-2 text-sm text-gray-100
+      shadow-[inset_0_1px_2px_rgb(0_0_0/0.35)]
+      hover:border-white/[0.14]
+      focus:border-accent-500/70 focus:bg-gray-950/70 focus:outline-none
+      disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .field-sm {
+    @apply px-2.5 py-1.5 text-sm;
+  }
+
+  .field-xs {
+    @apply px-2 py-1 text-xs;
+  }
+
+  /* Highlighted input (e.g. warrant / probation fields) */
+  .field-warn {
+    @apply border-yellow-500/40 bg-yellow-500/[0.08] text-yellow-50 focus:border-yellow-400/70;
+  }
+
+  select.field {
+    @apply cursor-pointer appearance-none bg-no-repeat pr-9;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%238d97a8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-position: right 0.6rem center;
+    background-size: 1rem;
+  }
+
+  textarea.field {
+    @apply leading-relaxed;
+  }
+
+  /* ---- Surfaces ------------------------------------------------------ */
+  .panel {
+    @apply rounded-xl border border-white/[0.06] bg-gray-800/80 shadow-panel backdrop-blur-sm;
+  }
+
+  .panel-card {
+    @apply rounded-lg border border-white/[0.06] bg-white/[0.025] p-4;
+  }
+
+  .section-title {
+    @apply mb-4 flex items-center gap-2 border-b border-white/[0.06] pb-2.5 text-xs font-semibold uppercase tracking-[0.09em];
+  }
+  .section-title::before {
+    content: '';
+    @apply h-3.5 w-1 flex-shrink-0 rounded-full bg-current opacity-80;
+  }
+
+  .divider {
+    @apply border-white/[0.06];
+  }
+
+  /* ---- Modals -------------------------------------------------------- */
+  .modal-backdrop {
+    @apply fixed inset-0 flex animate-fade-in items-center justify-center bg-gray-950/70 p-4 backdrop-blur-sm;
+  }
+
+  .modal-surface {
+    @apply animate-scale-in rounded-2xl border border-white/[0.08] bg-gray-800 shadow-modal;
+  }
+
+  .modal-header {
+    @apply flex items-center justify-between border-b border-white/[0.06] bg-gray-850/80 px-6 py-4;
+  }
+
+  .icon-btn {
+    @apply inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 hover:bg-white/[0.06] hover:text-white;
+  }
+
+  /* ---- Buttons ------------------------------------------------------- */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium
+      shadow-sm transition-all duration-150 active:translate-y-px
+      disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-sm {
+    @apply px-3 py-1.5 text-xs;
+  }
+  .btn-primary {
+    @apply bg-accent-600 text-white hover:bg-accent-500;
+  }
+  .btn-secondary {
+    @apply border border-white/[0.08] bg-white/[0.05] text-gray-100 hover:border-white/[0.14] hover:bg-white/[0.09];
+  }
+  .btn-ghost {
+    @apply text-gray-300 shadow-none hover:bg-white/[0.06] hover:text-white;
+  }
+  .btn-success {
+    @apply bg-emerald-600 text-white hover:bg-emerald-500;
+  }
+  .btn-danger {
+    @apply bg-red-600 text-white hover:bg-red-500;
+  }
+
+  /* ---- Menus / autocomplete lists ----------------------------------- */
+  .menu-list {
+    @apply rounded-lg border border-white/[0.08] bg-gray-850 p-1 shadow-modal;
+  }
+  .menu-item {
+    @apply cursor-pointer rounded-md px-2.5 py-2 text-sm text-gray-200 hover:bg-accent-500/15 hover:text-white;
+  }
+
+  /* ---- Badges / chips ----------------------------------------------- */
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.05] px-2.5 py-0.5 text-xs font-medium text-gray-200;
+  }
+
+  /* ---- Navigation ---------------------------------------------------- */
+  .seg {
+    @apply inline-flex items-center gap-1 rounded-xl border border-white/[0.06] bg-gray-950/40 p-1;
+  }
+  .seg-item {
+    @apply inline-flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-sm font-medium text-gray-400 hover:bg-white/[0.04] hover:text-gray-100;
+  }
+  .seg-item-active {
+    @apply bg-white/[0.09] text-white shadow-sm hover:bg-white/[0.09];
+  }
+
+  .status-btn {
+    @apply inline-flex items-center gap-2 rounded-lg border border-white/[0.07] bg-white/[0.04] px-3 py-2 text-sm font-medium text-gray-200
+      hover:border-white/[0.14] hover:bg-white/[0.08] hover:text-white;
+  }
+  .status-btn .code {
+    @apply font-mono text-[11px] text-gray-500;
+  }
+
+  .eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500;
+  }
+}
+
+@layer components {
+  /* Danger-highlighted input (active warrants etc.) */
+  .field-danger {
+    @apply border-red-500/40 bg-red-500/[0.08] text-red-50 focus:border-red-400/70;
+  }
+}
+
+@layer components {
+  /* Recessed inner area inside a card (notes, lists, previews) */
+  .well {
+    @apply rounded-md border border-white/[0.05] bg-gray-950/40;
+  }
+  /* Raised row inside a card (charges, linked items) */
+  .subcard {
+    @apply rounded-lg border border-white/[0.06] bg-white/[0.04];
+  }
 }

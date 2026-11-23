@@ -1,4 +1,4 @@
-SILVER LINING CAD SYSTEM - DELIVERABLES
+STRATAMDT - DELIVERABLES
 ========================================
 
 📦 Package Contents:
