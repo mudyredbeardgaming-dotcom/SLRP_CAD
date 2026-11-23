@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Crosshair, Layers, LocateFixed, MapPin, Minus, Plus, Radio, Car } from 'lucide-react';
+import { Crosshair, Layers, LocateFixed, MapPin, Minus, Plus, Radio, Car, List, Users } from 'lucide-react';
 import { MAP_CONFIG, MAP_LABELS } from '@/lib/fivem/mapConfig';
 import type { UnitTelemetry } from '@/lib/fivem/types';
 import { formatGameLocation } from '@/lib/fivem/useFiveMBridge';
@@ -11,6 +11,12 @@ import { formatGameLocation } from '@/lib/fivem/useFiveMBridge';
  * /callsign in game). Top-level component on purpose: it keeps its own
  * pan/zoom state, which a component nested inside CADSystem would lose on
  * every CADSystem re-render.
+ *
+ * Fills its parent (give the parent a height). The unit list is an overlay
+ * drawer, open by default when the map is wide enough.
+ *
+ * Grouped units (unit.groupId, two officers in one vehicle) are drawn as one
+ * blip labelled with every callsign when they are close together.
  *
  * Coordinates: the SVG works in "map space" = (worldX, -worldY), so north is up.
  */
@@ -69,6 +75,7 @@ export default function LiveMap({
   const [selected, setSelected] = useState<string | null>(null);
   const [now, setNow] = useState(Date.now());
   const [mapStyle, setMapStyle] = useState<MapStyle>('dark');
+  const [listOpen, setListOpen] = useState<boolean | null>(null); // null = automatic (by width)
   const drag = useRef<{ x: number; y: number; cx: number; cy: number; moved: boolean } | null>(null);
 
   const me = myCallsign ? String(myCallsign).trim().toUpperCase() : undefined;
@@ -130,6 +137,46 @@ export default function LiveMap({
       .sort((a, b) => a.t.callsign.localeCompare(b.t.callsign));
   }, [telemetry, units, now]);
 
+  // Groups: callsign -> { name, members (callsigns) }
+  const groupInfo = useMemo(() => {
+    const byId = new Map<string, { name: string; members: string[] }>();
+    units.forEach(u => {
+      if (!u.groupId) return;
+      const g = byId.get(u.groupId) || { name: u.groupName || '', members: [] as string[] };
+      g.members.push(String(u.callsign || '').trim().toUpperCase());
+      if (!g.name && u.groupName) g.name = u.groupName;
+      byId.set(u.groupId, g);
+    });
+    const out = new Map<string, { name: string; members: string[] }>();
+    byId.forEach(g => { if (g.members.length > 1) g.members.forEach(cs => out.set(cs, g)); });
+    return out;
+  }, [units]);
+
+  // Merge blips of a group that are within ~30 m of each other into the first one
+  const { hidden, mergedLabel } = useMemo(() => {
+    const hidden = new Set<string>();
+    const mergedLabel = new Map<string, string>();
+    const byCs = new Map(blips.map(b => [b.t.callsign, b]));
+    const seen = new Set<string>();
+    groupInfo.forEach(g => {
+      const key = g.members.join('|');
+      if (seen.has(key)) return;
+      seen.add(key);
+      const present = g.members.filter(cs => byCs.has(cs)).sort();
+      if (present.length < 2) return;
+      const lead = byCs.get(present[0])!;
+      const merged = [present[0]];
+      present.slice(1).forEach(cs => {
+        const b = byCs.get(cs)!;
+        const d = Math.hypot(b.t.location!.x! - lead.t.location!.x!, b.t.location!.y! - lead.t.location!.y!);
+        if (d <= 30) { hidden.add(cs); merged.push(cs); }
+      });
+      if (merged.length > 1) mergedLabel.set(present[0], merged.join(' / '));
+    });
+    return { hidden, mergedLabel };
+  }, [blips, groupInfo]);
+  const partnersOf = (cs: string) => (groupInfo.get(cs)?.members || []).filter(m => m !== cs);
+
   const centerOn = (callsign: string, zoom?: number) => {
     const b = blips.find(x => x.t.callsign === callsign);
     if (!b) return;
@@ -149,6 +196,7 @@ export default function LiveMap({
     const el = containerRef.current;
     if (!el) return;
     const onWheel = (e: WheelEvent) => {
+      if ((e.target as Element | null)?.closest?.('[data-map-overlay]')) return; // scrolling the unit list
       e.preventDefault();
       const rect = el.getBoundingClientRect();
       const px = e.clientX - rect.left - rect.width / 2;
@@ -204,14 +252,15 @@ export default function LiveMap({
   }, [gridStep, ib.minX, ib.maxX, ib.minY, ib.maxY]);
 
   const selectedBlip = selected ? blips.find(b => b.t.callsign === selected) : undefined;
+  const showList = listOpen ?? size.w >= 760;
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_300px]">
+    <div className="relative h-full min-h-[240px] w-full overflow-hidden bg-gray-950">
       {/* Map */}
-      <div className="panel relative overflow-hidden p-0">
+      <div className="absolute inset-0">
         <div
           ref={containerRef}
-          className="relative h-[calc(100vh-330px)] min-h-[420px] w-full cursor-grab touch-none select-none bg-gray-950 active:cursor-grabbing"
+          className="relative h-full w-full cursor-grab touch-none select-none bg-gray-950 active:cursor-grabbing"
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
@@ -270,8 +319,8 @@ export default function LiveMap({
               </>
             )}
 
-            {blips.map(({ t, color, age, status }) => {
-              const isMe = t.callsign === me;
+            {blips.filter(b => !hidden.has(b.t.callsign)).map(({ t, color, age, status }) => {
+              const isMe = t.callsign === me || (!!me && !!mergedLabel.get(t.callsign)?.split(' / ').includes(me));
               const stale = age > MAP_CONFIG.staleAfterMs;
               const r = px(isMe ? 8 : 6.5);
               const heading = t.location?.heading ?? 0;
@@ -287,7 +336,7 @@ export default function LiveMap({
                   onPointerDown={e => e.stopPropagation()}
                   onClick={() => setSelected(t.callsign)}
                 >
-                  <title>{`${t.callsign} (${Math.round(t.location!.x!)}, ${Math.round(t.location!.y!)})`}</title>
+                  <title>{`${mergedLabel.get(t.callsign) || t.callsign} (${Math.round(t.location!.x!)}, ${Math.round(t.location!.y!)})`}</title>
                   {status === 'panic' && (
                     <circle r={r * 2.6} fill="none" stroke="#ef4444" strokeWidth={px(2)} className="animate-pulse" />
                   )}
@@ -310,7 +359,7 @@ export default function LiveMap({
                     paintOrder="stroke"
                     style={{ pointerEvents: 'none', fontFamily: 'var(--font-mono)' }}
                   >
-                    {t.callsign}
+                    {mergedLabel.get(t.callsign) || t.callsign}
                   </text>
                 </g>
               );
@@ -332,7 +381,19 @@ export default function LiveMap({
                   : 'FiveM offline'}
             </span>
           </div>
-          <div className="absolute right-3 top-3 flex flex-col gap-1.5" onPointerDown={e => e.stopPropagation()}>
+          <div
+            className="absolute top-3 flex flex-col gap-1.5"
+            style={{ right: showList ? 'calc(min(18rem, 60%) + 1.25rem)' : '0.75rem' }}
+            onPointerDown={e => e.stopPropagation()}
+          >
+            <button
+              className={`icon-btn backdrop-blur ${showList ? '!bg-accent-500/20 !text-accent-300' : 'bg-gray-900/80'}`}
+              onClick={() => setListOpen(!showList)}
+              title={showList ? 'Hide unit list' : 'Show unit list'}
+              aria-label="Toggle unit list"
+            >
+              <List size={16} />
+            </button>
             <button className="icon-btn bg-gray-900/80 backdrop-blur" onClick={() => zoomBy(1.5)} title="Zoom in"><Plus size={16} /></button>
             <button className="icon-btn bg-gray-900/80 backdrop-blur" onClick={() => zoomBy(1 / 1.5)} title="Zoom out"><Minus size={16} /></button>
             <button className="icon-btn bg-gray-900/80 backdrop-blur" onClick={() => { setView(HOME); setFollow(false); }} title="Show whole map"><Crosshair size={16} /></button>
@@ -372,6 +433,13 @@ export default function LiveMap({
                 <span className="text-gray-400">{selectedBlip.unit?.officer || selectedBlip.t.playerName}</span>
                 <button className="ml-auto text-xs text-gray-500 hover:text-white" onClick={() => setSelected(null)}>Close</button>
               </div>
+              {partnersOf(selectedBlip.t.callsign).length > 0 && (
+                <div className="mt-1 flex items-center gap-1.5 text-xs text-accent-300">
+                  <Users size={12} />
+                  {groupInfo.get(selectedBlip.t.callsign)?.name ? `${groupInfo.get(selectedBlip.t.callsign)!.name} · ` : ''}
+                  Riding with {partnersOf(selectedBlip.t.callsign).join(', ')}
+                </div>
+              )}
               <div className="mt-1.5 text-gray-300">{formatGameLocation(selectedBlip.t.location) || 'Unknown location'}</div>
               <div className="mt-1 flex flex-wrap gap-x-3 text-xs text-gray-400">
                 {selectedBlip.status && <span>{getStatusLabel ? getStatusLabel(selectedBlip.status) : selectedBlip.status}</span>}
@@ -385,8 +453,13 @@ export default function LiveMap({
         </div>
       </div>
 
-      {/* Unit list */}
-      <div className="panel p-4">
+      {/* Unit list (overlay drawer) */}
+      {showList && (
+      <div
+        data-map-overlay
+        className="absolute bottom-3 right-3 top-3 flex w-[min(18rem,60%)] flex-col rounded-xl border border-white/[0.08] bg-gray-900/90 p-3 shadow-panel backdrop-blur"
+        onPointerDown={e => e.stopPropagation()}
+      >
         <h3 className={`section-title ${listAccent}`}>{listTitle} ({blips.length})</h3>
         {blips.length === 0 ? (
           <div className="py-10 text-center text-sm text-gray-400">
@@ -400,7 +473,7 @@ export default function LiveMap({
             )}
           </div>
         ) : (
-          <div className="grid max-h-[calc(100vh-390px)] gap-2 overflow-y-auto pr-1">
+          <div className="grid min-h-0 flex-1 content-start gap-2 overflow-y-auto pr-1">
             {blips.map(({ t, unit, color, age, status }) => (
               <button
                 key={t.callsign}
@@ -421,6 +494,12 @@ export default function LiveMap({
                   <MapPin size={11} className="flex-shrink-0" />
                   {formatGameLocation(t.location) || 'Unknown'}
                 </div>
+                {partnersOf(t.callsign).length > 0 && (
+                  <div className="mt-0.5 flex items-center gap-1 truncate text-[11px] text-accent-300">
+                    <Users size={11} className="flex-shrink-0" />
+                    Riding with {partnersOf(t.callsign).join(', ')}
+                  </div>
+                )}
                 {t.vehicle && (
                   <div className="mt-0.5 flex items-center gap-1 truncate text-[11px] text-gray-500">
                     <Car size={11} className="flex-shrink-0" />
@@ -432,6 +511,7 @@ export default function LiveMap({
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }

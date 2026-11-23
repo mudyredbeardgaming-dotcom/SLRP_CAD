@@ -29,6 +29,7 @@ StrataMDT/
 │   ├── LiveMap.tsx     # FiveM live unit map (Law Enforcement → Live Map)
 │   └── CADSystem.tsx   # Main application component (monolithic)
 ├── lib/dataStore.ts    # Locked, atomic access to data/cad-data.json (server)
+├── lib/permissions.ts  # SELF_DISPATCH policy + canSelfDispatch (ranks/subdivisions lists)
 ├── lib/fivem/          # FiveM bridge: protocol types, in-memory store, API-key auth, character sync, useFiveMBridge hook
 ├── fivem/strata-mdt/   # Sample FiveM resource (Lua) + fivem/README.md protocol docs
 ├── public/             # Static assets (legacy role logos still live here)
@@ -158,9 +159,31 @@ Selecting a person in Lookup ("Verify ID") shows, in order:
 
 Matching is `personMatches(person, name, id)`. A stored civilian id wins (`subjectId`, `arresteeId`, `trespasserId`, `party.personId`, `victimOfForce.personId`, `involvedPersons[].civilianId`). Without an id it falls back to an exact name match that ignores middle initials. Typing a name by hand clears the stored id.
 
-Every report has an **Involved Persons** section (`renderInvolvedPersons`, stored as `report.involvedPersons` `[{civilianId, name, dob, role}]`; roles SUSPECT, VICTIM, WITNESS, REPORTING PARTY, OTHER). `reportRolesFor` also derives roles from each report's own person fields (arrestee, trespasser, party 1/2 + involvement, victim of force, driver, witnesses). Report and record forms are `reportFormModalJSX` / `recordFormModalJSX`, so they open on top of the Records, BOLO and Lookup panels.
+Every report and record has an **Involved Persons** section (`renderInvolvedPersons(data, setData, noun)`, stored as `involvedPersons` `[{civilianId, name, dob, role}]`; roles SUSPECT, VICTIM, WITNESS, REPORTING PARTY, OTHER). `reportRolesFor` also derives roles from each report's own person fields (arrestee, trespasser, party 1/2 + involvement, victim of force, driver, witnesses). Report and record forms are `reportFormModalJSX` / `recordFormModalJSX`, so they open on top of the Records, BOLO and Lookup panels.
 
 Characters store `dateOfBirth`, `cellPhone`, `streetResidence`; use `civName`/`civDob`/`civPhone`/`civAddress` (they also read the legacy `dob`/`phone`/`address`).
+
+Records (BOLO, warrant, arrest, citation) show in Lookup's "Involved In Reports & Records" through their Involved Persons. A BOLO with the person as an involved SUSPECT also puts them in the WANTED banner.
+
+### Unit dashboard (Law Enforcement / Fire-EMS)
+`renderUnitDashboard()` shows Active Call, Call History and Live Map as tiled windows on one screen (`renderDashWindow`). Layout state `unitLayout` `{preset: side|top|columns, order, s1, s2, maximized}` is saved per role in localStorage (`strataUnitLayout:<role>`).
+- Drag a window's title bar onto another window to swap them (HTML5 drag and drop).
+- Drag the gaps to resize. Resizing writes the `--s1`/`--s2` CSS variables directly and commits on release.
+- Double-click a title bar, or use its button, to maximize a window.
+- Windows keep a fixed DOM order and are only repositioned, so the map keeps its pan and zoom.
+- Below 1024px the windows stack.
+
+### Self-dispatch
+The Active Call window has an **Open Calls** tab (`renderOpenCalls`). It shows the unit's own call type by default: LE for police, `callTitle === 'FD'` for fire.
+- Attach (`selfAttach`) and Clear from call (`selfDetach`) add a call note.
+- Who can self-dispatch is set in `lib/permissions.ts` (`SELF_DISPATCH`). Empty rank and subdivision lists mean every unit can.
+- `officerCredentials[].selfDispatch` true/false overrides it per account. Admins always can.
+
+### Unit groups (two officers in one vehicle)
+Dispatch → Units → **Group units**. Stored on units as `groupId` / `groupName`.
+- A group moves as one: `assignUnit`, `unassignUnit`, `createCall` auto-assign and `updateUnitStatus` apply to every member through `groupIdsOf`. PANIC stays with the unit that pressed it.
+- Groups with fewer than 2 members dissolve (`dissolveSmallGroups`). Grouping units that are on different active calls is refused.
+- The live map draws group members within about 30 m as one marker. The unit list and status strip show "Riding with". Dispatch has its own **Live Map** tab.
 
 ### Charges
 Every charge list stores `counts` per charge (times charged with the same offense) and edits it with `renderCountsInput` (−/+ stepper). Bond totals multiply by counts (`chargeCount(c)`).
@@ -271,7 +294,7 @@ Basis for connecting a FiveM server. Full protocol and setup: `fivem/README.md`.
 - Character sync (`lib/fivem/characters.ts`): in-game characters, licenses and vehicles become civilians and DMV records in `cad-data.json` (ids `FIVEM-<characterId>`, `FIVEM-...-LIC-<TYPE>`, `FIVEM-VEH-<PLATE>`). Game writes go through `lib/dataStore.ts` (`withDataLock`, atomic writes), and `/api/save-data` calls `replayGameChanges` so a browser saving stale data can't drop recent game changes (15 min window).
 - Account linking: civilian portal "Get link code" → player types `/linkcad CODE` → `officerCredentials[].fivemLink`. Civilians carry `ownerUsername`; the portal shows only the user's own (admins see all; owner-less legacy civilians stay visible).
 - Lua resource commands are all configurable in `fivem/strata-mdt/config.lua` (`Config.Commands`); the heartbeat reports the configured names (`fivem.server.commands`).
-- Live map: `components/LiveMap.tsx` (top-level component so pan/zoom survive CADSystem re-renders), shown via the **Live Map** tab in Law Enforcement and Fire/EMS (`unitView` state). Map image is the GTA V atlas in `public/map/` (overview + HD for close zoom, dark/atlas style toggle); calibration in `lib/fivem/mapConfig.ts`. Setting `image: null` falls back to a grid with region labels.
+- Live map: `components/LiveMap.tsx` (top-level component so pan/zoom survive CADSystem re-renders), fills its parent (unit list is an overlay drawer); shown as a window on the Law Enforcement / Fire-EMS unit dashboard and on the Dispatch **Live Map** tab. Map image is the GTA V atlas in `public/map/` (overview + HD for close zoom, dark/atlas style toggle); calibration in `lib/fivem/mapConfig.ts`. Setting `image: null` falls back to a grid with region labels.
 - Bridge state is in memory (`lib/fivem/store.ts`, on `globalThis`), not in `cad-data.json`, so a single server instance is assumed.
 - CAD actions that should reach the game call `fivem.send(...)` (see createCall, assignUnit, closeCall, updateUnitStatus). Game-originated changes are applied locally and saved, never echoed back.
 

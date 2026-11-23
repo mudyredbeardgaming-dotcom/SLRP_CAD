@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AlertCircle, Radio, MapPin, Clock, User, Phone, FileText, Plus, X, Check, Shield, AlertTriangle, Lock, LogOut, Search, Database, Pin, PinOff, Car, Flame, Truck, ArrowRight, Eye, EyeOff, LayoutGrid, ChevronRight, ArrowLeft, Minus, Power, RotateCcw } from 'lucide-react';
+import { AlertCircle, Radio, MapPin, Clock, User, Phone, FileText, Plus, X, Check, Shield, AlertTriangle, Lock, LogOut, Search, Database, Pin, PinOff, Car, Flame, Truck, ArrowRight, Eye, EyeOff, LayoutGrid, ChevronRight, ArrowLeft, Minus, Power, RotateCcw, LayoutPanelLeft, LayoutPanelTop, Columns, GripVertical, Maximize2, Minimize2, Users, LogIn, Unlink } from 'lucide-react';
 import { BRAND, BrandMark, BrandLockup } from './Brand';
 import { useFiveMBridge, formatGameLocation } from '@/lib/fivem/useFiveMBridge';
 import LiveMap from './LiveMap';
+import { canSelfDispatch } from '@/lib/permissions';
 
 // App version - increment this to force re-login after updates
 const APP_VERSION = '2.0.0';
@@ -935,15 +936,38 @@ const CADSystem = () => {
   // are open, for the same reason the clock and data refresh pause: a
   // re-render would remount the nested form components and drop typed input.
   const [newCallPrefill, setNewCallPrefill] = useState<any>(null);
-  // Police and Fire/EMS: 'unit' (My Unit) or 'map' (Live Map)
-  const [unitView, setUnitView] = useState<'unit' | 'map'>('unit');
+  // ---- Unit dashboard layout (Law Enforcement / Fire-EMS) ------------------
+  // Active Call, Call History and Live Map share one screen as tiled windows.
+  // Users drag a window's title bar onto another to swap them, drag the gaps to
+  // resize, pick a preset, or maximize one window. Saved per role in localStorage.
+  const DEFAULT_UNIT_LAYOUT = { preset: 'side', order: ['call', 'map', 'history'], s1: 0.36, s2: 0.6, maximized: null as string | null };
+  const [unitLayout, setUnitLayoutState] = useState<any>(DEFAULT_UNIT_LAYOUT);
+  const [dragPanel, setDragPanel] = useState<string | null>(null);
+  const [dragOverPanel, setDragOverPanel] = useState<string | null>(null);
+  const [callPanelTab, setCallPanelTab] = useState<'mine' | 'open'>('mine');
+  const [openCallsAllTypes, setOpenCallsAllTypes] = useState(false);
+  const [isWide, setIsWide] = useState(true);
+  const layoutRef = useRef<HTMLDivElement>(null);
+  const layoutKey = `strataUnitLayout:${selectedRole}`;
+  const setUnitLayout = (update: any) => {
+    setUnitLayoutState((prev: any) => {
+      const next = typeof update === 'function' ? update(prev) : update;
+      try { localStorage.setItem(layoutKey, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
+  // Dispatch: grouping units that ride together
+  const [groupSelect, setGroupSelect] = useState<string[] | null>(null); // null = not selecting
+  const [groupNameDraft, setGroupNameDraft] = useState('');
   const [fivemLinkCode, setFivemLinkCode] = useState<any>(null);
   const fivemPaused = showLogin || showNewCall || !!selectedCall || showUnitInfo || showComModal ||
     civilianView === 'add' || civilianView === 'edit' || !!activeReportForm || !!activeRecordForm;
   const fivem = useFiveMBridge({
     active: isClient && isAuthenticated && !!selectedRole,
     paused: fivemPaused,
-    fastPollMs: selectedRole === 'civilian' ? 15000 : (selectedRole === 'police' || selectedRole === 'fire') && unitView === 'map' ? 1500 : undefined,
+    fastPollMs: selectedRole === 'civilian' ? 15000
+      : ((selectedRole === 'police' || selectedRole === 'fire') && (!unitLayout.maximized || unitLayout.maximized === 'map'))
+        || (selectedRole === 'dispatch' && activeTab === 'map') ? 1500 : undefined,
     onEvent: (event) => {
       // Game-originated changes: apply locally only (don't echo back to the game)
       if (event.type === 'unit_status' || event.type === 'panic') {
@@ -959,8 +983,25 @@ const CADSystem = () => {
   });
   const callsignOf = (unitId) => units.find(u => u.id === unitId)?.callsign;
 
-  // Each role opens on "My Unit", not on whatever tab the last role was using.
-  useEffect(() => { setUnitView('unit'); }, [selectedRole]);
+  // Load this role's saved dashboard layout; each role opens on its own call tab.
+  useEffect(() => {
+    let saved: any = null;
+    try { saved = JSON.parse(localStorage.getItem(`strataUnitLayout:${selectedRole}`) || 'null'); } catch {}
+    const valid = saved && ['side', 'top', 'columns'].includes(saved.preset) && Array.isArray(saved.order)
+      && saved.order.length === 3 && ['call', 'map', 'history'].every(id => saved.order.includes(id));
+    setUnitLayoutState(valid ? { ...DEFAULT_UNIT_LAYOUT, ...saved } : DEFAULT_UNIT_LAYOUT);
+    setCallPanelTab('mine');
+    setGroupSelect(null);
+  }, [selectedRole]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Tiled windows need a wide screen; narrow screens stack them.
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const onChange = () => setIsWide(mq.matches);
+    onChange();
+    mq.addEventListener?.('change', onChange);
+    return () => mq.removeEventListener?.('change', onChange);
+  }, []);
 
   // ---- Records Management back navigation ---------------------------------
   // Menu -> Records Management menu -> Lookup / Records panel. Back (the arrow
@@ -1086,26 +1127,28 @@ const CADSystem = () => {
       : 'bg-white/[0.06] text-gray-300 ring-white/[0.1]';
     return <span key={r} className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ring-1 ${tone}`}>{r}</span>;
   };
-  const addInvolvedPerson = (person: any | null, typedName?: string) => {
-    const list = currentReportData.involvedPersons || [];
+  // Works for reports (default) and records: pass the form's data + setter.
+  const addInvolvedPerson = (person: any | null, typedName?: string, data: any = currentReportData, setData: any = setCurrentReportData) => {
+    const list = data.involvedPersons || [];
     const name = person ? civName(person) : String(typedName || '').trim();
     if (!name) return;
     const dup = list.some((x: any) => x.role === involvedRole && (person ? x.civilianId === person.id : normName(x.name) === normName(name)));
     if (!dup) {
       const entry = { id: `${Date.now()}`, civilianId: person?.id || null, name, dob: person ? civDob(person) : '', role: involvedRole };
-      setCurrentReportData({ ...currentReportData, involvedPersons: [...list, entry] });
+      setData({ ...data, involvedPersons: [...list, entry] });
     }
     setInvolvedSearch('');
   };
-  const renderInvolvedPersons = () => {
-    const list = currentReportData.involvedPersons || [];
+  const renderInvolvedPersons = (data: any = currentReportData, setData: any = setCurrentReportData, noun = 'report') => {
+    const list = data.involvedPersons || [];
     const q = involvedSearch.trim().toLowerCase();
     const results = q.length >= 2 ? civilians.filter(c => civName(c).toLowerCase().includes(q)).slice(0, 8) : [];
-    const update = (next: any[]) => setCurrentReportData({ ...currentReportData, involvedPersons: next });
+    const update = (next: any[]) => setData({ ...data, involvedPersons: next });
+    const add = (person: any | null, typed?: string) => addInvolvedPerson(person, typed, data, setData);
     return (
       <div className="panel-card">
         <h4 className="section-title text-purple-400">Involved Persons</h4>
-        <p className="mb-3 text-xs text-gray-500">Suspects, victims and witnesses listed here will have this report on their record in Lookup.</p>
+        <p className="mb-3 text-xs text-gray-500">Suspects, victims and witnesses listed here will have this {noun} on their record in Lookup.</p>
         <div className="flex flex-wrap gap-2">
           <select value={involvedRole} onChange={(e) => setInvolvedRole(e.target.value)} className="field !w-auto" aria-label="Role">
             {INVOLVED_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
@@ -1118,7 +1161,7 @@ const CADSystem = () => {
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
-                  if (results.length === 1) addInvolvedPerson(results[0]);
+                  if (results.length === 1) add(results[0]);
                 }
               }}
               placeholder="Search character by name to add..."
@@ -1128,12 +1171,12 @@ const CADSystem = () => {
             {q.length >= 2 && (
               <div className="menu-list absolute z-30 mt-1 max-h-56 w-full overflow-y-auto">
                 {results.map(c => (
-                  <button key={c.id} type="button" onClick={() => addInvolvedPerson(c)} className="menu-item w-full text-left">
+                  <button key={c.id} type="button" onClick={() => add(c)} className="menu-item w-full text-left">
                     <span className="font-medium text-white">{civName(c)}</span>
                     <span className="ml-2 text-xs text-gray-400">DOB {civDob(c) || 'N/A'}</span>
                   </button>
                 ))}
-                <button type="button" onClick={() => addInvolvedPerson(null, involvedSearch)} className="menu-item w-full text-left text-gray-400">
+                <button type="button" onClick={() => add(null, involvedSearch)} className="menu-item w-full text-left text-gray-400">
                   Add &quot;{involvedSearch.trim()}&quot; (not in CAD)
                 </button>
               </div>
@@ -1210,7 +1253,9 @@ const CADSystem = () => {
     const byDate = (a: any, b: any) => String(b.createdAt || b.date || '').localeCompare(String(a.createdAt || a.date || ''));
     const bolos = officerRecords
       .filter(r => r.type === 'BOLO' && isBoloActive(r))
-      .map(r => ({ record: r, bySubject: m(r.subjectName, r.subjectId), plate: String(r.vehiclePlate || '').trim().toUpperCase() }))
+      .map(r => ({ record: r, bySubject: m(r.subjectName, r.subjectId)
+        || (r.involvedPersons || []).some((x: any) => x.role === 'SUSPECT' && m(x.name, x.civilianId)),
+        plate: String(r.vehiclePlate || '').trim().toUpperCase() }))
       .filter(x => x.bySubject || (x.plate && plates.has(x.plate)))
       .sort((a, b) => byDate(a.record, b.record));
     const warrants = officerRecords.filter(r => r.type === 'WARRANT' && isWarrantActive(r) && m(r.subjectName, r.subjectId)).sort(byDate);
@@ -1222,8 +1267,12 @@ const CADSystem = () => {
       ...officerReports.filter(r => r.type === 'ARREST' && m(r.arresteeName, r.arresteeId)).map(r => ({ kind: 'report', item: r })),
     ].sort((a, b) => byDate(a.item, b.item));
     const citations = officerRecords.filter(r => r.type === 'CITATION' && m(r.subjectName, r.subjectId)).sort(byDate);
-    const reports = officerReports
-      .map(r => ({ report: r, roles: reportRolesFor(r, person) }))
+    const reports = [
+      ...officerReports.map(r => ({ report: r, kind: 'report', roles: reportRolesFor(r, person) })),
+      // Records list a person through Involved Persons (the subject already shows in the sections above)
+      ...officerRecords.map(r => ({ report: r, kind: 'record',
+        roles: Array.from(new Set((r.involvedPersons || []).filter((x: any) => m(x.name, x.civilianId)).map((x: any) => String(x.role).toUpperCase()))) as string[] })),
+    ]
       .filter(x => x.roles.length > 0)
       .sort((a, b) => byDate(a.report, b.report));
     return { bolos, warrants, oosWarrants, supervision, arrests, citations, reports, wanted: bolos.length + warrants.length + oosWarrants.length > 0 };
@@ -1241,16 +1290,84 @@ const CADSystem = () => {
     address: call.address, postal: call.postal, description: call.description
   });
 
+  // ---- Unit groups ---------------------------------------------------------
+  // Dispatch can group units that ride in one vehicle (unit.groupId / groupName).
+  // A group moves as one: assigning, unassigning and status changes (except
+  // PANIC) apply to every member.
+  const groupIdsOf = (unitId, list = units) => {
+    const u = list.find(x => x.id === unitId);
+    if (!u?.groupId) return [unitId];
+    const ids = list.filter(x => x.groupId === u.groupId).map(x => x.id);
+    return ids.length ? ids : [unitId];
+  };
+  const groupPartners = (unit) => (unit?.groupId ? units.filter(u => u.groupId === unit.groupId && u.id !== unit.id) : []);
+  const activeCallOf = (unitId) => calls.find(c => c.status !== 'CLOSED' && (c.assignedUnits || []).includes(unitId));
+  /** Groups left with fewer than two members are dissolved. */
+  const dissolveSmallGroups = (list: any[]) => {
+    const count: Record<string, number> = {};
+    list.forEach(u => { if (u.groupId) count[u.groupId] = (count[u.groupId] || 0) + 1; });
+    return list.map(u => (u.groupId && count[u.groupId] < 2 ? { ...u, groupId: null, groupName: null } : u));
+  };
+  const saveUnitsAndCalls = (newUnits, newCalls = calls) => {
+    setUnits(newUnits);
+    if (newCalls !== calls) setCalls(newCalls);
+    saveDataImmediately({ units: newUnits, calls: newCalls, civilians, officerReports, officerRecords, officerCredentials });
+  };
+  const createUnitGroup = (unitIds: string[], name: string) => {
+    const members = unitIds.map(id => units.find(u => u.id === id)).filter(Boolean);
+    if (members.length < 2) return;
+    const memberCalls = Array.from(new Set(members.map(u => activeCallOf(u.id)?.id).filter(Boolean)));
+    if (memberCalls.length > 1) {
+      window.alert(`These units are on different calls (${memberCalls.map(id => '#' + id).join(', ')}). Clear one of them first.`);
+      return;
+    }
+    const sharedCall = memberCalls.length ? calls.find(c => c.id === memberCalls[0]) : null;
+    const onCall = sharedCall ? members.find(u => sharedCall.assignedUnits.includes(u.id)) : null;
+    const status = (onCall || members[0]).status;
+    const groupId = `GRP-${Date.now()}`;
+    const groupName = name.trim() || members.map(u => u.callsign).join(' / ');
+    const newUnits = dissolveSmallGroups(units.map(u => unitIds.includes(u.id)
+      ? { ...u, groupId, groupName, status, ...(sharedCall ? { assignedCall: sharedCall.id } : {}) }
+      : u));
+    const newCalls = sharedCall
+      ? calls.map(c => c.id === sharedCall.id
+        ? { ...c, assignedUnits: [...c.assignedUnits, ...unitIds.filter(id => !c.assignedUnits.includes(id))], status: 'ACTIVE' }
+        : c)
+      : calls;
+    if (sharedCall) {
+      const joined = members.filter(u => !sharedCall.assignedUnits.includes(u.id)).map(u => u.callsign).filter(Boolean);
+      if (joined.length) fivem.send({ type: 'call_assigned', callsigns: joined, call: callForGame(sharedCall) });
+    }
+    saveUnitsAndCalls(newUnits, newCalls);
+  };
+  const ungroupUnits = (groupId: string) => {
+    saveUnitsAndCalls(units.map(u => (u.groupId === groupId ? { ...u, groupId: null, groupName: null } : u)));
+  };
+  const removeFromGroup = (unitId: string) => {
+    saveUnitsAndCalls(dissolveSmallGroups(units.map(u => (u.id === unitId ? { ...u, groupId: null, groupName: null } : u))));
+  };
+  const addToGroup = (groupId: string, unitId: string) => {
+    const member = units.find(u => u.groupId === groupId);
+    if (!member) return;
+    createUnitGroup([...units.filter(u => u.groupId === groupId).map(u => u.id), unitId], member.groupName || '');
+  };
+  const renameGroup = (groupId: string, name: string) => {
+    const n = name.trim();
+    if (!n) return;
+    saveUnitsAndCalls(units.map(u => (u.groupId === groupId ? { ...u, groupName: n } : u)));
+  };
+
   const createCall = (rawCallData) => {
     const { fivemAlertId, ...callData } = rawCallData || {};
     const callId = String(callIdCounter).padStart(6, '0');
     const availableUnit = units.find(u => u.status === 'available' && !u.assignedCall);
+    const autoIds = availableUnit ? groupIdsOf(availableUnit.id) : [];
 
     const newCall = {
       id: callId,
       ...callData,
       status: availableUnit ? 'ACTIVE' : 'PENDING',
-      assignedUnits: availableUnit ? [availableUnit.id] : [],
+      assignedUnits: autoIds,
       primaryUnit: availableUnit?.id || null,
       timestamp: new Date().toISOString(),
       callNotes: []
@@ -1258,7 +1375,7 @@ const CADSystem = () => {
 
     const newCalls = [...calls, newCall];
     const newUnits = availableUnit
-      ? units.map(u => u.id === availableUnit.id ? { ...u, assignedCall: callId, status: 'enroute' } : u)
+      ? units.map(u => autoIds.includes(u.id) ? { ...u, assignedCall: callId, status: 'enroute' } : u)
       : units;
 
     console.log('📞 CREATE CALL - ID:', callId, '- Total calls will be:', newCalls.length);
@@ -1271,8 +1388,9 @@ const CADSystem = () => {
     setShowNewCall(false);
     setNewCallPrefill(null);
     if (fivemAlertId) fivem.acknowledge(fivemAlertId);
-    if (availableUnit?.callsign) {
-      fivem.send({ type: 'call_assigned', callsigns: [availableUnit.callsign], call: callForGame(newCall) });
+    const autoCallsigns = autoIds.map(id => units.find(u => u.id === id)?.callsign).filter(Boolean);
+    if (autoCallsigns.length) {
+      fivem.send({ type: 'call_assigned', callsigns: autoCallsigns, call: callForGame(newCall) });
     }
 
     console.log('📞 CREATE CALL - Triggering immediate save with', newCalls.length, 'calls');
@@ -1287,45 +1405,41 @@ const CADSystem = () => {
     });
   };
 
-  const assignUnit = (callId, unitId) => {
-    const newCalls = calls.map(call => {
-      if (call.id === callId) {
-        const assigned = call.assignedUnits.includes(unitId)
-          ? call.assignedUnits.filter(id => id !== unitId)
-          : [...call.assignedUnits, unitId];
-        return {
-          ...call,
-          assignedUnits: assigned,
-          status: assigned.length > 0 ? 'ACTIVE' : 'PENDING',
-          primaryUnit: call.primaryUnit || assigned[0] || null
-        };
-      }
-      return call;
+  /** Toggles a unit (and its group) on a call. `note` is added to the call notes. */
+  const assignUnit = (callId, unitId, opts?: { note?: string }) => {
+    const call = calls.find(c => c.id === callId);
+    if (!call) return;
+    const ids = groupIdsOf(unitId);
+    const willAssign = !call.assignedUnits.includes(unitId);
+    const now = new Date().toISOString();
+    const newCalls = calls.map(c => {
+      if (c.id !== callId) return c;
+      const assigned = willAssign
+        ? [...c.assignedUnits, ...ids.filter(id => !c.assignedUnits.includes(id))]
+        : c.assignedUnits.filter(id => !ids.includes(id));
+      return {
+        ...c,
+        assignedUnits: assigned,
+        status: assigned.length > 0 ? 'ACTIVE' : 'PENDING',
+        primaryUnit: c.primaryUnit && assigned.includes(c.primaryUnit) ? c.primaryUnit : (assigned[0] || null),
+        callNotes: opts?.note ? [...(c.callNotes || []), { text: opts.note, timestamp: now }] : c.callNotes
+      };
     });
 
-    const newUnits = units.map(unit => {
-      if (unit.id === unitId) {
-        const call = calls.find(c => c.id === callId);
-        const willBeAssigned = call && !call.assignedUnits.includes(unitId);
-        return {
-          ...unit,
-          assignedCall: willBeAssigned ? callId : null,
-          status: willBeAssigned ? 'enroute' : 'available'
-        };
-      }
-      return unit;
-    });
+    const newUnits = units.map(unit => ids.includes(unit.id)
+      ? { ...unit, assignedCall: willAssign ? callId : null, status: willAssign ? 'enroute' : 'available' }
+      : unit);
 
     setCalls(newCalls);
     setUnits(newUnits);
 
     const assignedCall = newCalls.find(c => c.id === callId);
-    const unitCallsign = callsignOf(unitId);
-    if (assignedCall && unitCallsign) {
-      if (assignedCall.assignedUnits.includes(unitId)) {
-        fivem.send({ type: 'call_assigned', callsigns: [unitCallsign], call: callForGame(assignedCall) });
+    const callsigns = ids.map(callsignOf).filter(Boolean);
+    if (assignedCall && callsigns.length) {
+      if (willAssign) {
+        fivem.send({ type: 'call_assigned', callsigns, call: callForGame(assignedCall) });
       } else {
-        fivem.send({ type: 'call_closed', callsigns: [unitCallsign], callId });
+        fivem.send({ type: 'call_closed', callsigns, callId });
       }
     }
 
@@ -1341,9 +1455,13 @@ const CADSystem = () => {
   };
 
   const updateUnitStatus = (unitId, newStatus) => {
-    setUnits(prevUnits => prevUnits.map(u => u.id === unitId ? { ...u, status: newStatus } : u));
-    const unitCallsign = callsignOf(unitId);
-    if (unitCallsign) fivem.send({ type: 'unit_status', callsign: unitCallsign, status: newStatus });
+    // Grouped units share a status; PANIC stays with the unit that pressed it.
+    const ids = newStatus === 'panic' ? [unitId] : groupIdsOf(unitId);
+    setUnits(prevUnits => prevUnits.map(u => ids.includes(u.id) ? { ...u, status: newStatus } : u));
+    ids.forEach(id => {
+      const unitCallsign = callsignOf(id);
+      if (unitCallsign) fivem.send({ type: 'unit_status', callsign: unitCallsign, status: newStatus });
+    });
   };
 
   const updateUnitInfo = (unitId, updatedInfo) => {
@@ -1391,47 +1509,44 @@ const CADSystem = () => {
     });
   };
 
-  const unassignUnit = (callId, unitId) => {
+  /** Removes a unit (and its group) from a call. `note` is added to the call notes. */
+  const unassignUnit = (callId, unitId, opts?: { note?: string }) => {
     const call = calls.find(c => c.id === callId);
     if (!call) return;
+    const ids = groupIdsOf(unitId).filter(id => call.assignedUnits.includes(id));
+    if (!ids.length) return;
+    const now = new Date().toISOString();
 
-    // Save call to unit's history before unassigning
-    const historyEntry = {
-      callId: call.id,
-      code: call.code,
-      address: call.address,
-      timestamp: call.timestamp,
-      unassignedAt: new Date().toISOString(),
-      role: call.primaryUnit === unitId ? 'PRIMARY' : 'BACKUP',
-      status: 'UNASSIGNED'
-    };
+    const newCalls = calls.map(c => {
+      if (c.id !== callId) return c;
+      const newAssigned = c.assignedUnits.filter(id => !ids.includes(id));
+      return {
+        ...c,
+        assignedUnits: newAssigned,
+        status: newAssigned.length > 0 ? 'ACTIVE' : 'PENDING',
+        primaryUnit: ids.includes(c.primaryUnit) ? (newAssigned[0] || null) : c.primaryUnit,
+        callNotes: opts?.note ? [...(c.callNotes || []), { text: opts.note, timestamp: now }] : c.callNotes
+      };
+    });
 
-    // Remove unit from call
-    setCalls(calls.map(c => {
-      if (c.id === callId) {
-        const newAssigned = c.assignedUnits.filter(id => id !== unitId);
-        return {
-          ...c,
-          assignedUnits: newAssigned,
-          status: newAssigned.length > 0 ? 'ACTIVE' : 'PENDING',
-          primaryUnit: c.primaryUnit === unitId ? (newAssigned[0] || null) : c.primaryUnit
-        };
-      }
-      return c;
-    }));
+    // Update unit status and add the call to each unit's history
+    const newUnits = units.map(u => {
+      if (!ids.includes(u.id)) return u;
+      const historyEntry = {
+        callId: call.id,
+        code: call.code,
+        address: call.address,
+        timestamp: call.timestamp,
+        unassignedAt: now,
+        role: call.primaryUnit === u.id ? 'PRIMARY' : 'BACKUP',
+        status: 'UNASSIGNED'
+      };
+      return { ...u, assignedCall: null, status: 'available', callHistory: [...(u.callHistory || []), historyEntry] };
+    });
 
-    // Update unit status and add to call history
-    setUnits(units.map(u => {
-      if (u.id === unitId) {
-        return {
-          ...u,
-          assignedCall: null,
-          status: 'available',
-          callHistory: [...(u.callHistory || []), historyEntry]
-        };
-      }
-      return u;
-    }));
+    const callsigns = ids.map(callsignOf).filter(Boolean);
+    if (callsigns.length) fivem.send({ type: 'call_closed', callsigns, callId });
+    saveUnitsAndCalls(newUnits, newCalls);
   };
 
   const addNote = (callId, note) => {
@@ -7873,6 +7988,9 @@ const CADSystem = () => {
                   </>
                 )}
 
+                {/* Involved Persons: links people to this record for Lookup */}
+                {renderInvolvedPersons(currentRecordData, setCurrentRecordData, 'record')}
+
                 <div className="flex gap-2 justify-end pt-4 border-t border-white/[0.06]">
                   {activeRecordForm === 'BOLO' && editingRecordId && (
                     <button
@@ -7892,6 +8010,7 @@ const CADSystem = () => {
                   )}
                   <button
                     onClick={() => {
+                      setInvolvedSearch('');
                       setActiveRecordForm(null);
                       setCurrentRecordData({});
                       setEditingRecordId(null);
@@ -7901,7 +8020,7 @@ const CADSystem = () => {
                     Cancel
                   </button>
                   <button
-                    onClick={saveRecord}
+                    onClick={() => { setInvolvedSearch(''); saveRecord(); }}
                     className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-500"
                   >
                     {editingRecordId ? 'Save' : 'Add Record'}
@@ -12691,12 +12810,12 @@ const CADSystem = () => {
 
               {/* Reports this person is named in */}
               <div className="panel-card">
-                <h3 className="section-title text-purple-400">Involved In Reports ({h.reports.length})</h3>
+                <h3 className="section-title text-purple-400">Involved In Reports &amp; Records ({h.reports.length})</h3>
                 {h.reports.length === 0 ? (
-                  <p className="text-sm text-gray-500">Not named in any reports.</p>
+                  <p className="text-sm text-gray-500">Not named in any reports or records.</p>
                 ) : (
                   <div className="space-y-2">
-                    {h.reports.map(({ report: r, roles }: any) => (
+                    {h.reports.map(({ report: r, roles, kind }: any) => (
                       <div key={r.id} className="subcard flex flex-wrap items-center justify-between gap-3 p-3">
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
@@ -12707,7 +12826,7 @@ const CADSystem = () => {
                           </div>
                           <div className="mt-0.5 text-xs text-gray-500">{formatRecordDateTime(r.createdAt || r.date)}{r.officer ? ` · ${r.officer}` : ''}</div>
                         </div>
-                        {viewBtn(() => openExistingReport(r))}
+                        {viewBtn(() => (kind === 'record' ? openExistingRecord(r) : openExistingReport(r)))}
                       </div>
                     ))}
                   </div>
@@ -12896,7 +13015,231 @@ const CADSystem = () => {
     </div>
   );
 
-  const UnitViewMode = () => {
+  // ---- Self-dispatch (lib/permissions.ts decides who may) ---------------------
+  const myCredentialRecord = officerCredentials.find((c: any) => c.username === loggedInOfficer?.username);
+  const selfDispatchUnit = selectedUnit ? units.find(u => u.id === selectedUnit) : null;
+  const selfDispatchAllowed = canSelfDispatch({
+    view: selectedRole,
+    accountRole: loggedInOfficer?.role,
+    unit: selfDispatchUnit,
+    credential: myCredentialRecord,
+  });
+  const unitLabel = (unit) => [unit, ...groupPartners(unit)].map(u => u.callsign).filter(Boolean).join(' + ');
+  const selfAttach = (callId) => {
+    const unit = selfDispatchUnit;
+    if (!selfDispatchAllowed || !unit) return;
+    const current = activeCallOf(unit.id);
+    if (current) {
+      window.alert(`You are already on call #${current.id}. Clear from it first.`);
+      return;
+    }
+    assignUnit(callId, unit.id, { note: `${unitLabel(unit)} self-dispatched to this call (${loggedInOfficer?.displayName || unit.officer || 'unit'})` });
+    setCallPanelTab('mine');
+  };
+  const selfDetach = (callId) => {
+    const unit = selfDispatchUnit;
+    if (!selfDispatchAllowed || !unit) return;
+    if (!window.confirm(`Clear ${unitLabel(unit)} from call #${callId}?`)) return;
+    unassignUnit(callId, unit.id, { note: `${unitLabel(unit)} cleared from this call (self)` });
+  };
+
+  // ---- Unit dashboard: tiled, movable windows ---------------------------------
+  const UNIT_LAYOUT_PRESETS: Record<string, { label: string; s1: number; s2: number; icon: any }> = {
+    side: { label: 'Large window left', s1: 0.36, s2: 0.6, icon: LayoutPanelLeft },
+    top: { label: 'Large window on top', s1: 0.55, s2: 0.5, icon: LayoutPanelTop },
+    columns: { label: 'Three columns', s1: 0.34, s2: 0.67, icon: Columns },
+  };
+  const pct = (expr: string) => `calc(${expr} * 100%)`;
+  /** Position of slot 0..2 for a preset, in terms of the --s1/--s2 split variables. */
+  const slotRect = (preset: string, slot: number) => {
+    const S1 = 'var(--s1)', S2 = 'var(--s2)';
+    const r = (left, top, width, height) => ({ left, top, width, height });
+    if (preset === 'top') {
+      return [r('0%', '0%', '100%', pct(S1)), r('0%', pct(S1), pct(S2), pct(`(1 - ${S1})`)), r(pct(S2), pct(S1), pct(`(1 - ${S2})`), pct(`(1 - ${S1})`))][slot];
+    }
+    if (preset === 'columns') {
+      return [r('0%', '0%', pct(S1), '100%'), r(pct(S1), '0%', pct(`(${S2} - ${S1})`), '100%'), r(pct(S2), '0%', pct(`(1 - ${S2})`), '100%')][slot];
+    }
+    return [r('0%', '0%', pct(S1), '100%'), r(pct(S1), '0%', pct(`(1 - ${S1})`), pct(S2)), r(pct(S1), pct(S2), pct(`(1 - ${S1})`), pct(`(1 - ${S2})`))][slot];
+  };
+  /** Resize handles: which split each one moves, along which axis, and where it sits. */
+  const splitHandles = (preset: string) => {
+    const S1 = 'var(--s1)', S2 = 'var(--s2)';
+    if (preset === 'top') return [
+      { key: 's1', axis: 'y', style: { left: '0%', width: '100%', top: pct(S1) } },
+      { key: 's2', axis: 'x', style: { top: pct(S1), height: pct(`(1 - ${S1})`), left: pct(S2) } },
+    ];
+    if (preset === 'columns') return [
+      { key: 's1', axis: 'x', style: { top: '0%', height: '100%', left: pct(S1) } },
+      { key: 's2', axis: 'x', style: { top: '0%', height: '100%', left: pct(S2) } },
+    ];
+    return [
+      { key: 's1', axis: 'x', style: { top: '0%', height: '100%', left: pct(S1) } },
+      { key: 's2', axis: 'y', style: { left: pct(S1), width: pct(`(1 - ${S1})`), top: pct(S2) } },
+    ];
+  };
+  const swapPanels = (a: string, b: string) => setUnitLayout((l: any) => {
+    const order = [...l.order];
+    const i = order.indexOf(a), j = order.indexOf(b);
+    if (i < 0 || j < 0 || i === j) return l;
+    [order[i], order[j]] = [order[j], order[i]];
+    return { ...l, order };
+  });
+  const applyPreset = (preset: string) => setUnitLayout((l: any) => ({ ...l, preset, s1: UNIT_LAYOUT_PRESETS[preset].s1, s2: UNIT_LAYOUT_PRESETS[preset].s2, maximized: null }));
+  // Resizing writes the CSS variable directly while dragging (no re-render) and commits on release.
+  const startSplitDrag = (e: React.PointerEvent, key: 's1' | 's2', axis: 'x' | 'y') => {
+    const el = layoutRef.current;
+    if (!el || e.button !== 0) return;
+    e.preventDefault();
+    const rect = el.getBoundingClientRect();
+    const handle = e.currentTarget as HTMLElement;
+    handle.setPointerCapture(e.pointerId);
+    const { preset, s1, s2 } = unitLayout;
+    let value = key === 's1' ? s1 : s2;
+    const move = (ev: PointerEvent) => {
+      const f = axis === 'x' ? (ev.clientX - rect.left) / rect.width : (ev.clientY - rect.top) / rect.height;
+      let min = 0.2, max = 0.8;
+      if (preset === 'columns') {
+        if (key === 's1') { min = 0.15; max = s2 - 0.15; } else { min = s1 + 0.15; max = 0.85; }
+      }
+      value = Math.min(max, Math.max(min, f));
+      el.style.setProperty(`--${key}`, String(value));
+    };
+    const up = () => {
+      handle.removeEventListener('pointermove', move);
+      handle.removeEventListener('pointerup', up);
+      handle.removeEventListener('pointercancel', up);
+      setUnitLayout((l: any) => ({ ...l, [key]: value }));
+    };
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointerup', up);
+    handle.addEventListener('pointercancel', up);
+  };
+
+  const renderDashWindow = (id: string, title: string, icon: any, body: any, opts: { extra?: any; flush?: boolean } = {}) => {
+    const slot = unitLayout.order.indexOf(id);
+    const max = unitLayout.maximized;
+    const visible = !max || max === id || !isWide;
+    const rect = max === id ? { left: '0%', top: '0%', width: '100%', height: '100%' } : slotRect(unitLayout.preset, slot);
+    const style: any = isWide
+      ? { position: 'absolute', ...rect, display: visible ? undefined : 'none' }
+      : { order: slot };
+    return (
+      <section
+        key={id}
+        data-window={id}
+        style={style}
+        className={isWide ? 'p-1.5' : id === 'map' ? 'h-[60vh]' : id === 'history' ? 'max-h-[60vh]' : ''}
+        onDragOver={(e) => {
+          if (!dragPanel || dragPanel === id) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          if (dragOverPanel !== id) setDragOverPanel(id);
+        }}
+        onDragLeave={(e) => {
+          if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) setDragOverPanel(p => (p === id ? null : p));
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          const from = dragPanel || e.dataTransfer.getData('text/plain');
+          if (from && from !== id) swapPanels(from, id);
+          setDragPanel(null);
+          setDragOverPanel(null);
+        }}
+      >
+        <div className={`panel flex h-full flex-col overflow-hidden !p-0 transition-shadow ${
+          dragOverPanel === id ? 'ring-2 ring-accent-500/60' : ''} ${dragPanel === id ? 'opacity-50' : ''}`}
+        >
+          <div
+            draggable
+            onDragStart={(e) => {
+              e.dataTransfer.effectAllowed = 'move';
+              e.dataTransfer.setData('text/plain', id);
+              setDragPanel(id);
+            }}
+            onDragEnd={() => { setDragPanel(null); setDragOverPanel(null); }}
+            onDoubleClick={() => setUnitLayout((l: any) => ({ ...l, maximized: l.maximized === id ? null : id }))}
+            className="flex flex-shrink-0 cursor-grab select-none items-center gap-2 border-b border-white/[0.06] bg-white/[0.02] px-3 py-2 active:cursor-grabbing"
+            title="Drag onto another window to swap places. Double-click to maximize."
+          >
+            <GripVertical size={14} className="flex-shrink-0 text-gray-600" />
+            <span className="flex-shrink-0 text-gray-400">{icon}</span>
+            <h3 className="truncate text-sm font-semibold text-white">{title}</h3>
+            <div className="flex min-w-0 flex-1 items-center gap-2" onDoubleClick={(e) => e.stopPropagation()}>{opts.extra}</div>
+            {isWide && (
+              <button
+                onClick={() => setUnitLayout((l: any) => ({ ...l, maximized: l.maximized === id ? null : id }))}
+                onDoubleClick={(e) => e.stopPropagation()}
+                className="icon-btn !h-7 !w-7 flex-shrink-0"
+                title={max === id ? 'Restore layout' : 'Maximize'}
+                aria-label={max === id ? `Restore ${title}` : `Maximize ${title}`}
+              >
+                {max === id ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+              </button>
+            )}
+          </div>
+          <div className={`min-h-0 flex-1 ${opts.flush ? 'relative overflow-hidden' : 'overflow-y-auto p-4'}`}>{body}</div>
+        </div>
+      </section>
+    );
+  };
+
+  const renderOpenCalls = (myUnit: any, activeCall: any) => {
+    const typeMatch = (c: any) => (selectedRole === 'fire' ? c.callTitle === 'FD' : c.callTitle !== 'FD');
+    const open = calls
+      .filter(c => c.status !== 'CLOSED' && !(c.assignedUnits || []).includes(myUnit.id) && (openCallsAllTypes || typeMatch(c)))
+      .sort((a, b) => String(a.priority).localeCompare(String(b.priority)) || String(a.timestamp).localeCompare(String(b.timestamp)));
+    return (
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs text-gray-500">
+            {activeCall ? `You are on call #${activeCall.id}. Clear from it to attach to another call.` : 'Attach yourself to a call. Dispatch sees it on the board and in the call notes.'}
+          </p>
+          <label className="flex items-center gap-2 text-xs text-gray-400">
+            <input type="checkbox" checked={openCallsAllTypes} onChange={(e) => setOpenCallsAllTypes(e.target.checked)} />
+            Show {selectedRole === 'fire' ? 'LE' : 'Fire/EMS'} calls too
+          </label>
+        </div>
+        {open.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-white/[0.1] p-6 text-center text-sm text-gray-400">No open calls.</div>
+        ) : open.map(c => {
+          const onCall = units.filter(u => (c.assignedUnits || []).includes(u.id));
+          return (
+            <div key={c.id} className="subcard p-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-mono text-xs text-gray-500">#{c.id}</span>
+                <span className={`${getPriorityColor(c.priority)} text-white px-2 py-0.5 rounded-md text-xs font-semibold`}>P{c.priority}</span>
+                <span className="font-semibold text-white">{c.code}</span>
+                {c.callTitle && <span className="chip !py-0 text-[10px]">{c.callTitle}</span>}
+                <span className={`ml-auto text-[11px] font-semibold ${c.status === 'PENDING' ? 'text-yellow-300' : 'text-gray-400'}`}>{c.status}</span>
+              </div>
+              <div className="mt-1 flex items-center gap-1.5 text-sm text-gray-300">
+                <MapPin size={13} className="flex-shrink-0 text-gray-500" />
+                <span className="truncate">{c.address || 'No location'}</span>
+                {c.postal && <span className="font-mono text-xs text-gray-500">· {c.postal}</span>}
+              </div>
+              <div className="mt-1 text-xs text-gray-500">
+                {formatPSTTime(c.timestamp)} · {onCall.length ? `On call: ${onCall.map(u => u.callsign).join(', ')}` : 'No units assigned'}
+              </div>
+              <div className="mt-2 flex justify-end gap-2">
+                <button onClick={() => setSelectedCall(c)} className="btn btn-secondary btn-sm">View</button>
+                <button
+                  onClick={() => selfAttach(c.id)}
+                  disabled={!!activeCall}
+                  className="btn btn-primary btn-sm disabled:cursor-not-allowed disabled:opacity-40"
+                  title={activeCall ? 'Clear from your current call first' : 'Attach yourself to this call'}
+                >
+                  <LogIn size={14} /> Attach
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderUnitDashboard = () => {
     const myUnit = selectedUnit ? units.find(u => u.id === selectedUnit) : null;
 
     if (!myUnit) {
@@ -12932,18 +13275,15 @@ const CADSystem = () => {
       ...closedCalls.map(c => ({ ...c, historyType: 'CLOSED' })),
       ...unitCallHistory.filter(h => !closedCalls.some(c => c.id === h.callId))
     ];
+    const openCount = calls.filter(c => c.status !== 'CLOSED' && !(c.assignedUnits || []).includes(myUnit.id)
+      && (openCallsAllTypes || (selectedRole === 'fire' ? c.callTitle === 'FD' : c.callTitle !== 'FD'))).length;
+    const tab = selfDispatchAllowed ? callPanelTab : 'mine';
+    const accent = selectedRole === 'fire' ? 'text-red-400' : 'text-blue-400';
 
-    return (
-      <div className="space-y-6">
-        <div className="panel p-6 !border-blue-500/25">
-          <h2 className="mb-5 flex items-center gap-2.5 text-lg font-semibold text-white">
-            <span className={`h-2 w-2 rounded-full ${activeCall ? 'bg-blue-400 animate-pulse' : 'bg-gray-600'}`} />
-            Active Call
-          </h2>
-          
+    const callWindowBody = tab === 'open' ? renderOpenCalls(myUnit, activeCall) : (<>
           {activeCall ? (
-            <div className="space-y-4">
-              <div className="flex items-center gap-3 flex-wrap pb-4 border-b border-white/[0.06]">
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 flex-wrap pb-3 border-b border-white/[0.06]">
                 <span className="font-mono text-2xl font-bold text-white">{activeCall.id}</span>
                 <span className={`${getPriorityColor(activeCall.priority)} text-white px-2.5 py-0.5 rounded-full text-xs font-semibold tracking-wide`}>
                   PRIORITY {activeCall.priority}
@@ -12952,6 +13292,15 @@ const CADSystem = () => {
                   <span className="bg-yellow-600 text-white px-2.5 py-0.5 rounded-full text-xs font-semibold tracking-wide">PRIMARY UNIT</span>
                 )}
                 <span className="bg-blue-600 text-white px-2.5 py-0.5 rounded-full text-xs font-semibold tracking-wide">{activeCall.callTitle}</span>
+                {selfDispatchAllowed && (
+                  <button
+                    onClick={() => selfDetach(activeCall.id)}
+                    className="btn btn-secondary btn-sm ml-auto"
+                    title="Clear yourself from this call"
+                  >
+                    <Unlink size={14} /> Clear from call
+                  </button>
+                )}
               </div>
 
               <div className="panel-card">
@@ -13013,6 +13362,7 @@ const CADSystem = () => {
                     {units.filter(u => activeCall.assignedUnits.includes(u.id) && u.id !== myUnit.id).map(u => (
                       <span key={u.id} className="chip font-mono">
                         {u.callsign}
+                        {myUnit.groupId && u.groupId === myUnit.groupId && <span className="ml-2 text-accent-300 text-xs">(PARTNER)</span>}
                         {activeCall.primaryUnit === u.id && (
                           <span className="ml-2 text-yellow-400 text-xs">(PRIMARY)</span>
                         )}
@@ -13073,24 +13423,24 @@ const CADSystem = () => {
               </div>
             </div>
           ) : (
-            <div className="space-y-4 opacity-50">
+            <div className="space-y-4">
               <div className="text-center py-8">
-                <AlertCircle size={64} className="mx-auto mb-4 text-gray-600" />
-                <p className="text-xl font-semibold text-gray-400 mb-2">No Active Call</p>
+                <AlertCircle size={48} className="mx-auto mb-3 text-gray-600" />
+                <p className="text-lg font-semibold text-gray-400 mb-1">No Active Call</p>
                 <p className="text-gray-500">You will see call details here when dispatch assigns you to a call</p>
+                {selfDispatchAllowed && (
+                  <button onClick={() => setCallPanelTab('open')} className="btn btn-primary btn-sm mt-4 !opacity-100">
+                    <LogIn size={14} /> View open calls
+                  </button>
+                )}
               </div>
             </div>
           )}
-        </div>
+    </>);
 
-        <div className="panel p-6">
-          <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            <FileText size={24} />
-            Call History ({allHistory.length})
-          </h3>
-
+    const historyWindowBody = (<>
           {allHistory.length > 0 ? (
-            <div className="space-y-3 max-h-96 overflow-y-auto">
+            <div className="space-y-3">
               {allHistory.map((entry, idx) => {
                 // Check if it's a full call object or a history entry
                 const isFullCall = entry.historyType === 'CLOSED';
@@ -13158,6 +13508,84 @@ const CADSystem = () => {
               <p className="text-gray-400">No call history available</p>
             </div>
           )}
+    </>);
+
+    const PresetIcon = (k: string) => { const I = UNIT_LAYOUT_PRESETS[k].icon; return <I size={15} />; };
+
+    return (
+      <div className="flex h-full flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div>
+              <div className="eyebrow">{selectedRole === 'fire' ? 'Fire/EMS' : 'Law Enforcement'}</div>
+              <h2 className="text-lg font-semibold tracking-tight">My Unit</h2>
+            </div>
+          </div>
+          {isWide && (
+            <div className="flex items-center gap-2">
+              <span className="hidden xl:inline text-xs text-gray-500">Drag a title bar onto another window to swap · drag the gaps to resize</span>
+              <div className="seg" role="group" aria-label="Window layout">
+                {Object.keys(UNIT_LAYOUT_PRESETS).map(k => (
+                  <button
+                    key={k}
+                    onClick={() => applyPreset(k)}
+                    className={`seg-item !px-2.5 ${unitLayout.preset === k && !unitLayout.maximized ? 'seg-item-active' : ''}`}
+                    title={UNIT_LAYOUT_PRESETS[k].label}
+                    aria-label={UNIT_LAYOUT_PRESETS[k].label}
+                  >
+                    {PresetIcon(k)}
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => setUnitLayout(DEFAULT_UNIT_LAYOUT)} className="btn btn-ghost btn-sm" title="Reset window layout">
+                <RotateCcw size={14} /> Reset
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div
+          ref={layoutRef}
+          className={isWide ? 'relative -m-1.5 min-h-0 flex-1' : 'flex flex-col gap-3'}
+          style={isWide ? ({ '--s1': unitLayout.s1, '--s2': unitLayout.s2 } as any) : undefined}
+        >
+          {renderDashWindow('call', 'Active Call', <span className={`block h-2 w-2 rounded-full ${activeCall ? (selectedRole === 'fire' ? 'bg-red-400' : 'bg-blue-400') + ' animate-pulse' : 'bg-gray-600'}`} />, callWindowBody, {
+            extra: selfDispatchAllowed ? (
+              <div className="seg ml-auto !p-0.5" onMouseDown={(e) => e.stopPropagation()}>
+                <button onClick={() => setCallPanelTab('mine')} className={`seg-item !px-2.5 !py-1 !text-xs ${tab === 'mine' ? 'seg-item-active' : ''}`}>My Call</button>
+                <button onClick={() => setCallPanelTab('open')} className={`seg-item !px-2.5 !py-1 !text-xs ${tab === 'open' ? 'seg-item-active' : ''}`}>
+                  Open Calls <span className="font-mono">{openCount}</span>
+                </button>
+              </div>
+            ) : null,
+          })}
+          {renderDashWindow('history', `Call History (${allHistory.length})`, <FileText size={15} />, historyWindowBody)}
+          {renderDashWindow('map', 'Live Map', <MapPin size={15} className={accent} />, (
+            <LiveMap
+              enabled={fivem.enabled}
+              connected={fivem.connected}
+              telemetry={fivem.telemetry}
+              units={units}
+              myCallsign={myUnit.callsign || (selectedRole === 'fire' ? loggedInOfficer?.unitId : undefined)}
+              getStatusLabel={getStatusLabel}
+              listTitle={selectedRole === 'fire' ? 'Active units' : 'Active LEO units'}
+              listAccent={accent}
+            />
+          ), { flush: true })}
+          {isWide && !unitLayout.maximized && splitHandles(unitLayout.preset).map(h => (
+            <div
+              key={h.key + h.axis}
+              role="separator"
+              aria-orientation={h.axis === 'x' ? 'vertical' : 'horizontal'}
+              aria-label="Resize windows"
+              onPointerDown={(e) => startSplitDrag(e, h.key as any, h.axis as any)}
+              onDoubleClick={() => setUnitLayout((l: any) => ({ ...l, [h.key]: UNIT_LAYOUT_PRESETS[l.preset][h.key] }))}
+              className={`group absolute z-10 flex items-center justify-center ${h.axis === 'x' ? 'w-3 -ml-1.5 cursor-col-resize' : 'h-3 -mt-1.5 cursor-row-resize'}`}
+              style={h.style as any}
+            >
+              <span className={`rounded-full bg-white/[0.08] transition-colors group-hover:bg-accent-500/60 ${h.axis === 'x' ? 'h-10 w-1' : 'h-1 w-10'}`} />
+            </div>
+          ))}
         </div>
       </div>
     );
@@ -13347,6 +13775,9 @@ const CADSystem = () => {
                         {call.primaryUnit === u.id && (
                           <span className="bg-yellow-600 text-white px-2 py-0.5 rounded text-xs">PRIMARY</span>
                         )}
+                        {u.groupId && groupPartners(u).length > 0 && (
+                          <span className="inline-flex items-center gap-1 text-xs text-accent-300" title={u.groupName || ''}><Users size={12} /> {u.groupName || 'Grouped'}</span>
+                        )}
                       </div>
                       {selectedRole === 'dispatch' && call.status !== 'CLOSED' && (
                         <div className="flex gap-1">
@@ -13370,12 +13801,22 @@ const CADSystem = () => {
                 <div className="panel-card">
                   <h3 className="eyebrow mb-3">Available</h3>
                   <div className="space-y-2 max-h-40 overflow-y-auto">
-                    {units.filter(u => !call.assignedUnits.includes(u.id)).map(u => (
-                      <div key={u.id} className="rounded-md border border-white/[0.05] bg-gray-950/40 p-2 flex justify-between items-center">
-                        <div className="text-white text-sm">{u.callsign}</div>
-                        <button onClick={() => assignUnit(call.id, u.id)} className="btn btn-primary btn-sm">Assign</button>
-                      </div>
-                    ))}
+                    {/* A group is one row: assigning it assigns every unit in the vehicle */}
+                    {units
+                      .filter(u => !call.assignedUnits.includes(u.id))
+                      .filter((u, i, list) => !u.groupId || list.findIndex(x => x.groupId === u.groupId) === i)
+                      .map(u => {
+                        const members = [u, ...groupPartners(u).filter(p => !call.assignedUnits.includes(p.id))];
+                        return (
+                          <div key={u.id} className="rounded-md border border-white/[0.05] bg-gray-950/40 p-2 flex justify-between items-center">
+                            <div className="text-white text-sm">
+                              {members.map(m => m.callsign).join(' + ')}
+                              {members.length > 1 && <span className="ml-2 inline-flex items-center gap-1 text-xs text-accent-300"><Users size={12} /> {u.groupName || 'Grouped'}</span>}
+                            </div>
+                            <button onClick={() => assignUnit(call.id, u.id)} className="btn btn-primary btn-sm">Assign</button>
+                          </div>
+                        );
+                      })}
                   </div>
                 </div>
               )}
@@ -13640,11 +14081,224 @@ const CADSystem = () => {
     );
   };
 
+  const renderRidingWith = () => {
+    const partners = groupPartners(myUnitRecord);
+    if (!partners.length) return null;
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-lg border border-accent-500/25 bg-accent-500/10 px-2.5 py-1.5 text-xs font-medium text-accent-200" title={myUnitRecord?.groupName || ''}>
+        <Users size={13} />
+        Riding with <span className="font-mono font-semibold">{partners.map(u => u.callsign).join(', ')}</span>
+      </span>
+    );
+  };
+
+  // ---- Dispatch: Units tab (with unit groups) --------------------------------
+  const renderUnitStatusLine = (u) => (
+    <div className={`text-xs font-semibold uppercase tracking-wider ${u.status === 'available' ? 'text-green-400' : u.status === 'panic' ? 'text-red-400' : 'text-blue-400'}`}>{getStatusLabel(u.status)}</div>
+  );
+  const renderLiveLine = (list: any[]) => {
+    const live = list.map(u => formatGameLocation(fivem.telemetryFor(u.callsign)?.location)).find(Boolean);
+    return live ? (
+      <div className="mt-1 flex items-center gap-1.5 text-xs text-emerald-300" title="Live position from FiveM">
+        <MapPin size={12} />{live}
+      </div>
+    ) : null;
+  };
+  const renderOnCallLine = (unitIds: string[]) => {
+    const c = calls.find(x => x.status !== 'CLOSED' && unitIds.some(id => (x.assignedUnits || []).includes(id)));
+    return c ? (
+      <button onClick={() => setSelectedCall(c)} className="mt-1 flex items-center gap-1.5 text-xs text-gray-300 hover:text-white">
+        <Radio size={12} className="text-accent-400" /> On call <span className="font-mono">#{c.id}</span> · {c.code}
+      </button>
+    ) : null;
+  };
+  const renderDispatchUnits = () => {
+    const selecting = groupSelect !== null;
+    const toggleSelect = (id: string) => setGroupSelect(sel => (sel || []).includes(id) ? (sel || []).filter(x => x !== id) : [...(sel || []), id]);
+    const groupIds = Array.from(new Set(units.filter(u => u.groupId).map(u => u.groupId)));
+    const groups = groupIds.map(gid => units.filter(u => u.groupId === gid)).filter(m => m.length > 1);
+    const singles = units.filter(u => !u.groupId || !groups.some(m => m[0].groupId === u.groupId));
+    const ungroupedOptions = (gid: string) => units.filter(u => u.groupId !== gid);
+    return (
+      <div className="space-y-5">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <div className="eyebrow mb-1.5">Dispatch</div>
+            <h2 className="text-2xl font-semibold tracking-tight">Units</h2>
+          </div>
+          {!selecting ? (
+            <button onClick={() => { setGroupSelect([]); setGroupNameDraft(''); }} className="btn btn-primary">
+              <Users size={16} /> Group units
+            </button>
+          ) : null}
+        </div>
+
+        {selecting && (
+          <div className="panel flex flex-wrap items-center gap-3 p-3 !border-accent-500/30">
+            <Users size={18} className="text-accent-400" />
+            <span className="text-sm text-gray-300">
+              Select the units riding in one vehicle <span className="font-mono text-white">({groupSelect!.length} selected)</span>
+            </span>
+            <input
+              type="text"
+              value={groupNameDraft}
+              onChange={(e) => setGroupNameDraft(e.target.value)}
+              placeholder={groupSelect!.length ? units.filter(u => groupSelect!.includes(u.id)).map(u => u.callsign).join(' / ') : 'Group name (optional)'}
+              className="field field-sm !w-56"
+              aria-label="Group name"
+            />
+            <div className="ml-auto flex gap-2">
+              <button onClick={() => setGroupSelect(null)} className="btn btn-secondary btn-sm">Cancel</button>
+              <button
+                onClick={() => { createUnitGroup(groupSelect!, groupNameDraft); setGroupSelect(null); setGroupNameDraft(''); }}
+                disabled={groupSelect!.length < 2}
+                className="btn btn-primary btn-sm disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <Check size={14} /> Create group
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!selecting && (
+          <div className="flex gap-2 flex-wrap items-center">
+            <span className="text-gray-400 text-sm mr-1">Select unit:</span>
+            {units.map(u => (
+              <button
+                key={u.id}
+                onClick={() => setSelectedUnit(u.id)}
+                className={`rounded-lg px-3 py-1.5 font-mono text-sm font-semibold border ${
+                  selectedUnit === u.id
+                    ? 'border-accent-500/50 bg-accent-500/15 text-white'
+                    : 'border-white/[0.07] bg-white/[0.03] text-gray-300 hover:bg-white/[0.07] hover:text-white'
+                }`}
+              >
+                {u.callsign}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {groups.length > 0 && (
+          <div>
+            <h3 className="section-title text-accent-400">Grouped units ({groups.length})</h3>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {groups.map(members => {
+                const gid = members[0].groupId;
+                return (
+                  <div key={gid} data-group={gid} className={`panel p-4 !border-accent-500/25 ${selecting ? 'opacity-50' : ''}`}>
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <h3 className="flex min-w-0 items-center gap-2 text-base font-semibold text-white">
+                        <Users size={16} className="flex-shrink-0 text-accent-400" />
+                        <span className="truncate">{members[0].groupName || members.map(u => u.callsign).join(' / ')}</span>
+                      </h3>
+                      <span className="relative flex h-2.5 w-2.5 flex-shrink-0">
+                        <span className={`absolute inset-0 rounded-full ${getStatusColor(members[0].status)} opacity-40 blur-[3px]`}></span>
+                        <span className={`relative h-2.5 w-2.5 rounded-full ${getStatusColor(members[0].status)}`}></span>
+                      </span>
+                    </div>
+                    <div className="space-y-1.5">
+                      {members.map(u => (
+                        <div key={u.id} className="subcard flex items-center justify-between gap-2 !py-1.5 px-2.5">
+                          <div className="min-w-0">
+                            <span className="font-mono text-sm font-semibold text-white">{u.callsign}</span>
+                            <span className="ml-2 text-xs text-gray-400">{u.officer}</span>
+                            {u.status === 'panic' && <span className="ml-2 text-[10px] font-bold text-red-400">PANIC</span>}
+                          </div>
+                          <button onClick={() => removeFromGroup(u.id)} className="icon-btn !h-6 !w-6 text-gray-500 hover:text-red-400" title={`Remove ${u.callsign} from group`} aria-label={`Remove ${u.callsign} from group`} disabled={selecting}>
+                            <X size={13} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-2">{renderUnitStatusLine(members[0])}</div>
+                    {renderOnCallLine(members.map(u => u.id))}
+                    {renderLiveLine(members)}
+                    {!selecting && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <select
+                          value=""
+                          onChange={(e) => e.target.value && addToGroup(gid, e.target.value)}
+                          className="field field-sm !w-auto"
+                          aria-label="Add unit to group"
+                        >
+                          <option value="">Add unit…</option>
+                          {ungroupedOptions(gid).map(u => <option key={u.id} value={u.id}>{u.callsign}{u.groupId ? ' (in another group)' : ''}</option>)}
+                        </select>
+                        <button
+                          onClick={() => { const n = window.prompt('Group name', members[0].groupName || ''); if (n != null) renameGroup(gid, n); }}
+                          className="btn btn-secondary btn-sm"
+                        >
+                          Rename
+                        </button>
+                        <button onClick={() => ungroupUnits(gid)} className="btn btn-danger btn-sm ml-auto">
+                          <Unlink size={14} /> Ungroup
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        <div>
+          {groups.length > 0 && <h3 className="section-title text-gray-400">Units</h3>}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {singles.map(u => {
+              const picked = selecting && groupSelect!.includes(u.id);
+              return (
+                <div
+                  key={u.id}
+                  data-unit={u.callsign}
+                  onClick={selecting ? () => toggleSelect(u.id) : undefined}
+                  role={selecting ? 'checkbox' : undefined}
+                  aria-checked={selecting ? picked : undefined}
+                  className={`panel p-4 ${selecting ? 'cursor-pointer hover:!border-white/[0.16]' : ''} ${picked ? '!border-accent-500/60 ring-1 ring-accent-500/40' : ''}`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="flex items-center gap-2 font-mono text-base font-semibold text-white">
+                      {selecting && (
+                        <span className={`inline-flex h-4 w-4 items-center justify-center rounded border ${picked ? 'border-accent-400 bg-accent-500 text-white' : 'border-white/[0.2]'}`}>
+                          {picked && <Check size={12} />}
+                        </span>
+                      )}
+                      {u.callsign}
+                    </h3>
+                    <span className="relative flex h-2.5 w-2.5">
+                      <span className={`absolute inset-0 rounded-full ${getStatusColor(u.status)} opacity-40 blur-[3px]`}></span>
+                      <span className={`relative h-2.5 w-2.5 rounded-full ${getStatusColor(u.status)}`}></span>
+                    </span>
+                  </div>
+                  <div className="text-gray-400 text-sm">{u.officer}</div>
+                  {(u.department || u.subdivision) && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {u.department && <span className="chip">{u.department}</span>}
+                      {u.subdivision && <span className="chip">{u.subdivision}</span>}
+                    </div>
+                  )}
+                  {u.aop && <div className="mt-2 text-xs text-gray-400"><span className="text-gray-500">AOP</span> {u.aop}</div>}
+                  {renderLiveLine([u])}
+                  {!selecting && renderOnCallLine([u.id])}
+                  <div className="mt-2">{renderUnitStatusLine(u)}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const activeCallList = calls.filter(c => c.status !== 'CLOSED');
   const priorityStripe = (p) => (p === '1' ? 'before:bg-red-500' : p === '2' ? 'before:bg-yellow-500' : p === '3' ? 'before:bg-blue-500' : 'before:bg-gray-500');
 
+  // The unit dashboard and the dispatch map fill the screen between header and taskbar.
+  const fullHeightView = selectedRole === 'police' || selectedRole === 'fire' || (selectedRole === 'dispatch' && activeTab === 'map');
+
   return (
-    <div className="min-h-screen text-white flex flex-col">
+    <div className={`text-white flex flex-col ${fullHeightView ? 'min-h-screen lg:h-screen lg:overflow-hidden' : 'min-h-screen'}`}>
       <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-gray-900/80 backdrop-blur-md">
         <div className={`absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent ${roleTheme.line} to-transparent`} />
 
@@ -13673,17 +14327,15 @@ const CADSystem = () => {
                 <button onClick={() => setActiveTab('fire-ems')} className={`seg-item ${activeTab === 'fire-ems' ? 'seg-item-active' : ''}`}>
                   <Flame size={15} /> Fire/EMS
                 </button>
-              </>
-            )}
-            {(selectedRole === 'police' || selectedRole === 'fire') && (
-              <>
-                <button onClick={() => setUnitView('unit')} className={`seg-item ${unitView === 'unit' ? 'seg-item-active' : ''}`}>
-                  {selectedRole === 'fire' ? <Flame size={15} /> : <Shield size={15} />} My Unit
-                </button>
-                <button onClick={() => setUnitView('map')} className={`seg-item ${unitView === 'map' ? 'seg-item-active' : ''}`}>
+                <button onClick={() => setActiveTab('map')} className={`seg-item ${activeTab === 'map' ? 'seg-item-active' : ''}`}>
                   <MapPin size={15} /> Live Map
                 </button>
               </>
+            )}
+            {(selectedRole === 'police' || selectedRole === 'fire') && (
+              <button className="seg-item seg-item-active">
+                {selectedRole === 'fire' ? <Flame size={15} /> : <Shield size={15} />} My Unit
+              </button>
             )}
             {selectedRole === 'tow' && (
               <button className="seg-item seg-item-active">
@@ -13739,6 +14391,7 @@ const CADSystem = () => {
               'bg-blue-500/15 text-blue-300 ring-1 ring-blue-500/25',
               () => setShowUnitInfo(true)
             )}
+            {renderRidingWith()}
             <div className="mx-1 hidden h-8 w-px bg-white/[0.08] md:block" />
             {renderStatusButton('busy', 'Busy', '10-6', () => updateUnitStatus(selectedUnit, 'busy'))}
             {renderStatusButton('unavailable', 'Unavailable', '10-7', () => updateUnitStatus(selectedUnit, 'unavailable'))}
@@ -13760,6 +14413,7 @@ const CADSystem = () => {
         {selectedRole === 'fire' && selectedUnit && loggedInOfficer && (
           <div className="border-t border-white/[0.05] bg-gray-950/30 px-4 md:px-6 py-2.5 flex flex-wrap items-center gap-2">
             {renderUnitIdentity(loggedInOfficer.unitId, loggedInOfficer.displayName, 'bg-red-500/15 text-red-300 ring-1 ring-red-500/25')}
+            {renderRidingWith()}
             <div className="mx-1 hidden h-8 w-px bg-white/[0.08] md:block" />
             {renderStatusButton('available', 'Available', '', () => updateUnitStatus(selectedUnit, 'available'))}
             {renderStatusButton('enroute', 'Enroute', '', () => updateUnitStatus(selectedUnit, 'enroute'))}
@@ -13780,25 +14434,31 @@ const CADSystem = () => {
         )}
       </header>
 
-      <main className="flex-1 px-4 md:px-6 py-6 pb-28">
-        <div className="max-w-7xl mx-auto animate-fade-in">
-        {(selectedRole === 'police' || selectedRole === 'fire') && unitView === 'unit' && <UnitViewMode />}
-        {(selectedRole === 'police' || selectedRole === 'fire') && unitView === 'map' && (
-          <div className="space-y-4">
-            <div>
-              <div className="eyebrow mb-1.5">{selectedRole === 'fire' ? 'Fire/EMS' : 'Law Enforcement'}</div>
-              <h2 className="text-2xl font-semibold tracking-tight">Live Map</h2>
+      <main className={fullHeightView ? 'flex-1 px-3 md:px-4 pt-4 pb-[88px] lg:min-h-0' : 'flex-1 px-4 md:px-6 py-6 pb-28'}>
+        <div className={fullHeightView ? 'h-full animate-fade-in' : 'max-w-7xl mx-auto animate-fade-in'}>
+        {(selectedRole === 'police' || selectedRole === 'fire') && renderUnitDashboard()}
+        {selectedRole === 'dispatch' && activeTab === 'map' && (
+          <div className="flex h-full min-h-[70vh] flex-col gap-3 lg:min-h-0">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <div className="eyebrow mb-1.5">Dispatch</div>
+                <h2 className="text-2xl font-semibold tracking-tight">Live Map</h2>
+              </div>
+              {units.some(u => u.groupId) && (
+                <span className="flex items-center gap-1.5 text-xs text-gray-400"><Users size={13} className="text-accent-400" /> Grouped units show as one marker when they ride together</span>
+              )}
             </div>
-            <LiveMap
-              enabled={fivem.enabled}
-              connected={fivem.connected}
-              telemetry={fivem.telemetry}
-              units={units}
-              myCallsign={myUnitRecord?.callsign || (selectedRole === 'fire' ? loggedInOfficer?.unitId : undefined)}
-              getStatusLabel={getStatusLabel}
-              listTitle={selectedRole === 'fire' ? 'Active units' : 'Active LEO units'}
-              listAccent={selectedRole === 'fire' ? 'text-red-400' : 'text-blue-400'}
-            />
+            <div className="panel min-h-0 flex-1 overflow-hidden !p-0">
+              <LiveMap
+                enabled={fivem.enabled}
+                connected={fivem.connected}
+                telemetry={fivem.telemetry}
+                units={units}
+                getStatusLabel={getStatusLabel}
+                listTitle="All units"
+                listAccent="text-emerald-400"
+              />
+            </div>
           </div>
         )}
         {selectedRole === 'tow' && (
@@ -13950,62 +14610,7 @@ const CADSystem = () => {
           </div>
         )}
 
-        {selectedRole === 'dispatch' && activeTab === 'units' && (
-          <div className="space-y-5">
-            <div>
-              <div className="eyebrow mb-1.5">Dispatch</div>
-              <h2 className="text-2xl font-semibold tracking-tight">Units</h2>
-            </div>
-
-            <div className="flex gap-2 flex-wrap items-center">
-              <span className="text-gray-400 text-sm mr-1">Select unit:</span>
-              {units.map(u => (
-                <button
-                  key={u.id}
-                  onClick={() => setSelectedUnit(u.id)}
-                  className={`rounded-lg px-3 py-1.5 font-mono text-sm font-semibold border ${
-                    selectedUnit === u.id
-                      ? 'border-accent-500/50 bg-accent-500/15 text-white'
-                      : 'border-white/[0.07] bg-white/[0.03] text-gray-300 hover:bg-white/[0.07] hover:text-white'
-                  }`}
-                >
-                  {u.callsign}
-                </button>
-              ))}
-            </div>
-
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {units.map(u => (
-                <div key={u.id} className="panel p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-mono text-base font-semibold text-white">{u.callsign}</h3>
-                    <span className="relative flex h-2.5 w-2.5">
-                      <span className={`absolute inset-0 rounded-full ${getStatusColor(u.status)} opacity-40 blur-[3px]`}></span>
-                      <span className={`relative h-2.5 w-2.5 rounded-full ${getStatusColor(u.status)}`}></span>
-                    </span>
-                  </div>
-                  <div className="text-gray-400 text-sm">{u.officer}</div>
-                  {(u.department || u.subdivision) && (
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {u.department && <span className="chip">{u.department}</span>}
-                      {u.subdivision && <span className="chip">{u.subdivision}</span>}
-                    </div>
-                  )}
-                  {u.aop && <div className="mt-2 text-xs text-gray-400"><span className="text-gray-500">AOP</span> {u.aop}</div>}
-                  {(() => {
-                    const live = formatGameLocation(fivem.telemetryFor(u.callsign)?.location);
-                    return live ? (
-                      <div className="mt-1 flex items-center gap-1.5 text-xs text-emerald-300" title="Live position from FiveM">
-                        <MapPin size={12} />{live}
-                      </div>
-                    ) : null;
-                  })()}
-                  <div className={`mt-2 text-xs font-semibold uppercase tracking-wider ${u.status === 'available' ? 'text-green-400' : u.status === 'panic' ? 'text-red-400' : 'text-blue-400'}`}>{getStatusLabel(u.status)}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        {selectedRole === 'dispatch' && activeTab === 'units' && renderDispatchUnits()}
 
         {selectedRole === 'dispatch' && activeTab === 'tow' && (
           <div className="space-y-5">
