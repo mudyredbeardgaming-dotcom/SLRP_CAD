@@ -278,7 +278,10 @@ Role color is a highlight (pill, dot, icon chip, header underline), not a thick 
 
 - **Login**: centered card over an ambient gradient/grid background, StrataMDT mark + wordmark, inputs with leading icons, show/hide password toggle, accent sign-in button, version footer.
 - **Role selection**: top bar (lockup, user chip, Sign Out), "Where are you working today?" heading, five role cards with icon chips; unavailable roles are dimmed with a "No access" label.
-- **Operational shell (Dispatch/Law Enforcement/Fire/Tow)**: sticky top bar (lockup, role pill, segmented nav, dispatcher COM button), a unit status strip for unit roles (identity card, status buttons with 10-codes and active-state highlight, separated PANIC button), and a bottom taskbar (Menu button, pinned Records shortcuts, PST clock).
+- **Operational shell (Dispatch/Law Enforcement/Fire/Tow)**: a sticky top bar and a bottom taskbar (Menu button, pinned Records shortcuts, PST clock).
+  - Dispatch: lockup, role pill, segmented nav and the COM button.
+  - Law Enforcement and Fire/EMS (`unitTopBar`): one row with the lockup, the unit identity (opens Unit Information), "Riding with", the status buttons, a Units toggle for supervisors, the FiveM chip (`renderFiveMChip`) and PANIC (LE only). There is no nav label. 10-code tags hide below 1400px.
+  - Tow: a separate status strip.
 - **Civilian portal**: sticky top bar with purple role pill and Change Role button; character cards grid; dashed empty state.
 
 ## Common Issues & Solutions
