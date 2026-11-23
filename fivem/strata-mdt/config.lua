@@ -10,10 +10,11 @@
 Config = {}
 
 -- How often each player reports their position to the game server (ms).
-Config.TelemetryInterval = 5000
+-- Together with UnitUpdateInterval this sets how smoothly units move on the CAD live map.
+Config.TelemetryInterval = 2500
 
 -- How often the game server pushes all unit positions to the CAD (ms).
-Config.UnitUpdateInterval = 5000
+Config.UnitUpdateInterval = 2500
 
 -- How often the game server asks the CAD for new commands (ms).
 Config.OutboxInterval = 3000

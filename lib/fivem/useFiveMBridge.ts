@@ -28,12 +28,15 @@ const EMPTY: FiveMBridgeState = {
 export function useFiveMBridge({
   active,
   paused = false,
+  fastPollMs = FAST_POLL_MS,
   onEvent,
 }: {
   /** Poll at all (e.g. only once a CAD role is open). */
   active: boolean;
   /** Skip polls without losing events; they are delivered once unpaused. */
   paused?: boolean;
+  /** Poll interval while the bridge is enabled (e.g. faster while a live map is open). */
+  fastPollMs?: number;
   onEvent?: (e: BridgeEvent['event']) => void;
 }) {
   const [state, setState] = useState<FiveMBridgeState>(EMPTY);
@@ -44,6 +47,8 @@ export function useFiveMBridge({
   onEventRef.current = onEvent;
   const pausedRef = useRef(paused);
   pausedRef.current = paused;
+  const fastPollRef = useRef(fastPollMs);
+  fastPollRef.current = fastPollMs;
 
   useEffect(() => {
     if (!active) return;
@@ -82,7 +87,7 @@ export function useFiveMBridge({
       } catch {
         // Network blip; try again next tick.
       }
-      if (!cancelled) timer = setTimeout(poll, enabled ? FAST_POLL_MS : SLOW_POLL_MS);
+      if (!cancelled) timer = setTimeout(poll, enabled ? fastPollRef.current : SLOW_POLL_MS);
     };
 
     poll();

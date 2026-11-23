@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AlertCircle, Radio, MapPin, Clock, User, Phone, FileText, Plus, X, Check, Shield, AlertTriangle, Lock, LogOut, Search, Database, Pin, PinOff, Car, Flame, Truck, ArrowRight, Eye, EyeOff, LayoutGrid, ChevronRight } from 'lucide-react';
 import { BRAND, BrandMark, BrandLockup } from './Brand';
 import { useFiveMBridge, formatGameLocation } from '@/lib/fivem/useFiveMBridge';
+import LiveMap from './LiveMap';
 
 // App version - increment this to force re-login after updates
 const APP_VERSION = '2.0.0';
@@ -894,11 +895,13 @@ const CADSystem = () => {
   // are open, for the same reason the clock and data refresh pause: a
   // re-render would remount the nested form components and drop typed input.
   const [newCallPrefill, setNewCallPrefill] = useState<any>(null);
+  const [policeView, setPoliceView] = useState<'unit' | 'map'>('unit');
   const fivemPaused = showLogin || showNewCall || !!selectedCall || showUnitInfo || showComModal ||
     civilianView === 'add' || civilianView === 'edit' || !!activeReportForm || !!activeRecordForm;
   const fivem = useFiveMBridge({
     active: isClient && isAuthenticated && !!selectedRole && selectedRole !== 'civilian',
     paused: fivemPaused,
+    fastPollMs: selectedRole === 'police' && policeView === 'map' ? 1500 : undefined,
     onEvent: (event) => {
       // Game-originated changes: apply locally only (don't echo back to the game)
       if (event.type === 'unit_status' || event.type === 'panic') {
@@ -12956,9 +12959,19 @@ const CADSystem = () => {
                 </button>
               </>
             )}
-            {(selectedRole === 'police' || selectedRole === 'fire' || selectedRole === 'tow') && (
+            {selectedRole === 'police' && (
+              <>
+                <button onClick={() => setPoliceView('unit')} className={`seg-item ${policeView === 'unit' ? 'seg-item-active' : ''}`}>
+                  <Shield size={15} /> My Unit
+                </button>
+                <button onClick={() => setPoliceView('map')} className={`seg-item ${policeView === 'map' ? 'seg-item-active' : ''}`}>
+                  <MapPin size={15} /> Live Map
+                </button>
+              </>
+            )}
+            {(selectedRole === 'fire' || selectedRole === 'tow') && (
               <button className="seg-item seg-item-active">
-                {selectedRole === 'police' ? <Shield size={15} /> : selectedRole === 'fire' ? <Flame size={15} /> : <Truck size={15} />}
+                {selectedRole === 'fire' ? <Flame size={15} /> : <Truck size={15} />}
                 My Unit
               </button>
             )}
@@ -13053,7 +13066,23 @@ const CADSystem = () => {
 
       <main className="flex-1 px-4 md:px-6 py-6 pb-28">
         <div className="max-w-7xl mx-auto animate-fade-in">
-        {selectedRole === 'police' && <UnitViewMode />}
+        {selectedRole === 'police' && policeView === 'unit' && <UnitViewMode />}
+        {selectedRole === 'police' && policeView === 'map' && (
+          <div className="space-y-4">
+            <div>
+              <div className="eyebrow mb-1.5">Sheriff</div>
+              <h2 className="text-2xl font-semibold tracking-tight">Live Map</h2>
+            </div>
+            <LiveMap
+              enabled={fivem.enabled}
+              connected={fivem.connected}
+              telemetry={fivem.telemetry}
+              units={units}
+              myCallsign={myUnitRecord?.callsign}
+              getStatusLabel={getStatusLabel}
+            />
+          </div>
+        )}
         {selectedRole === 'fire' && <UnitViewMode />}
         {selectedRole === 'tow' && (
           <div className="space-y-4">

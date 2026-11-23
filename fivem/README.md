@@ -61,6 +61,22 @@ Once it's running, the CAD top bar shows a green **FiveM** chip with the player 
   - their call is closed;
   - their status is changed from the CAD.
 
+## Live map (Sheriff → Live Map)
+
+The Sheriff view has a **Live Map** tab that shows every unit the bridge is tracking, meaning everyone who has run `/callsign`:
+
+- Blips are colored by the unit's CAD status, with a white ring on your own unit. A wedge shows the direction the unit is facing, and PANIC pulses.
+- Blips glide between position updates and fade once a unit hasn't reported for 15 seconds.
+- **Navigation:** drag to pan; use the mouse wheel or the +/− buttons to zoom. The crosshair button resets the view, and the locate button follows your own unit.
+- **Unit list:** click a unit in the side list to center on it and see its location, vehicle and speed.
+- **Update rate:** the map polls every 1.5s while it's open. Game positions arrive every 2.5s, set by `Config.TelemetryInterval` and `Config.UnitUpdateInterval`.
+
+No map image is included. Until you add one, the map draws a coordinate grid with approximate region labels. To use your own GTA V map image:
+
+1. Put it in `public/map/`.
+2. Set `MAP_CONFIG.image` in [`lib/fivem/mapConfig.ts`](../lib/fivem/mapConfig.ts).
+3. Set `imageBounds` to the world coordinates of the image's edges. That file explains how to calibrate them.
+
 ## Protocol reference
 
 All types live in [`lib/fivem/types.ts`](../lib/fivem/types.ts).
