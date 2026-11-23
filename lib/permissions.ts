@@ -29,17 +29,20 @@ export const SELF_DISPATCH: Record<'police' | 'fire', { enabled: boolean; ranks:
 };
 
 /**
- * Grouping units (two officers riding in one vehicle): Dispatch → Units, or the
- * "Units" tab Law Enforcement / Fire-EMS supervisors get.
+ * Supervisors: Law Enforcement / Fire-EMS units that can
+ *   - group units (the "Units" tab; two officers riding in one vehicle), and
+ *   - review LE reports and records (Records Management -> Supervisor Panel; police only).
  *
- * Dispatchers and admins can always group units. A Law Enforcement or Fire/EMS
- * unit can when its rank is in `ranks` or its subdivision is in `subdivisions`
- * (ignoring case). Unlike SELF_DISPATCH, empty lists mean nobody in that role.
- * Supervisors only see and group units of their own service.
+ * A unit is a supervisor when its rank is in `ranks` or its subdivision is in
+ * `subdivisions` (ignoring case). Unlike SELF_DISPATCH, empty lists mean nobody.
+ * Ranks and subdivisions come from Unit Information.
  *
- * Per-account override: `groupUnits: true` / `false` on an officerCredentials entry.
+ * Per-account overrides on an officerCredentials entry:
+ *   supervisor: true / false   (both abilities)
+ *   groupUnits: true / false   (grouping only)
+ * Admins are always supervisors. Dispatchers can always group units.
  */
-export const GROUP_UNITS: Record<'police' | 'fire', { ranks: string[]; subdivisions: string[] }> = {
+export const SUPERVISORS: Record<'police' | 'fire', { ranks: string[]; subdivisions: string[] }> = {
   police: {
     ranks: ['Corporal', 'Sergeant', 'Lieutenant', 'Captain', 'Major', 'Commander', 'Undersheriff', 'Sheriff', 'Deputy Chief', 'Chief'],
     subdivisions: ['BCSO-SUPV', 'LSPD-SUPV'],
@@ -52,24 +55,41 @@ export const GROUP_UNITS: Record<'police' | 'fire', { ranks: string[]; subdivisi
 
 const norm = (v: unknown) => String(v ?? '').trim().toUpperCase();
 
-export function canGroupUnits(opts: {
+type PermOpts = {
+  /** The role the user is working as (selected role card). */
   view: string | null | undefined;
+  /** The account's role from officerCredentials (e.g. 'police', 'admin'). */
   accountRole?: string | null;
   unit?: { rank?: string; subdivision?: string } | null;
-  credential?: { groupUnits?: boolean } | null;
-}): boolean {
+  credential?: { supervisor?: boolean; groupUnits?: boolean } | null;
+};
+
+export function isSupervisor(opts: PermOpts): boolean {
   const { view, accountRole, unit, credential } = opts;
-  if (view === 'dispatch') return true;
   if (view !== 'police' && view !== 'fire') return false;
   if (accountRole === 'admin') return true;
-  if (credential?.groupUnits === true) return true;
-  if (credential?.groupUnits === false) return false;
+  if (credential?.supervisor === true) return true;
+  if (credential?.supervisor === false) return false;
   if (!unit) return false;
-  const policy = GROUP_UNITS[view];
+  const policy = SUPERVISORS[view];
   return (
     policy.ranks.some(r => norm(r) === norm(unit.rank)) ||
     policy.subdivisions.some(s => norm(s) === norm(unit.subdivision))
   );
+}
+
+/** Dispatch always; LE / Fire supervisors; `groupUnits` overrides per account. */
+export function canGroupUnits(opts: PermOpts): boolean {
+  if (opts.view === 'dispatch') return true;
+  if (opts.view !== 'police' && opts.view !== 'fire') return false;
+  if (opts.credential?.groupUnits === true) return true;
+  if (opts.credential?.groupUnits === false) return false;
+  return isSupervisor(opts);
+}
+
+/** Supervisor Panel in Records Management (Law Enforcement only). */
+export function canReviewRecords(opts: PermOpts): boolean {
+  return opts.view === 'police' && isSupervisor(opts);
 }
 
 export function canSelfDispatch(opts: {

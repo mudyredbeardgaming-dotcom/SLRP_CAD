@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AlertCircle, Radio, MapPin, Clock, User, Phone, FileText, Plus, X, Check, Shield, AlertTriangle, Lock, LogOut, Search, Database, Pin, PinOff, Car, Flame, Truck, ArrowRight, Eye, EyeOff, LayoutGrid, ChevronRight, ArrowLeft, Minus, Power, RotateCcw, LayoutPanelLeft, LayoutPanelTop, Columns, GripVertical, Maximize2, Minimize2, Users, LogIn, Unlink } from 'lucide-react';
+import { AlertCircle, Radio, MapPin, Clock, User, Phone, FileText, Plus, X, Check, Shield, AlertTriangle, Lock, LogOut, Search, Database, Pin, PinOff, Car, Flame, Truck, ArrowRight, Eye, EyeOff, LayoutGrid, ChevronRight, ArrowLeft, Minus, Power, RotateCcw, LayoutPanelLeft, LayoutPanelTop, Columns, GripVertical, Maximize2, Minimize2, Users, LogIn, Unlink, Pencil, ShieldCheck, ThumbsUp, ThumbsDown, Send } from 'lucide-react';
 import { BRAND, BrandMark, BrandLockup } from './Brand';
 import { useFiveMBridge, formatGameLocation } from '@/lib/fivem/useFiveMBridge';
 import LiveMap from './LiveMap';
-import { canSelfDispatch, canGroupUnits } from '@/lib/permissions';
+import { canSelfDispatch, canGroupUnits, canReviewRecords } from '@/lib/permissions';
 import { cadDatePlusYears, cadToday, isPastCadDate, liveDmvRecord, liveDmvRecords } from '@/lib/cadDate';
 
 // App version - increment this to force re-login after updates
@@ -217,7 +217,7 @@ const CADSystem = () => {
 
   // Records Management state (Police role)
   const [showRecordsMenu, setShowRecordsMenu] = useState(false);
-  const [pinnedRecordsButtons, setPinnedRecordsButtons] = useState({
+  const [pinnedRecordsButtons, setPinnedRecordsButtons] = useState<any>({
     lookup: false,
     records: false,
     bolo: false
@@ -240,6 +240,13 @@ const CADSystem = () => {
   const [currentRecordData, setCurrentRecordData] = useState<any>({});
   const [nextReportRecordId, setNextReportRecordId] = useState(10000);
   const [recordsScope, setRecordsScope] = useState<'mine' | 'all'>('mine');
+  // Supervisor review (Records Management -> Supervisor Panel)
+  const [supervisorTab, setSupervisorTab] = useState<'pending' | 'denied' | 'approved'>('pending');
+  const [supervisorSearch, setSupervisorSearch] = useState('');
+  const [denyingKey, setDenyingKey] = useState<string | null>(null); // `${kind}:${id}` being denied
+  const [denyReason, setDenyReason] = useState('');
+  // Civilian portal: DMV record being edited (null = adding a new one)
+  const [editingDmvId, setEditingDmvId] = useState<string | null>(null);
   const [editingReportId, setEditingReportId] = useState<string | null>(null);
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
 
@@ -405,6 +412,7 @@ const CADSystem = () => {
       type: reportType,
       recordNumber: recordId,
       officer: loggedInOfficer?.displayName || '',
+      officerUsername: loggedInOfficer?.username || null,
       badge: loggedInOfficer?.badge || '',
       callsign: loggedInOfficer?.callsign || '',
       department: loggedInOfficer?.department || '',
@@ -470,13 +478,6 @@ const CADSystem = () => {
     setPartySearchResults2([]);
   };
 
-  /** Records written by the signed-in officer (CAD or in game), newest first; or every record. */
-  const isMyRecord = (r: any) => r.officerUsername
-    ? r.officerUsername === loggedInOfficer?.username
-    : !!r.officer && r.officer === loggedInOfficer?.displayName;
-  const shownRecords = (recordsScope === 'all' ? officerRecords : officerRecords.filter(isMyRecord))
-    .slice().sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
-
   const openExistingRecord = (record: any) => {
     setEditingRecordId(record.id);
     setActiveRecordForm(record.type);
@@ -500,8 +501,159 @@ const CADSystem = () => {
     return !!n && n === normName(civName(person));
   };
 
+  // ---- Supervisor review ----------------------------------------------------
+  // Every LE report and record has a review state:
+  //   DRAFT     saved with "Save as Draft": only its author sees it, supervisors don't
+  //   PENDING   submitted: waits in the Supervisor Panel
+  //   DENIED    sent back with a reason: the author fixes it and resubmits
+  //   APPROVED  done: leaves the Supervisor Panel
+  // Items saved before this existed: DRAFT/APPROVED from their status, otherwise PENDING.
+  const reviewOf = (item: any): 'DRAFT' | 'PENDING' | 'DENIED' | 'APPROVED' => {
+    const r = String(item?.reviewStatus || '').toUpperCase();
+    if (r === 'DRAFT' || r === 'PENDING' || r === 'DENIED' || r === 'APPROVED') return r;
+    const st = String(item?.status || '').toUpperCase();
+    if (st === 'DRAFT') return 'DRAFT';
+    if (st === 'APPROVED') return 'APPROVED';
+    if (st === 'DENIED') return 'DENIED';
+    return 'PENDING';
+  };
+  const REVIEW_STYLE: Record<string, [string, string]> = {
+    DRAFT: ['DRAFT', 'bg-yellow-500/15 text-yellow-300 ring-yellow-500/30'],
+    PENDING: ['PENDING REVIEW', 'bg-sky-500/15 text-sky-300 ring-sky-500/30'],
+    DENIED: ['DENIED', 'bg-red-500/15 text-red-300 ring-red-500/30'],
+    APPROVED: ['APPROVED', 'bg-emerald-500/15 text-emerald-300 ring-emerald-500/30'],
+  };
+  const reviewChip = (item: any) => {
+    const [label, tone] = REVIEW_STYLE[reviewOf(item)];
+    return <span className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ring-1 ${tone}`}>{label}</span>;
+  };
+  /** The signed-in officer wrote this (stored username, else the officer name on older items). */
+  const isAuthor = (item: any) => item?.officerUsername
+    ? item.officerUsername === loggedInOfficer?.username
+    : !!item?.officer && item.officer === loggedInOfficer?.displayName;
+  /** Other officers' drafts are private. */
+  const visibleToMe = (item: any) => reviewOf(item) !== 'DRAFT' || isAuthor(item);
+  const reviewerUnit = selectedUnit ? units.find(u => u.id === selectedUnit) : null;
+  const reviewerCredential = officerCredentials.find((c: any) => c.username === loggedInOfficer?.username);
+  const supervisorAllowed = canReviewRecords({
+    view: selectedRole, accountRole: loggedInOfficer?.role, unit: reviewerUnit, credential: reviewerCredential,
+  });
+  /** Supervisors review other officers' work; admins may review anything. */
+  const canReviewItem = (item: any) => supervisorAllowed && reviewOf(item) === 'PENDING'
+    && (!isAuthor(item) || loggedInOfficer?.role === 'admin');
+  /** Review fields to store when the form is saved. `existing` is the saved copy when editing. */
+  const submissionFields = (asDraft: boolean, existing: any) => {
+    const now = new Date().toISOString();
+    if (existing && !isAuthor(existing)) return {}; // a supervisor fixing someone else's item keeps its state
+    if (asDraft) return { reviewStatus: 'DRAFT' };
+    return {
+      reviewStatus: 'PENDING',
+      submittedAt: now,
+      ...(existing && reviewOf(existing) === 'DENIED' ? { resubmittedAt: now } : {}),
+    };
+  };
+  const reviewItem = (kind: 'report' | 'record', id: string, decision: 'APPROVED' | 'DENIED', reason = '') => {
+    const now = new Date().toISOString();
+    const by = loggedInOfficer?.displayName || loggedInOfficer?.username || 'Supervisor';
+    const apply = (item: any) => ({
+      ...item,
+      reviewStatus: decision,
+      reviewedAt: now,
+      reviewedBy: by,
+      reviewedByUsername: loggedInOfficer?.username || null,
+      denialReason: decision === 'DENIED' ? reason.trim() : null,
+      reviewHistory: [...(item.reviewHistory || []), { decision, reason: reason.trim(), by, at: now }],
+      ...(kind === 'report' ? { status: decision } : {}),
+    });
+    let newReports = officerReports, newRecords = officerRecords;
+    if (kind === 'report') newReports = officerReports.map(r => (r.id === id ? apply(r) : r));
+    else newRecords = officerRecords.map(r => (r.id === id ? apply(r) : r));
+    setOfficerReports(newReports);
+    setOfficerRecords(newRecords);
+    saveDataImmediately({ units, calls, civilians, officerReports: newReports, officerRecords: newRecords, officerCredentials });
+    setDenyingKey(null);
+    setDenyReason('');
+  };
+  /** Status strip at the top of a report/record form: review state, denial reason, supervisor actions. */
+  const renderReviewBanner = (kind: 'report' | 'record', editingId: string | null) => {
+    if (!editingId) return null;
+    const saved = (kind === 'report' ? officerReports : officerRecords).find((x: any) => x.id === editingId);
+    if (!saved) return null;
+    const state = reviewOf(saved);
+    const key = `${kind}:${editingId}`;
+    const close = () => {
+      if (kind === 'report') { setActiveReportForm(null); setCurrentReportData({}); setEditingReportId(null); }
+      else { setActiveRecordForm(null); setCurrentRecordData({}); setEditingRecordId(null); }
+    };
+    const tone = state === 'DENIED' ? 'border-red-500/30 bg-red-500/10' : state === 'APPROVED' ? 'border-emerald-500/25 bg-emerald-500/[0.07]'
+      : state === 'DRAFT' ? 'border-yellow-500/25 bg-yellow-500/[0.07]' : 'border-sky-500/25 bg-sky-500/[0.07]';
+    return (
+      <div className={`rounded-lg border p-3 ${tone}`} data-review-banner={state}>
+        <div className="flex flex-wrap items-center gap-2">
+          {reviewChip(saved)}
+          <span className="text-sm text-gray-200">
+            {state === 'DRAFT' && 'Draft. Supervisors can\'t see it until you submit it.'}
+            {state === 'PENDING' && `Waiting for supervisor review${saved.resubmittedAt ? ' (resubmitted)' : ''}.`}
+            {state === 'DENIED' && `Denied by ${saved.reviewedBy || 'a supervisor'}${saved.reviewedAt ? ` on ${formatRecordDateTime(saved.reviewedAt)}` : ''}. Fix it and resubmit.`}
+            {state === 'APPROVED' && `Approved by ${saved.reviewedBy || 'a supervisor'}${saved.reviewedAt ? ` on ${formatRecordDateTime(saved.reviewedAt)}` : ''}. Submitting changes sends it back for review.`}
+          </span>
+        </div>
+        {state === 'DENIED' && saved.denialReason && (
+          <p className="mt-2 whitespace-pre-wrap rounded-md border border-red-500/20 bg-gray-950/40 p-2.5 text-sm text-red-100"><span className="font-semibold text-red-300">Reason: </span>{saved.denialReason}</p>
+        )}
+        {canReviewItem(saved) && (
+          denyingKey === key ? (
+            <div className="mt-3 space-y-2">
+              <textarea
+                value={denyReason}
+                onChange={(e) => setDenyReason(e.target.value)}
+                placeholder="Why is it denied? The officer sees this."
+                className="field h-20"
+                aria-label="Denial reason"
+              />
+              <div className="flex justify-end gap-2">
+                <button onClick={() => { setDenyingKey(null); setDenyReason(''); }} className="btn btn-secondary btn-sm">Cancel</button>
+                <button disabled={!denyReason.trim()} onClick={() => { reviewItem(kind, editingId, 'DENIED', denyReason); close(); }} className="btn btn-danger btn-sm disabled:opacity-40">
+                  <Send size={14} /> Send back to officer
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="text-xs text-gray-400">Supervisor review:</span>
+              <button onClick={() => { reviewItem(kind, editingId, 'APPROVED'); close(); }} className="btn btn-success btn-sm"><ThumbsUp size={14} /> Approve</button>
+              <button onClick={() => { setDenyingKey(key); setDenyReason(''); }} className="btn btn-danger btn-sm"><ThumbsDown size={14} /> Deny</button>
+            </div>
+          )
+        )}
+      </div>
+    );
+  };
+
+  /** Records written by the signed-in officer (CAD or in game), newest first; or every record. */
+  const isMyRecord = (r: any) => (r.officerUsername
+    ? r.officerUsername === loggedInOfficer?.username
+    : !!r.officer && r.officer === loggedInOfficer?.displayName);
+  const newestFirst = (a: any, b: any) => String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
+  const visibleRecords = (list: any[]) => list.filter(r => (reviewOf(r) !== 'DRAFT' ? true : isMyRecord(r)));
+  const shownRecords = (recordsScope === 'all' ? visibleRecords(officerRecords) : officerRecords.filter(isMyRecord)).slice().sort(newestFirst);
+  const shownReports = (recordsScope === 'all' ? visibleRecords(officerReports) : officerReports.filter(isMyRecord)).slice().sort(newestFirst);
+  /** My reports/records a supervisor sent back. */
+  const myDenied = [
+    ...officerReports.filter(r => isMyRecord(r) && reviewOf(r) === 'DENIED').map(r => ({ kind: 'report' as const, item: r })),
+    ...officerRecords.filter(r => isMyRecord(r) && reviewOf(r) === 'DENIED').map(r => ({ kind: 'record' as const, item: r })),
+  ].sort((a, b) => String(b.item.reviewedAt || '').localeCompare(String(a.item.reviewedAt || '')));
+
   const saveReport = (status?: string) => {
-    const reportData = status ? { ...currentReportData, status } : currentReportData;
+    const asDraft = status === 'DRAFT';
+    const existing = editingReportId ? officerReports.find(r => r.id === editingReportId) : null;
+    const review: any = submissionFields(asDraft, existing);
+    const reportData = {
+      ...currentReportData,
+      ...review,
+      // report.status mirrors the review state (older screens read it)
+      ...(review.reviewStatus ? { status: review.reviewStatus === 'PENDING' ? 'SUBMITTED' : review.reviewStatus } : {}),
+    };
     if (editingReportId) {
       // Update existing report
       setOfficerReports(prev => prev.map(r =>
@@ -524,18 +676,20 @@ const CADSystem = () => {
     setEditingReportId(null);
   };
 
-  const saveRecord = () => {
+  const saveRecord = (mode: 'draft' | 'submit' = 'submit') => {
+    const existing = editingRecordId ? officerRecords.find(r => r.id === editingRecordId) : null;
+    const recordData = { ...currentRecordData, ...submissionFields(mode === 'draft', existing) };
     if (editingRecordId) {
       // Update existing record
       setOfficerRecords(prev => prev.map(r =>
         r.id === editingRecordId
-          ? { ...currentRecordData, updatedAt: new Date().toISOString() }
+          ? { ...recordData, updatedAt: new Date().toISOString() }
           : r
       ));
     } else {
       // Create new record
       const newRecord = {
-        ...currentRecordData,
+        ...recordData,
         id: `REC-${Date.now()}`,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
@@ -1043,6 +1197,7 @@ const CADSystem = () => {
     if (activeRecordsPanel) {
       if (activeRecordsPanel === 'lookup') resetLookup();
       if (activeRecordsPanel === 'bolo') setBoloSearch('');
+      if (activeRecordsPanel === 'supervisor') { setDenyingKey(null); setDenyReason(''); }
       setShowNewReportDropdown(false);
       setShowNewRecordDropdown(false);
       setActiveRecordsPanel(null);
@@ -1265,8 +1420,13 @@ const CADSystem = () => {
     if (m(rep.witness1Name) || m(rep.witness2Name)) roles.push('WITNESS');
     return Array.from(new Set(roles.map(r => String(r).toUpperCase())));
   };
+  const officerRecordsAll = officerRecords;
+  const officerReportsAll = officerReports;
   const getPersonHistory = (person: any) => {
     const m = (name: any, id?: any) => personMatches(person, name, id);
+    // Other officers' drafts are private
+    const officerRecords = officerRecordsAll.filter(visibleToMe);
+    const officerReports = officerReportsAll.filter(visibleToMe);
     const dmv = person?.dmvRecords || [];
     const plates = new Set(dmv.filter((r: any) => r.type === 'VEHICLE REGISTRATION')
       .map((r: any) => String(r.data?.plateNumber || '').trim().toUpperCase()).filter(Boolean));
@@ -2023,6 +2183,7 @@ const CADSystem = () => {
 
     const addDMVRecord = () => {
       if (!selectedDMVType || !selectedCivilian) return;
+      const editing = editingDmvId ? (selectedCivilian.dmvRecords || []).find((r: any) => r.id === editingDmvId) : null;
 
       // Save what the form's selects show by default, and auto-set blank
       // expiration dates to one year from today's CAD date.
@@ -2042,6 +2203,27 @@ const CADSystem = () => {
         data.registrationDate = data.registrationDate || cadToday();
         if (!data.registrationExpiration) data.registrationExpiration = cadDatePlusYears(1);
         if (!data.insuranceExpiration) data.insuranceExpiration = cadDatePlusYears(1);
+      }
+      // A stored EXPIRED status with a new future date becomes VALID again
+      const revive = (status: string, date: string) => (status === 'EXPIRED' && date && !isPastCadDate(date) ? 'VALID' : status);
+      if (selectedDMVType === 'LICENSE') data.status = revive(data.status, data.expirationDate);
+      if (selectedDMVType === 'VEHICLE REGISTRATION') {
+        data.registrationStatus = revive(data.registrationStatus, data.registrationExpiration);
+        data.insuranceStatus = revive(data.insuranceStatus, data.insuranceExpiration);
+      }
+
+      if (editing) {
+        const updatedCivilian = {
+          ...selectedCivilian,
+          dmvRecords: (selectedCivilian.dmvRecords || []).map((r: any) => (r.id === editing.id ? { ...r, data, updatedAt: new Date().toISOString() } : r)),
+        };
+        setCivilians(civilians.map(c => c.id === selectedCivilian.id ? updatedCivilian : c));
+        setSelectedCivilian(updatedCivilian);
+        setShowDMVModal(false);
+        setSelectedDMVType('');
+        setDmvRecordData({});
+        setEditingDmvId(null);
+        return;
       }
 
       const newRecord = {
@@ -3187,12 +3369,31 @@ const CADSystem = () => {
                           <p className="text-gray-300 mt-2 italic">{record.data.notes}</p>
                         )}
                       </div>
-                      <button
-                        onClick={() => deleteDMVRecord(record.id)}
-                        className="text-red-400 hover:text-red-300 ml-2"
-                      >
-                        <X size={20} />
-                      </button>
+                      <div className="ml-2 flex items-start gap-1">
+                        <button
+                          onClick={() => {
+                            // Edit the stored record (not the display copy with EXPIRED applied)
+                            const raw = (char.dmvRecords || []).find((r: any) => r.id === record.id) || record;
+                            setEditingDmvId(raw.id);
+                            setSelectedDMVType(raw.type);
+                            setDmvRecordData({ ...(raw.data || {}) });
+                            setShowDMVModal(true);
+                          }}
+                          className="icon-btn !h-8 !w-8 text-gray-400 hover:text-white"
+                          title="Edit record"
+                          aria-label={`Edit ${record.type}`}
+                        >
+                          <Pencil size={16} />
+                        </button>
+                        <button
+                          onClick={() => deleteDMVRecord(record.id)}
+                          className="icon-btn !h-8 !w-8 text-red-400 hover:text-red-300"
+                          title="Delete record"
+                          aria-label={`Delete ${record.type}`}
+                        >
+                          <X size={18} />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -3270,8 +3471,8 @@ const CADSystem = () => {
       <div className="modal-backdrop z-50">
         <div className={`modal-surface p-6 w-full ${selectedDMVType === 'VEHICLE REGISTRATION' || selectedDMVType === 'MEDICAL HISTORY' || selectedDMVType === 'REGISTERED FIREARM' || selectedDMVType === 'OUT OF STATE WARRANT' || selectedDMVType === 'PROBATION' || selectedDMVType === 'PAROLE' ? 'max-w-3xl' : 'max-w-md'} max-h-[90vh] overflow-y-auto`}>
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-xl font-bold text-white">Add {selectedDMVType}</h3>
-            <button onClick={() => setShowDMVModal(false)} className="icon-btn">
+            <h3 className="text-xl font-bold text-white">{editingDmvId ? 'Edit' : 'Add'} {selectedDMVType}</h3>
+            <button onClick={() => { setShowDMVModal(false); if (editingDmvId) { setEditingDmvId(null); setSelectedDMVType(''); setDmvRecordData({}); } }} className="icon-btn">
               <X size={20} />
             </button>
           </div>
@@ -4684,12 +4885,13 @@ const CADSystem = () => {
                 onClick={addDMVRecord}
                 className="btn btn-success flex-1"
               >
-                Add Record
+                {editingDmvId ? 'Save Changes' : 'Add Record'}
               </button>
               <button
                 onClick={() => {
                   setShowDMVModal(false);
                   setDmvRecordData({});
+                  if (editingDmvId) { setEditingDmvId(null); setSelectedDMVType(''); }
                 }}
                 className="btn btn-secondary"
               >
@@ -4899,6 +5101,7 @@ const CADSystem = () => {
       { key: 'lookup', title: 'Lookup', subtitle: 'Search persons & vehicles', Icon: Search, chip: 'bg-blue-500/10 text-blue-400 ring-blue-500/20' },
       { key: 'records', title: 'Records', subtitle: 'View & manage records', Icon: FileText, chip: 'bg-purple-500/10 text-purple-400 ring-purple-500/20' },
       { key: 'bolo', title: 'BOLO', subtitle: 'Be On the Lookout alerts', Icon: AlertTriangle, chip: 'bg-red-500/10 text-red-400 ring-red-500/20' },
+      ...(supervisorAllowed ? [{ key: 'supervisor', title: 'Supervisor Panel', subtitle: `${pendingReviewCount} waiting for review`, Icon: ShieldCheck, chip: 'bg-red-500/10 text-red-300 ring-red-500/20' }] : []),
     ];
 
     return (
@@ -4937,6 +5140,9 @@ const CADSystem = () => {
                   <span className="block text-sm font-medium text-white">{title}</span>
                   <span className="block text-xs text-gray-500">{subtitle}</span>
                 </span>
+                {key === 'records' && myDenied.length > 0 && (
+                  <span className="ml-auto rounded-full bg-red-500/20 px-2 py-0.5 text-[10px] font-semibold text-red-300" title="Returned by a supervisor">{myDenied.length} returned</span>
+                )}
               </button>
               <button
                 onClick={() => togglePin(key)}
@@ -4988,6 +5194,7 @@ const CADSystem = () => {
                 </button>
               </div>
               <div className="p-6 space-y-4">
+                {renderReviewBanner('record', editingRecordId)}
                 {/* Common Fields */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -8110,12 +8317,26 @@ const CADSystem = () => {
                   >
                     Cancel
                   </button>
-                  <button
-                    onClick={() => { setInvolvedSearch(''); saveRecord(); }}
-                    className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-500"
-                  >
-                    {editingRecordId ? 'Save' : 'Add Record'}
-                  </button>
+                  {(() => {
+                    const saved = editingRecordId ? officerRecords.find(r => r.id === editingRecordId) : null;
+                    const mine = !saved || isAuthor(saved);
+                    const state = saved ? reviewOf(saved) : 'DRAFT';
+                    return (
+                      <>
+                        {mine && (
+                          <button onClick={() => { setInvolvedSearch(''); saveRecord('draft'); }} className="btn bg-yellow-600 text-white hover:bg-yellow-500">
+                            Save as Draft
+                          </button>
+                        )}
+                        <button
+                          onClick={() => { setInvolvedSearch(''); saveRecord('submit'); }}
+                          className="btn bg-orange-600 text-white hover:bg-orange-500"
+                        >
+                          {!mine ? 'Save' : state === 'DENIED' ? 'Resubmit for Review' : state === 'PENDING' ? 'Save' : 'Submit for Review'}
+                        </button>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
@@ -8141,6 +8362,7 @@ const CADSystem = () => {
                 </button>
               </div>
               <div className="p-6 space-y-6">
+                {renderReviewBanner('report', editingReportId)}
                 {/* Traffic Collision Report Form */}
                 {activeReportForm === 'TRAFFIC COLLISION REPORT' ? (
                   <>
@@ -12175,23 +12397,160 @@ const CADSystem = () => {
                   >
                     Cancel
                   </button>
-                  <button
-                    onClick={() => saveReport('DRAFT')}
-                    className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-500"
-                  >
-                    Save as Draft
-                  </button>
-                  <button
-                    onClick={() => saveReport('SUBMITTED')}
-                    className="btn btn-success"
-                  >
-                    {editingReportId ? 'Save' : 'Add Record'}
-                  </button>
+                  {(() => {
+                    const saved = editingReportId ? officerReports.find(r => r.id === editingReportId) : null;
+                    const mine = !saved || isAuthor(saved);
+                    const state = saved ? reviewOf(saved) : 'DRAFT';
+                    return (
+                      <>
+                        {mine && (
+                          <button onClick={() => saveReport('DRAFT')} className="btn bg-yellow-600 text-white hover:bg-yellow-500">
+                            Save as Draft
+                          </button>
+                        )}
+                        <button onClick={() => saveReport('SUBMITTED')} className="btn btn-success">
+                          {!mine ? 'Save' : state === 'DENIED' ? 'Resubmit for Review' : state === 'PENDING' ? 'Save' : 'Submit for Review'}
+                        </button>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
           </div>
   ) : null;
+
+  // ---- Supervisor Panel (Records Management) --------------------------------
+  const subjectOf = (x: any) => x.subjectName || x.arresteeName || x.trespasserName || x.party1?.name || x.subject
+    || (x.involvedPersons || [])[0]?.name || '';
+  const reviewEntries = [
+    ...officerReports.map(r => ({ kind: 'report' as const, item: r })),
+    ...officerRecords.map(r => ({ kind: 'record' as const, item: r })),
+  ];
+  const pendingReviewCount = reviewEntries.filter(x => reviewOf(x.item) === 'PENDING').length;
+  const supervisorPanelJSX = (() => {
+    if (!supervisorAllowed) return null;
+    const q = supervisorSearch.trim().toLowerCase();
+    const match = (x: any) => !q || [x.type, x.recordNumber, x.officer, subjectOf(x), x.callsign]
+      .some(v => String(v || '').toLowerCase().includes(q));
+    const byState = (st: string) => reviewEntries.filter(x => reviewOf(x.item) === st && match(x.item));
+    const pending = byState('PENDING').sort((a, b) => String(a.item.submittedAt || a.item.createdAt || '').localeCompare(String(b.item.submittedAt || b.item.createdAt || '')));
+    const denied = byState('DENIED').sort((a, b) => String(b.item.reviewedAt || '').localeCompare(String(a.item.reviewedAt || '')));
+    const approved = byState('APPROVED').sort((a, b) => String(b.item.reviewedAt || '').localeCompare(String(a.item.reviewedAt || ''))).slice(0, 50);
+    const list = supervisorTab === 'pending' ? pending : supervisorTab === 'denied' ? denied : approved;
+    const tabBtn = (key: any, label: string, n: number) => (
+      <button onClick={() => { setSupervisorTab(key); setDenyingKey(null); }} className={`seg-item ${supervisorTab === key ? 'seg-item-active' : ''}`}>
+        {label} <span className="font-mono text-xs">{n}</span>
+      </button>
+    );
+    return (
+      <div className="modal-backdrop z-50">
+        <div className="modal-surface w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col" data-panel="supervisor">
+          <div className="modal-header">
+            <div className="flex items-center gap-2">
+              {renderBackButton('Records Management')}
+              <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                <ShieldCheck size={20} className="text-red-400" /> Supervisor Panel
+              </h2>
+            </div>
+            <button onClick={() => { setActiveRecordsPanel(null); setDenyingKey(null); }} className="icon-btn"><X size={20} /></button>
+          </div>
+          <div className="flex flex-wrap items-center gap-3 border-b border-white/[0.06] px-6 py-3">
+            <div className="seg" role="group" aria-label="Review queue">
+              {tabBtn('pending', 'Pending review', byState('PENDING').length)}
+              {tabBtn('denied', 'Denied', byState('DENIED').length)}
+              {tabBtn('approved', 'Approved', byState('APPROVED').length)}
+            </div>
+            <input
+              type="text"
+              value={supervisorSearch}
+              onChange={(e) => setSupervisorSearch(e.target.value)}
+              placeholder="Search officer, subject, type or #..."
+              className="field field-sm ml-auto !w-72"
+            />
+          </div>
+          <div className="flex-1 overflow-y-auto p-6">
+            <p className="mb-4 text-xs text-gray-500">
+              {supervisorTab === 'pending' && 'Submitted reports and records, oldest first. Drafts are not shown until the officer submits them. Approved items leave this list.'}
+              {supervisorTab === 'denied' && 'Sent back to the officer. They return here when the officer resubmits.'}
+              {supervisorTab === 'approved' && 'The 50 most recently approved.'}
+            </p>
+            {list.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-white/[0.1] p-10 text-center text-sm text-gray-400">
+                <ShieldCheck size={32} className="mx-auto mb-2 text-gray-600" />
+                {supervisorTab === 'pending' ? 'Nothing waiting for review.' : supervisorTab === 'denied' ? 'Nothing denied.' : 'Nothing approved yet.'}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {list.map(({ kind, item }) => {
+                  const key = `${kind}:${item.id}`;
+                  const resubmitted = (item.reviewHistory || []).some((h: any) => h.decision === 'DENIED');
+                  return (
+                    <div key={key} className="subcard p-3" data-review-item={item.id}>
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${kind === 'report' ? 'bg-green-500/15 text-green-300' : 'bg-orange-500/15 text-orange-300'}`}>{kind === 'report' ? 'REPORT' : 'RECORD'}</span>
+                            <span className="text-sm font-semibold text-white">{item.type}</span>
+                            {item.recordNumber && <span className="font-mono text-xs text-gray-400">#{item.recordNumber}</span>}
+                            {reviewChip(item)}
+                            {resubmitted && supervisorTab === 'pending' && <span className="chip !py-0 text-[10px]">Resubmitted</span>}
+                            {item.source === 'FIVEM' && <span className="chip !py-0 text-[10px]">Issued in game</span>}
+                          </div>
+                          <div className="mt-1 text-xs text-gray-400">
+                            {item.officer || 'Unknown officer'}{item.callsign ? ` (${item.callsign})` : ''}
+                            {subjectOf(item) ? ` · Subject: ${subjectOf(item)}` : ''}
+                            {` · ${supervisorTab === 'pending' ? 'Submitted' : 'Reviewed'} ${formatRecordDateTime(supervisorTab === 'pending' ? (item.submittedAt || item.createdAt) : item.reviewedAt)}`}
+                            {supervisorTab !== 'pending' && item.reviewedBy ? ` by ${item.reviewedBy}` : ''}
+                          </div>
+                          {supervisorTab === 'denied' && item.denialReason && (
+                            <p className="mt-1 whitespace-pre-wrap text-sm text-red-200">{item.denialReason}</p>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <button onClick={() => (kind === 'report' ? openExistingReport(item) : openExistingRecord(item))} className="btn btn-secondary btn-sm">
+                            <Eye size={14} /> Open
+                          </button>
+                          {supervisorTab === 'pending' && (canReviewItem(item) ? (
+                            <>
+                              <button onClick={() => reviewItem(kind, item.id, 'APPROVED')} className="btn btn-success btn-sm"><ThumbsUp size={14} /> Approve</button>
+                              <button onClick={() => { setDenyingKey(key); setDenyReason(''); }} className="btn btn-danger btn-sm"><ThumbsDown size={14} /> Deny</button>
+                            </>
+                          ) : (
+                            <span className="self-center text-xs text-gray-500">Your own: another supervisor reviews it</span>
+                          ))}
+                        </div>
+                      </div>
+                      {denyingKey === key && (
+                        <div className="mt-3 space-y-2 border-t border-white/[0.06] pt-3">
+                          <label className="field-label">Reason for denial (sent to {item.officer || 'the officer'})</label>
+                          <textarea
+                            value={denyReason}
+                            onChange={(e) => setDenyReason(e.target.value)}
+                            placeholder="e.g. Missing narrative; add the location and charges."
+                            className="field h-20"
+                            aria-label="Denial reason"
+                          />
+                          <div className="flex justify-end gap-2">
+                            <button onClick={() => { setDenyingKey(null); setDenyReason(''); }} className="btn btn-secondary btn-sm">Cancel</button>
+                            <button disabled={!denyReason.trim()} onClick={() => reviewItem(kind, item.id, 'DENIED', denyReason)} className="btn btn-danger btn-sm disabled:opacity-40">
+                              <Send size={14} /> Send back to officer
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+        {reportFormModalJSX}
+        {recordFormModalJSX}
+      </div>
+    );
+  })();
 
   // Records Panel JSX - Rendered inline to prevent re-render issues with form inputs
   const recordsPanelJSX = (
@@ -12281,34 +12640,67 @@ const CADSystem = () => {
               )}
             </div>
 
-            {/* Supervisor Panel Button */}
-            <button
-              onClick={() => {/* TODO: Implement supervisor panel */}}
-              className="btn btn-danger"
-            >
-              <Shield size={18} />
-              Supervisor Panel
-            </button>
+            {/* Supervisor Panel (supervisors only) */}
+            {supervisorAllowed && (
+              <button
+                onClick={() => { setShowNewReportDropdown(false); setShowNewRecordDropdown(false); setActiveRecordsPanel('supervisor'); }}
+                className="btn btn-danger"
+              >
+                <ShieldCheck size={18} />
+                Supervisor Panel
+                {pendingReviewCount > 0 && <span className="ml-1 rounded-full bg-white/20 px-1.5 text-xs font-bold">{pendingReviewCount}</span>}
+              </button>
+            )}
           </div>
 
           {/* Main Content Area */}
           <div className="flex-1 overflow-y-auto p-6">
+            {myDenied.length > 0 && (
+              <div className="mb-6 rounded-lg border border-red-500/30 bg-red-500/[0.08] p-4" data-section="returned">
+                <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-red-300">
+                  <ThumbsDown size={16} /> Returned by a supervisor ({myDenied.length})
+                </h3>
+                <div className="space-y-2">
+                  {myDenied.map(({ kind, item }) => (
+                    <div key={kind + item.id} className="subcard flex flex-wrap items-start justify-between gap-3 p-3">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-semibold text-white">{item.type}</span>
+                          {item.recordNumber && <span className="font-mono text-xs text-gray-400">#{item.recordNumber}</span>}
+                          <span className="text-xs text-gray-500">by {item.reviewedBy || 'supervisor'}{item.reviewedAt ? ` · ${formatRecordDateTime(item.reviewedAt)}` : ''}</span>
+                        </div>
+                        <p className="mt-1 whitespace-pre-wrap text-sm text-red-100">{item.denialReason || 'No reason given'}</p>
+                      </div>
+                      <button onClick={() => (kind === 'report' ? openExistingReport(item) : openExistingRecord(item))} className="btn btn-secondary btn-sm">
+                        <Pencil size={14} /> Fix &amp; resubmit
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Reports Section */}
               <div className="panel-card">
-                <h3 className="text-lg font-semibold text-green-400 mb-4 flex items-center gap-2">
-                  <FileText size={20} />
-                  My Reports
-                </h3>
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <h3 className="text-lg font-semibold text-green-400 flex items-center gap-2">
+                    <FileText size={20} />
+                    {recordsScope === 'mine' ? 'My Reports' : 'All Reports'}
+                  </h3>
+                  <div className="seg !p-0.5" role="group" aria-label="Reports shown">
+                    <button onClick={() => setRecordsScope('mine')} className={`seg-item !px-2.5 !py-1 !text-xs ${recordsScope === 'mine' ? 'seg-item-active' : ''}`}>Mine</button>
+                    <button onClick={() => setRecordsScope('all')} className={`seg-item !px-2.5 !py-1 !text-xs ${recordsScope === 'all' ? 'seg-item-active' : ''}`}>All</button>
+                  </div>
+                </div>
                 <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {officerReports.length === 0 ? (
+                  {shownReports.length === 0 ? (
                     <div className="text-gray-400 text-center py-8">
                       <FileText size={48} className="mx-auto mb-2 opacity-50" />
                       <p>No reports yet</p>
                       <p className="text-sm">Click "New Report" to create one</p>
                     </div>
                   ) : (
-                    officerReports.map(report => (
+                    shownReports.map(report => (
                       <div
                         key={report.id}
                         onClick={() => openExistingReport(report)}
@@ -12322,13 +12714,7 @@ const CADSystem = () => {
                               <div className="text-blue-400 text-sm">Record# {report.recordNumber}</div>
                             )}
                           </div>
-                          <span className={`px-2 py-1 rounded text-xs ${
-                            report.status === 'DRAFT' ? 'bg-yellow-600' :
-                            report.status === 'SUBMITTED' ? 'bg-blue-600' :
-                            report.status === 'APPROVED' ? 'bg-green-600' : 'bg-gray-600'
-                          }`}>
-                            {report.status}
-                          </span>
+                          {reviewChip(report)}
                         </div>
                         <div className="text-gray-500 text-xs mt-2">
                           Created: {formatRecordDateTime(report.createdAt)}
@@ -12379,13 +12765,16 @@ const CADSystem = () => {
                               <span className="chip mt-1 !py-0 text-[10px]">Issued in game{record.callsign ? ` · ${record.callsign}` : ''}</span>
                             )}
                           </div>
-                          <span className={`px-2 py-1 rounded text-xs ${
-                            record.status === 'ACTIVE' ? 'bg-green-600' :
-                            record.status === 'PENDING' ? 'bg-yellow-600' :
-                            record.status === 'CLOSED' || record.status === 'INACTIVE' ? 'bg-gray-600' : 'bg-blue-600'
-                          }`}>
-                            {record.status}
-                          </span>
+                          <div className="flex flex-col items-end gap-1">
+                            <span className={`px-2 py-1 rounded text-xs ${
+                              record.status === 'ACTIVE' ? 'bg-green-600' :
+                              record.status === 'PENDING' ? 'bg-yellow-600' :
+                              record.status === 'CLOSED' || record.status === 'INACTIVE' ? 'bg-gray-600' : 'bg-blue-600'
+                            }`}>
+                              {record.status}
+                            </span>
+                            {reviewChip(record)}
+                          </div>
                         </div>
                         <div className="text-gray-500 text-xs mt-2">
                           Created: {formatRecordDateTime(record.createdAt)}
@@ -12406,7 +12795,7 @@ const CADSystem = () => {
   );
 
   // ---- BOLO panel ----------------------------------------------------------
-  const boloRecords = officerRecords
+  const boloRecords = officerRecords.filter(visibleToMe)
     .filter(r => r.type === 'BOLO' && (boloView === 'active' ? isBoloActive(r) : !isBoloActive(r)))
     .filter(r => {
       const q = boloSearch.trim().toLowerCase();
@@ -12417,8 +12806,8 @@ const CADSystem = () => {
     })
     .sort((a, b) => String(b.createdAt || b.date || '').localeCompare(String(a.createdAt || a.date || '')));
   const boloCounts = {
-    active: officerRecords.filter(r => r.type === 'BOLO' && isBoloActive(r)).length,
-    inactive: officerRecords.filter(r => r.type === 'BOLO' && !isBoloActive(r)).length,
+    active: officerRecords.filter(r => r.type === 'BOLO' && isBoloActive(r) && visibleToMe(r)).length,
+    inactive: officerRecords.filter(r => r.type === 'BOLO' && !isBoloActive(r) && visibleToMe(r)).length,
   };
 
   const renderBoloCard = (r: any) => {
@@ -13125,7 +13514,7 @@ const CADSystem = () => {
     unit: selfDispatchUnit,
     credential: myCredentialRecord,
   });
-  // Dispatch and admins can always group units; LE / Fire supervisors per lib/permissions.ts (GROUP_UNITS)
+  // Dispatch and admins can always group units; LE / Fire supervisors per lib/permissions.ts (SUPERVISORS)
   const groupUnitsAllowed = canGroupUnits({
     view: selectedRole,
     accountRole: loggedInOfficer?.role,
@@ -14831,7 +15220,7 @@ const CADSystem = () => {
             {/* Pinned Records Buttons - Only show for Police role */}
             {selectedRole === 'police' && (
               <>
-                {(pinnedRecordsButtons.lookup || pinnedRecordsButtons.records || pinnedRecordsButtons.bolo) && (
+                {(pinnedRecordsButtons.lookup || pinnedRecordsButtons.records || pinnedRecordsButtons.bolo || (pinnedRecordsButtons.supervisor && supervisorAllowed)) && (
                   <div className="mx-1 h-8 w-px bg-white/[0.08]" />
                 )}
                 {pinnedRecordsButtons.lookup && (
@@ -14850,6 +15239,13 @@ const CADSystem = () => {
                   <button onClick={() => setActiveRecordsPanel('bolo')} className="btn btn-secondary">
                     <AlertTriangle size={16} className="text-red-400" />
                     BOLO
+                  </button>
+                )}
+                {pinnedRecordsButtons.supervisor && supervisorAllowed && (
+                  <button onClick={() => setActiveRecordsPanel('supervisor')} className="btn btn-secondary">
+                    <ShieldCheck size={16} className="text-red-300" />
+                    Supervisor
+                    {pendingReviewCount > 0 && <span className="rounded-full bg-red-500/20 px-1.5 text-xs font-bold text-red-300">{pendingReviewCount}</span>}
                   </button>
                 )}
               </>
@@ -14874,6 +15270,7 @@ const CADSystem = () => {
       {activeRecordsPanel === 'records' && recordsPanelJSX}
       {activeRecordsPanel === 'lookup' && lookupPanelJSX}
       {activeRecordsPanel === 'bolo' && boloPanelJSX}
+      {activeRecordsPanel === 'supervisor' && supervisorPanelJSX}
       {showNewCall && <NewCallForm />}
       {selectedCall && <CallDetail call={selectedCall} />}
       {showUnitInfo && selectedUnit && units.find(u => u.id === selectedUnit) && <UnitInfoModal unit={units.find(u => u.id === selectedUnit)} />}

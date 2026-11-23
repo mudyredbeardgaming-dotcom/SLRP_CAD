@@ -173,6 +173,7 @@ The same calls exist as server events: `strata-mdt:setCharacter`, `strata-mdt:se
 A citation written in game becomes a **CITATION** record in the CAD, filled in like one written in the CAD's Citation form.
 
 - **The officer's records:** the officer is found by their linked CAD account (`/linkcad`). If they aren't linked, the CAD uses the unit with their `/callsign`. The citation then shows under **My Records** for that officer, marked "Issued in game".
+- **Supervisor review:** it arrives as submitted (pending review), so it shows up in the **Supervisor Panel** like a citation written in the CAD.
 - **The civilian's record:** the cited person is found by their synced character. If there is none, the CAD looks for an exact name match. The citation then shows in Lookup and under **Citations** on the character in the civilian portal.
   - With no match, it is filed under the name only and doesn't appear on any character's record.
 
