@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to the Silver Lining CAD System will be documented in this file.
+All notable changes to StrataMDT will be documented in this file.
 
 ## [1.0.0] - 2024-12-06
 

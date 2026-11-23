@@ -1,4 +1,4 @@
-# Silver Lining CAD System
+# StrataMDT
 
 A comprehensive Computer-Aided Dispatch (CAD) system designed for roleplay servers, featuring dispatch management, police unit tracking, and civilian reporting interfaces.
 
@@ -141,7 +141,7 @@ If you want to add custom configurations:
 Example variables you might want to add:
 ```
 NODE_ENV=production
-NEXT_PUBLIC_APP_NAME=Silver Lining CAD
+NEXT_PUBLIC_APP_NAME=StrataMDT
 ```
 
 ## Configuration
@@ -304,7 +304,7 @@ This project is provided as-is for roleplay server use. Feel free to modify and 
 
 ## Credits
 
-Built for **Silver Lining Roleplay** - Los Santos Sheriff Office
+**StrataMDT** — Mobile Data Terminal & Computer-Aided Dispatch
 
 ---
 

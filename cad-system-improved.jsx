@@ -244,7 +244,7 @@ const CADSystem = () => {
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 flex items-center justify-center p-4">
         <div className="text-center max-w-6xl">
           <div className="mb-8">
-            <h1 className="text-5xl font-bold text-yellow-400 mb-2">Silver Lining Roleplay</h1>
+            <h1 className="text-5xl font-bold text-yellow-400 mb-2">StrataMDT</h1>
             <p className="text-3xl text-white">Los Santos Sheriff Office</p>
             <p className="text-gray-300 mt-4">Select Your Role</p>
           </div>
@@ -361,7 +361,7 @@ const CADSystem = () => {
             <div className="flex justify-between items-center">
               <div>
                 <h1 className="text-3xl font-bold text-green-400">Civilian Portal</h1>
-                <p className="text-xl text-white">Silver Lining Roleplay - LSSO</p>
+                <p className="text-xl text-white">StrataMDT - LSSO</p>
               </div>
               <button
                 onClick={() => setSelectedRole(null)}
@@ -461,7 +461,7 @@ const CADSystem = () => {
 
         <footer className="bg-gray-800 border-t border-gray-700 p-4">
           <div className="max-w-4xl mx-auto text-center text-gray-400 text-sm">
-            Silver Lining Roleplay - Los Santos Sheriff Office
+            StrataMDT - Los Santos Sheriff Office
           </div>
         </footer>
       </div>
@@ -1057,7 +1057,7 @@ const CADSystem = () => {
     <div className="min-h-screen bg-gray-900 text-white flex flex-col">
       <header className="bg-gradient-to-r from-blue-900 to-blue-800 border-b-4 border-yellow-500 p-4">
         <div className="text-center mb-3">
-          <h1 className="text-3xl font-bold text-yellow-400">Silver Lining Roleplay</h1>
+          <h1 className="text-3xl font-bold text-yellow-400">StrataMDT</h1>
           <p className="text-xl text-white">Los Santos Sheriff Office</p>
         </div>
         

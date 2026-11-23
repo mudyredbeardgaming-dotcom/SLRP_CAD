@@ -1,7 +1,7 @@
-# Silver Lining CAD System - Testing Logins
+# StrataMDT - Testing Logins
 
 ## Overview
-This document contains all test login credentials for testing the Silver Lining CAD system. Use these accounts to test different roles and functionality.
+This document contains all test login credentials for testing StrataMDT. Use these accounts to test different roles and functionality.
 
 ---
 

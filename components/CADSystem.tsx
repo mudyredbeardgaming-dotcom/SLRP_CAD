@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, Radio, MapPin, Clock, User, Phone, FileText, Plus, X, Check, Shield, AlertTriangle, Lock, LogOut, Search, Database, Pin, PinOff, Car, Flame, Truck } from 'lucide-react';
+import { AlertCircle, Radio, MapPin, Clock, User, Phone, FileText, Plus, X, Check, Shield, AlertTriangle, Lock, LogOut, Search, Database, Pin, PinOff, Car, Flame, Truck, ArrowRight, Eye, EyeOff, LayoutGrid, ChevronRight } from 'lucide-react';
+import { BRAND, BrandMark, BrandLockup } from './Brand';
 
 // App version - increment this to force re-login after updates
-const APP_VERSION = '1.2.3';
+const APP_VERSION = '2.0.0';
 
 const CALL_CODES = ['CALL FOR SERVICE', 'ASSAULT', 'BURGLARY', 'TRAFFIC STOP', 'DOMESTIC DISTURBANCE', 'THEFT', 'SUSPICIOUS ACTIVITY', 'WELFARE CHECK', 'NOISE COMPLAINT', 'TRESPASSING'];
 
@@ -75,15 +76,15 @@ const ChargeAutocompleteInput = ({ value, onChange, onSelect, placeholder = "Typ
         onFocus={handleFocus}
         onBlur={handleBlur}
         placeholder={placeholder}
-        className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+        className="field"
       />
       {showDropdown && filteredCodes.length > 0 && (
-        <div className="absolute z-50 w-full mt-1 bg-gray-800 border border-gray-600 rounded max-h-64 overflow-y-auto shadow-lg">
+        <div className="absolute z-50 w-full mt-1 max-h-64 overflow-y-auto menu-list">
           {filteredCodes.map((code: any, idx: number) => (
             <div
               key={idx}
               onClick={() => handleSelect(code)}
-              className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm text-white border-b border-gray-700 last:border-b-0"
+              className="menu-item"
             >
               <div className="flex items-center gap-2 mb-1">
                 <span className="font-semibold text-blue-400">{code.code}</span>
@@ -97,7 +98,7 @@ const ChargeAutocompleteInput = ({ value, onChange, onSelect, placeholder = "Typ
         </div>
       )}
       {searchTerm.length >= 2 && filteredCodes.length === 0 && showDropdown && (
-        <div className="absolute z-50 w-full mt-1 bg-gray-800 border border-gray-600 rounded shadow-lg">
+        <div className="absolute z-50 w-full mt-1 menu-list">
           <div className="px-3 py-2 text-gray-400 text-sm italic">
             No matches found. Continue typing to use "{searchTerm}" as custom charge.
           </div>
@@ -1087,118 +1088,154 @@ const CADSystem = () => {
   };
 
   const RoleSelection = () => {
+    const role = loggedInOfficer?.role;
+    const isAdmin = role === 'admin';
+    const roleOptions = [
+      {
+        key: 'dispatch',
+        label: 'Dispatch',
+        description: 'Create calls, assign units, run the board',
+        Icon: Radio,
+        allowed: role === 'dispatch' || isAdmin,
+        chip: 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/25',
+        hover: 'hover:border-emerald-400/40 hover:shadow-[0_12px_40px_-16px_rgb(16_185_129/0.45)]',
+        bar: 'from-emerald-400/80',
+      },
+      {
+        key: 'civilian',
+        label: 'Civilian',
+        description: 'Manage characters, licenses & DMV records',
+        Icon: User,
+        allowed: true,
+        chip: 'bg-purple-500/10 text-purple-400 ring-purple-500/25',
+        hover: 'hover:border-purple-400/40 hover:shadow-[0_12px_40px_-16px_rgb(168_85_247/0.45)]',
+        bar: 'from-purple-400/80',
+      },
+      {
+        key: 'police',
+        label: 'Sheriff',
+        description: 'Unit status, active calls & records',
+        Icon: Shield,
+        allowed: (permissions.canAccessPolice && role === 'police') || isAdmin,
+        chip: 'bg-blue-500/10 text-blue-400 ring-blue-500/25',
+        hover: 'hover:border-blue-400/40 hover:shadow-[0_12px_40px_-16px_rgb(59_130_246/0.45)]',
+        bar: 'from-blue-400/80',
+      },
+      {
+        key: 'fire',
+        label: 'Fire / EMS',
+        description: 'Apparatus status & incident response',
+        Icon: Flame,
+        allowed: role === 'fire' || isAdmin,
+        chip: 'bg-red-500/10 text-red-400 ring-red-500/25',
+        hover: 'hover:border-red-400/40 hover:shadow-[0_12px_40px_-16px_rgb(239_68_68/0.45)]',
+        bar: 'from-red-400/80',
+      },
+      {
+        key: 'tow',
+        label: 'Tow',
+        description: 'Tow requests & vehicle releases',
+        Icon: Truck,
+        allowed: role === 'tow' || isAdmin,
+        chip: 'bg-orange-500/10 text-orange-400 ring-orange-500/25',
+        hover: 'hover:border-orange-400/40 hover:shadow-[0_12px_40px_-16px_rgb(249_115_22/0.45)]',
+        bar: 'from-orange-400/80',
+      },
+    ];
+
     return (
-      <div className="min-h-screen bg-gray-800 flex items-center justify-center p-4">
-        <div className="text-center max-w-6xl">
-          <div className="mb-8">
-            <div className="mb-6">
-              <img src="/SLRPLogo.png" alt="Silver Lining RP Logo" className="h-40 mx-auto" />
-            </div>
-            <h1 className="text-5xl font-bold text-yellow-400 mb-2">Silver Lining Roleplay</h1>
-          </div>
-
-          <div className="grid md:grid-cols-5 gap-4">
-            <div className="relative">
+      <div className="min-h-screen flex flex-col">
+        <header className="border-b border-white/[0.06] bg-gray-900/60 backdrop-blur-md">
+          <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+            <BrandLockup size={32} />
+            <div className="flex items-center gap-3">
+              {loggedInOfficer && (
+                <div className="hidden sm:flex items-center gap-2.5 rounded-full border border-white/[0.06] bg-white/[0.03] pl-1.5 pr-3 py-1">
+                  <div className="h-7 w-7 rounded-full bg-gradient-to-br from-accent-400 to-indigo-500 flex items-center justify-center text-xs font-bold text-white">
+                    {(loggedInOfficer.displayName || loggedInOfficer.username || '?').charAt(0).toUpperCase()}
+                  </div>
+                  <div className="leading-tight">
+                    <div className="text-sm font-medium text-white">{loggedInOfficer.displayName}</div>
+                    <div className="text-[11px] uppercase tracking-wider text-gray-500">{loggedInOfficer.role}</div>
+                  </div>
+                </div>
+              )}
               <button
                 onClick={() => {
-                  if (loggedInOfficer?.role === 'dispatch' || loggedInOfficer?.role === 'admin') {
-                    setSelectedRole('dispatch');
-                  }
+                  setLoggedInOfficer(null);
+                  setSelectedRole(null);
+                  setShowLogin(true);
+                  localStorage.removeItem('cadSession');
                 }}
-                disabled={loggedInOfficer?.role !== 'dispatch' && loggedInOfficer?.role !== 'admin'}
-                className={`w-full bg-gray-800 rounded-lg p-6 border-4 transition ${
-                  (loggedInOfficer?.role === 'dispatch' || loggedInOfficer?.role === 'admin')
-                    ? 'border-green-500 hover:border-green-400 cursor-pointer transform hover:scale-105'
-                    : 'border-gray-600 opacity-50 cursor-not-allowed'
-                }`}
+                className="btn btn-secondary"
               >
-                <img src="/COMLogo.png" alt="Dispatch" className={`h-12 w-12 mx-auto mb-3 ${(loggedInOfficer?.role !== 'dispatch' && loggedInOfficer?.role !== 'admin') ? 'opacity-50' : ''}`} />
-                <h3 className="text-xl font-bold text-white mb-2">Dispatch</h3>
-              </button>
-            </div>
-
-            <div>
-              <button
-                onClick={() => setSelectedRole('civilian')}
-                className="w-full bg-gray-800 rounded-lg p-6 border-4 border-purple-500 hover:border-purple-400 transition transform hover:scale-105 cursor-pointer"
-              >
-                <img src="/CIVLogo.png" alt="Civilian" className="h-12 w-12 mx-auto mb-3" />
-                <h3 className="text-xl font-bold text-white mb-2">Civilian</h3>
-              </button>
-            </div>
-
-            <div className="relative">
-              <button
-                onClick={() => {
-                  if ((permissions.canAccessPolice && loggedInOfficer?.role === 'police') || loggedInOfficer?.role === 'admin') {
-                    setSelectedRole('police');
-                  }
-                }}
-                disabled={(!permissions.canAccessPolice && loggedInOfficer?.role !== 'admin') || (loggedInOfficer?.role !== 'police' && loggedInOfficer?.role !== 'admin')}
-                className={`w-full bg-gray-800 rounded-lg p-6 border-4 transition transform hover:scale-105 ${
-                  (permissions.canAccessPolice && loggedInOfficer?.role === 'police') || loggedInOfficer?.role === 'admin'
-                    ? 'border-blue-500 hover:border-blue-400 cursor-pointer'
-                    : 'border-gray-600 opacity-50 cursor-not-allowed'
-                }`}
-              >
-                <img src="/LSSOLogo.png" alt="Sheriff" className={`h-12 w-12 mx-auto mb-3 ${((!permissions.canAccessPolice && loggedInOfficer?.role !== 'admin') || (loggedInOfficer?.role !== 'police' && loggedInOfficer?.role !== 'admin')) ? 'opacity-50' : ''}`} />
-                <h3 className="text-xl font-bold text-white mb-2">Sheriff</h3>
-              </button>
-            </div>
-
-            <div className="relative">
-              <button
-                onClick={() => {
-                  if (loggedInOfficer?.role === 'fire' || loggedInOfficer?.role === 'admin') {
-                    setSelectedRole('fire');
-                  }
-                }}
-                disabled={loggedInOfficer?.role !== 'fire' && loggedInOfficer?.role !== 'admin'}
-                className={`w-full bg-gray-800 rounded-lg p-6 border-4 transition transform hover:scale-105 ${
-                  (loggedInOfficer?.role === 'fire' || loggedInOfficer?.role === 'admin')
-                    ? 'border-red-500 hover:border-red-400 cursor-pointer'
-                    : 'border-gray-600 opacity-50 cursor-not-allowed'
-                }`}
-              >
-                <img src="/LSFDLogo.png" alt="Fire/EMS" className={`h-12 w-12 mx-auto mb-3 ${(loggedInOfficer?.role !== 'fire' && loggedInOfficer?.role !== 'admin') ? 'opacity-50' : ''}`} />
-                <h3 className="text-xl font-bold text-white mb-2">Fire/EMS</h3>
-              </button>
-            </div>
-
-            <div className="relative">
-              <button
-                onClick={() => {
-                  if (loggedInOfficer?.role === 'tow' || loggedInOfficer?.role === 'admin') {
-                    setSelectedRole('tow');
-                  }
-                }}
-                disabled={loggedInOfficer?.role !== 'tow' && loggedInOfficer?.role !== 'admin'}
-                className={`w-full bg-gray-800 rounded-lg p-6 border-4 transition transform hover:scale-105 ${
-                  (loggedInOfficer?.role === 'tow' || loggedInOfficer?.role === 'admin')
-                    ? 'border-orange-500 hover:border-orange-400 cursor-pointer'
-                    : 'border-gray-600 opacity-50 cursor-not-allowed'
-                }`}
-              >
-                <img src="/TOWLogo.png" alt="Tow" className={`h-12 w-12 mx-auto mb-3 ${loggedInOfficer?.role !== 'tow' && loggedInOfficer?.role !== 'admin' ? 'opacity-50' : ''}`} />
-                <h3 className="text-xl font-bold text-white mb-2">Tow</h3>
+                <LogOut size={16} />
+                Sign Out
               </button>
             </div>
           </div>
+        </header>
 
-          <div className="mt-8">
-            <button
-              onClick={() => {
-                setLoggedInOfficer(null);
-                setSelectedRole(null);
-                setShowLogin(true);
-                localStorage.removeItem('cadSession');
-              }}
-              className="px-6 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition"
-            >
-              Sign Out
-            </button>
+        <main className="flex-1 flex items-center">
+          <div className="max-w-6xl w-full mx-auto px-6 py-12">
+            <div className="mb-10 animate-fade-in">
+              <div className="eyebrow mb-2">Workspace</div>
+              <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-white">
+                Where are you working today?
+              </h1>
+              <p className="mt-2 text-gray-400">
+                Choose an interface to continue. Your account determines which ones are available.
+              </p>
+            </div>
+
+            <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
+              {roleOptions.map(({ key, label, description, Icon, allowed, chip, hover, bar }) => {
+                const logo = BRAND.roleLogos[key];
+                return (
+                  <button
+                    key={key}
+                    onClick={() => {
+                      if (allowed) {
+                        setSelectedRole(key);
+                      }
+                    }}
+                    disabled={!allowed}
+                    className={`group relative overflow-hidden text-left rounded-2xl border bg-gray-800/70 p-5 transition-all duration-200 ${
+                      allowed
+                        ? `border-white/[0.07] hover:-translate-y-1 hover:bg-gray-800 ${hover}`
+                        : 'border-white/[0.04] opacity-45 cursor-not-allowed'
+                    }`}
+                  >
+                    <div className={`absolute inset-x-0 top-0 h-px bg-gradient-to-r ${bar} via-transparent to-transparent ${allowed ? 'opacity-100' : 'opacity-0'}`} />
+                    <div className={`mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl ring-1 ${allowed ? chip : 'bg-white/[0.04] text-gray-500 ring-white/[0.06]'}`}>
+                      {logo ? <img src={logo} alt={label} className="h-8 w-8 object-contain" /> : <Icon size={22} />}
+                    </div>
+                    <h3 className="text-base font-semibold text-white">{label}</h3>
+                    <p className="mt-1 text-sm leading-snug text-gray-400 min-h-[2.5rem]">{description}</p>
+                    <div className="mt-5 flex items-center gap-1.5 text-xs font-medium">
+                      {allowed ? (
+                        <span className="text-gray-300 group-hover:text-white flex items-center gap-1.5">
+                          Open <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
+                        </span>
+                      ) : (
+                        <span className="text-gray-500 flex items-center gap-1.5">
+                          <Lock size={12} /> No access
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        </main>
+
+        <footer className="border-t border-white/[0.04]">
+          <div className="max-w-6xl mx-auto px-6 h-12 flex items-center justify-between text-xs text-gray-500">
+            <span>{BRAND.name}</span>
+            <span className="font-mono">v{APP_VERSION}</span>
+          </div>
+        </footer>
       </div>
     );
   };
@@ -1243,88 +1280,108 @@ const CADSystem = () => {
     };
 
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
-        <div className="bg-gray-800 rounded-lg p-8 w-full max-w-md border-4 border-cyan-500">
-          <div className="text-center mb-6">
-            <img src="/SLRPLogo.png" alt="Silver Lining RP" className="h-24 mx-auto mb-4" />
-            <h2 className="text-3xl font-bold text-white mb-2">Silver Lining Role-Play</h2>
-            <p className="text-xs text-gray-500 mt-2">Version {APP_VERSION}</p>
+      <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-gray-900 p-4">
+        {/* Ambient background */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute -top-40 left-1/2 h-[520px] w-[820px] -translate-x-1/2 rounded-full bg-accent-500/10 blur-3xl" />
+          <div className="absolute bottom-[-200px] right-[-120px] h-[420px] w-[520px] rounded-full bg-indigo-500/10 blur-3xl" />
+          <div
+            className="absolute inset-0 opacity-[0.35]"
+            style={{
+              backgroundImage:
+                'linear-gradient(rgb(255 255 255 / 0.035) 1px, transparent 1px), linear-gradient(90deg, rgb(255 255 255 / 0.035) 1px, transparent 1px)',
+              backgroundSize: '44px 44px',
+              maskImage: 'radial-gradient(ellipse at center, black 30%, transparent 75%)',
+              WebkitMaskImage: 'radial-gradient(ellipse at center, black 30%, transparent 75%)',
+            }}
+          />
+        </div>
+
+        <div className="relative w-full max-w-sm animate-scale-in">
+          <div className="mb-8 flex flex-col items-center text-center">
+            <BrandMark size={56} />
+            <h1 className="mt-5 text-2xl font-semibold tracking-tight text-white">
+              Strata<span className="text-accent-400">MDT</span>
+            </h1>
+            <p className="mt-1.5 text-sm text-gray-400">Sign in to your terminal</p>
           </div>
 
-          {error && (
-            <div className="bg-red-900 border border-red-500 rounded p-3 mb-4 text-red-200 text-sm">
-              {error}
-            </div>
-          )}
-
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm text-gray-300 mb-2">Username</label>
-              <input
-                type="text"
-                value={credentials.username}
-                onChange={(e) => {
-                  e.stopPropagation();
-                  setCredentials({...credentials, username: e.target.value});
-                }}
-                onKeyPress={handleKeyPress}
-                onClick={(e) => e.stopPropagation()}
-                onFocus={(e) => e.stopPropagation()}
-                className="w-full bg-gray-700 text-white rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                placeholder="Enter your username"
-                autoComplete="off"
-                autoFocus
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm text-gray-300 mb-2">Password</label>
-              <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={credentials.password}
-                  onChange={(e) => {
-                    e.stopPropagation();
-                    setCredentials({...credentials, password: e.target.value});
-                  }}
-                  onKeyPress={handleKeyPress}
-                  onClick={(e) => e.stopPropagation()}
-                  onFocus={(e) => e.stopPropagation()}
-                  className="w-full bg-gray-700 text-white rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  placeholder="Enter your password"
-                  autoComplete="off"
-                />
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowPassword(!showPassword);
-                  }}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
-                >
-                  {showPassword ? <Lock size={20} /> : <Lock size={20} />}
-                </button>
+          <div className="rounded-2xl border border-white/[0.08] bg-gray-800/80 p-6 shadow-modal backdrop-blur-xl">
+            {error && (
+              <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-sm text-red-300">
+                <AlertCircle size={16} className="flex-shrink-0" />
+                {error}
               </div>
-            </div>
+            )}
 
-            <button
-              onClick={handleLogin}
-              className="w-full px-6 py-3 bg-cyan-600 text-white rounded-lg font-bold hover:bg-cyan-500 transition text-lg"
-            >
-              Sign In
-            </button>
+            <div className="space-y-4">
+              <div>
+                <label className="field-label">Username</label>
+                <div className="relative">
+                  <User size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                  <input
+                    type="text"
+                    value={credentials.username}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      setCredentials({...credentials, username: e.target.value});
+                    }}
+                    onKeyPress={handleKeyPress}
+                    onClick={(e) => e.stopPropagation()}
+                    onFocus={(e) => e.stopPropagation()}
+                    className="field py-2.5 pl-9"
+                    placeholder="Enter your username"
+                    autoComplete="off"
+                    autoFocus
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="field-label">Password</label>
+                <div className="relative">
+                  <Lock size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={credentials.password}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      setCredentials({...credentials, password: e.target.value});
+                    }}
+                    onKeyPress={handleKeyPress}
+                    onClick={(e) => e.stopPropagation()}
+                    onFocus={(e) => e.stopPropagation()}
+                    className="field py-2.5 pl-9 pr-10"
+                    placeholder="Enter your password"
+                    autoComplete="off"
+                  />
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowPassword(!showPassword);
+                    }}
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-white/[0.06] hover:text-white"
+                    title={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              <button
+                onClick={handleLogin}
+                className="btn btn-primary w-full py-2.5 text-[15px] shadow-glow"
+              >
+                Sign In
+                <ArrowRight size={16} />
+              </button>
+            </div>
           </div>
 
-          <div className="mt-6 bg-gray-700 rounded p-4 hidden">
-            <p className="text-gray-300 text-xs mb-2">
-              <strong className="text-white">Demo Credentials:</strong>
-            </p>
-            <div className="text-xs text-gray-400 space-y-1">
-              <p>• Username: <span className="text-yellow-400">johnson</span> / Password: <span className="text-yellow-400">deputy123</span></p>
-              <p>• Username: <span className="text-yellow-400">smith</span> / Password: <span className="text-yellow-400">deputy123</span></p>
-              <p>• Username: <span className="text-yellow-400">davis</span> / Password: <span className="text-yellow-400">deputy123</span></p>
-            </div>
-          </div>
+          <p className="mt-6 text-center text-xs text-gray-500">
+            {BRAND.name} <span className="font-mono">v{APP_VERSION}</span>
+          </p>
         </div>
       </div>
     );
@@ -1437,33 +1494,44 @@ const CADSystem = () => {
 
     // Character List View
     const renderCharacterList = () => (
-      <div className="space-y-4">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-white">My Characters</h2>
+      <div className="space-y-6">
+        <div className="flex flex-wrap justify-between items-end gap-4">
+          <div>
+            <div className="eyebrow mb-1.5">Civilian Portal</div>
+            <h2 className="text-2xl font-semibold tracking-tight text-white">My Characters</h2>
+            <p className="text-sm text-gray-400 mt-1">
+              {civilians.length === 0
+                ? 'You have not created any characters yet.'
+                : `${civilians.length} character${civilians.length === 1 ? '' : 's'} on file`}
+            </p>
+          </div>
           <button
             onClick={() => {
               setCharacterForm({...emptyCharacter});
               setCivilianView('add');
             }}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-500 flex items-center gap-2"
+            className="btn bg-purple-600 text-white hover:bg-purple-500"
           >
-            <Plus size={20} />
+            <Plus size={18} />
             New Character
           </button>
         </div>
 
         {civilians.length === 0 ? (
-          <div className="bg-gray-800 rounded-lg p-8 text-center">
-            <User size={64} className="mx-auto mb-4 text-gray-600" />
-            <h3 className="text-xl font-semibold text-gray-400 mb-2">No Characters Yet</h3>
-            <p className="text-gray-500 mb-4">Create your first character to get started</p>
+          <div className="rounded-2xl border border-dashed border-white/[0.1] bg-white/[0.02] px-8 py-16 text-center">
+            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-purple-500/10 text-purple-400 ring-1 ring-purple-500/25">
+              <User size={30} />
+            </div>
+            <h3 className="text-lg font-semibold text-white mb-1">No characters yet</h3>
+            <p className="text-sm text-gray-400 mb-6">Create your first character to get started.</p>
             <button
               onClick={() => {
                 setCharacterForm({...emptyCharacter});
                 setCivilianView('add');
               }}
-              className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-500"
+              className="btn bg-purple-600 text-white hover:bg-purple-500"
             >
+              <Plus size={18} />
               Create Character
             </button>
           </div>
@@ -1476,32 +1544,33 @@ const CADSystem = () => {
                   setSelectedCivilian(char);
                   setCivilianView('detail');
                 }}
-                className={`bg-gray-800 rounded-lg p-4 cursor-pointer hover:bg-gray-700 transition border-2 ${
-                  char.deceased ? 'border-red-600 opacity-75' : 'border-gray-700'
+                className={`group panel p-4 cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:bg-gray-800 ${
+                  char.deceased ? '!border-red-500/40 opacity-75' : 'hover:!border-purple-400/30'
                 }`}
               >
                 <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-700 flex-shrink-0">
+                  <div className="w-14 h-14 rounded-xl overflow-hidden bg-gray-700 ring-1 ring-white/[0.08] flex-shrink-0">
                     {char.photo ? (
                       <img src={char.photo} alt={char.firstName} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <User size={32} className="text-gray-500" />
+                        <User size={26} className="text-gray-500" />
                       </div>
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <h3 className="text-lg font-bold text-white truncate">
+                      <h3 className="text-base font-semibold text-white truncate">
                         {char.firstName} {char.middleInitial ? `${char.middleInitial}.` : ''} {char.lastName}
                       </h3>
                       {char.deceased && (
-                        <span className="bg-red-600 text-white text-xs px-2 py-0.5 rounded">DECEASED</span>
+                        <span className="rounded-full border border-red-500/30 bg-red-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-red-300">Deceased</span>
                       )}
                     </div>
                     <p className="text-gray-400 text-sm">DOB: {char.dateOfBirth || 'N/A'}</p>
-                    <p className="text-gray-500 text-xs">{char.streetResidence || 'No address'}</p>
+                    <p className="text-gray-500 text-xs truncate">{char.streetResidence || 'No address'}</p>
                   </div>
+                  <ChevronRight size={18} className="text-gray-600 transition group-hover:translate-x-0.5 group-hover:text-gray-300" />
                 </div>
               </div>
             ))}
@@ -1522,15 +1591,15 @@ const CADSystem = () => {
               setCharacterForm(null);
               setCivilianView('list');
             }}
-            className="text-gray-400 hover:text-white"
+            className="icon-btn"
           >
-            <X size={24} />
+            <X size={20} />
           </button>
         </div>
 
-        <div className="bg-gray-800 rounded-lg p-6">
+        <div className="panel p-6">
           {/* Photo Upload */}
-          <div className="flex items-center gap-6 mb-6 pb-6 border-b border-gray-700">
+          <div className="flex items-center gap-6 mb-6 pb-6 border-b border-white/[0.06]">
             <div className="w-32 h-32 rounded-lg overflow-hidden bg-gray-700 flex-shrink-0">
               {currentForm.photo ? (
                 <img src={currentForm.photo} alt="Character" className="w-full h-full object-cover" />
@@ -1541,7 +1610,7 @@ const CADSystem = () => {
               )}
             </div>
             <div>
-              <label className="block text-sm text-gray-300 mb-2">Character Photo</label>
+              <label className="field-label">Character Photo</label>
               <input
                 type="file"
                 accept="image/*"
@@ -1554,7 +1623,7 @@ const CADSystem = () => {
           {/* Name Fields */}
           <div className="grid grid-cols-4 gap-4 mb-4">
             <div className="col-span-1">
-              <label className="block text-sm text-gray-300 mb-1">First Name *</label>
+              <label className="field-label">First Name *</label>
               <input
                 type="text"
                 value={currentForm.firstName}
@@ -1564,11 +1633,11 @@ const CADSystem = () => {
                 }}
                 onClick={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
-                className="w-full bg-gray-700 text-white rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="field"
               />
             </div>
             <div className="col-span-1">
-              <label className="block text-sm text-gray-300 mb-1">M.I.</label>
+              <label className="field-label">M.I.</label>
               <input
                 type="text"
                 value={currentForm.middleInitial}
@@ -1578,12 +1647,12 @@ const CADSystem = () => {
                 }}
                 onClick={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
-                className="w-full bg-gray-700 text-white rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="field"
                 maxLength={1}
               />
             </div>
             <div className="col-span-2">
-              <label className="block text-sm text-gray-300 mb-1">Last Name *</label>
+              <label className="field-label">Last Name *</label>
               <input
                 type="text"
                 value={currentForm.lastName}
@@ -1593,7 +1662,7 @@ const CADSystem = () => {
                 }}
                 onClick={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
-                className="w-full bg-gray-700 text-white rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="field"
               />
             </div>
           </div>
@@ -1601,7 +1670,7 @@ const CADSystem = () => {
           {/* DOB, Sex, AKA */}
           <div className="grid grid-cols-3 gap-4 mb-4">
             <div>
-              <label className="block text-sm text-gray-300 mb-1">Date of Birth</label>
+              <label className="field-label">Date of Birth</label>
               <input
                 type="date"
                 value={currentForm.dateOfBirth}
@@ -1611,11 +1680,11 @@ const CADSystem = () => {
                 }}
                 onClick={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
-                className="w-full bg-gray-700 text-white rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="field"
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-300 mb-1">Sex</label>
+              <label className="field-label">Sex</label>
               <select
                 value={currentForm.sex}
                 onChange={(e) => {
@@ -1624,14 +1693,14 @@ const CADSystem = () => {
                 }}
                 onClick={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
-                className="w-full bg-gray-700 text-white rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="field"
               >
                 <option value="M">Male</option>
                 <option value="F">Female</option>
               </select>
             </div>
             <div>
-              <label className="block text-sm text-gray-300 mb-1">AKA (Also Known As)</label>
+              <label className="field-label">AKA (Also Known As)</label>
               <input
                 type="text"
                 value={currentForm.aka}
@@ -1641,7 +1710,7 @@ const CADSystem = () => {
                 }}
                 onClick={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
-                className="w-full bg-gray-700 text-white rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="field"
               />
             </div>
           </div>
@@ -1649,7 +1718,7 @@ const CADSystem = () => {
           {/* Address */}
           <div className="grid grid-cols-3 gap-4 mb-4">
             <div className="col-span-2">
-              <label className="block text-sm text-gray-300 mb-1">Street Residence</label>
+              <label className="field-label">Street Residence</label>
               <input
                 type="text"
                 value={currentForm.streetResidence}
@@ -1659,11 +1728,11 @@ const CADSystem = () => {
                 }}
                 onClick={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
-                className="w-full bg-gray-700 text-white rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="field"
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-300 mb-1">Postal Code</label>
+              <label className="field-label">Postal Code</label>
               <input
                 type="text"
                 value={currentForm.postalCode}
@@ -1673,7 +1742,7 @@ const CADSystem = () => {
                 }}
                 onClick={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
-                className="w-full bg-gray-700 text-white rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="field"
               />
             </div>
           </div>
@@ -1681,7 +1750,7 @@ const CADSystem = () => {
           {/* Physical Description */}
           <div className="grid grid-cols-4 gap-4 mb-4">
             <div>
-              <label className="block text-sm text-gray-300 mb-1">Height</label>
+              <label className="field-label">Height</label>
               <input
                 type="text"
                 value={currentForm.height}
@@ -1691,12 +1760,12 @@ const CADSystem = () => {
                 }}
                 onClick={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
-                className="w-full bg-gray-700 text-white rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="field"
                 placeholder="5'10&quot;"
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-300 mb-1">Weight</label>
+              <label className="field-label">Weight</label>
               <input
                 type="text"
                 value={currentForm.weight}
@@ -1706,12 +1775,12 @@ const CADSystem = () => {
                 }}
                 onClick={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
-                className="w-full bg-gray-700 text-white rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="field"
                 placeholder="180 lbs"
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-300 mb-1">Hair Color</label>
+              <label className="field-label">Hair Color</label>
               <select
                 value={currentForm.hairColor}
                 onChange={(e) => {
@@ -1720,13 +1789,13 @@ const CADSystem = () => {
                 }}
                 onClick={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
-                className="w-full bg-gray-700 text-white rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="field"
               >
                 {HAIR_COLORS.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm text-gray-300 mb-1">Eye Color</label>
+              <label className="field-label">Eye Color</label>
               <select
                 value={currentForm.eyeColor}
                 onChange={(e) => {
@@ -1735,7 +1804,7 @@ const CADSystem = () => {
                 }}
                 onClick={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
-                className="w-full bg-gray-700 text-white rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="field"
               >
                 {EYE_COLORS.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
@@ -1744,7 +1813,7 @@ const CADSystem = () => {
 
           {/* Scars/Marks/Tattoos */}
           <div className="mb-4">
-            <label className="block text-sm text-gray-300 mb-1">Scars / Marks / Tattoos</label>
+            <label className="field-label">Scars / Marks / Tattoos</label>
             <textarea
               value={currentForm.scarsMarksTattoos}
               onChange={(e) => {
@@ -1753,7 +1822,7 @@ const CADSystem = () => {
               }}
               onClick={(e) => e.stopPropagation()}
               onMouseDown={(e) => e.stopPropagation()}
-              className="w-full bg-gray-700 text-white rounded px-3 py-2 h-20 focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="field h-20"
               placeholder="Describe any identifying marks..."
             />
           </div>
@@ -1761,7 +1830,7 @@ const CADSystem = () => {
           {/* Contact & Other */}
           <div className="grid grid-cols-3 gap-4 mb-4">
             <div>
-              <label className="block text-sm text-gray-300 mb-1">Cell Contact Number</label>
+              <label className="field-label">Cell Contact Number</label>
               <input
                 type="tel"
                 value={currentForm.cellPhone}
@@ -1771,7 +1840,7 @@ const CADSystem = () => {
                 }}
                 onClick={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
-                className="w-full bg-gray-700 text-white rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="field"
                 placeholder="555-0123"
               />
             </div>
@@ -1785,7 +1854,7 @@ const CADSystem = () => {
                     setCharacterForm({...currentForm, organDonor: e.target.checked});
                   }}
                   onClick={(e) => e.stopPropagation()}
-                  className="w-5 h-5 rounded bg-gray-700 border-gray-600"
+                  className="w-5 h-5 rounded bg-gray-700 border-white/[0.08]"
                 />
                 <span className="text-gray-300">Organ Donor</span>
               </label>
@@ -1800,7 +1869,7 @@ const CADSystem = () => {
                     setCharacterForm({...currentForm, deceased: e.target.checked});
                   }}
                   onClick={(e) => e.stopPropagation()}
-                  className="w-5 h-5 rounded bg-gray-700 border-gray-600"
+                  className="w-5 h-5 rounded bg-gray-700 border-white/[0.08]"
                 />
                 <span className="text-red-400">Deceased</span>
               </label>
@@ -1808,10 +1877,10 @@ const CADSystem = () => {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-3 pt-4 border-t border-gray-700">
+          <div className="flex gap-3 pt-4 border-t border-white/[0.06]">
             <button
               onClick={saveCharacter}
-              className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg font-bold hover:bg-green-500"
+              className="btn btn-success flex-1 font-bold"
             >
               {currentForm.id ? 'Save Changes' : 'Create Character'}
             </button>
@@ -1820,7 +1889,7 @@ const CADSystem = () => {
                 setCharacterForm(null);
                 setCivilianView('list');
               }}
-              className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-500"
+              className="btn btn-secondary"
             >
               Cancel
             </button>
@@ -1854,13 +1923,13 @@ const CADSystem = () => {
                   setCharacterForm({...char});
                   setCivilianView('edit');
                 }}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500"
+                className="btn btn-primary"
               >
                 Edit
               </button>
               <button
                 onClick={() => deleteCharacter(char.id)}
-                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-500"
+                className="btn btn-danger"
               >
                 Delete
               </button>
@@ -1868,9 +1937,9 @@ const CADSystem = () => {
           </div>
 
           {/* Character Info Card */}
-          <div className={`bg-gray-800 rounded-lg p-6 border-2 ${char.deceased ? 'border-red-600' : 'border-gray-700'}`}>
+          <div className={`panel p-6 ${char.deceased ? 'border-red-600' : 'border-white/[0.06]'}`}>
             {char.deceased && (
-              <div className="bg-red-900 border border-red-600 rounded p-3 mb-4 text-center">
+              <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 mb-4 text-center">
                 <span className="text-red-400 font-bold text-lg">⚠️ DECEASED</span>
               </div>
             )}
@@ -1890,63 +1959,63 @@ const CADSystem = () => {
               {/* Info Grid */}
               <div className="flex-1 grid grid-cols-3 gap-4">
                 <div>
-                  <label className="text-xs text-gray-500">First Name</label>
+                  <label className="text-[11px] font-medium uppercase tracking-wider text-gray-500">First Name</label>
                   <p className="text-white font-semibold">{char.firstName || '-'}</p>
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">M.I.</label>
+                  <label className="text-[11px] font-medium uppercase tracking-wider text-gray-500">M.I.</label>
                   <p className="text-white font-semibold">{char.middleInitial || '-'}</p>
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">Last Name</label>
+                  <label className="text-[11px] font-medium uppercase tracking-wider text-gray-500">Last Name</label>
                   <p className="text-white font-semibold">{char.lastName || '-'}</p>
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">Date of Birth</label>
+                  <label className="text-[11px] font-medium uppercase tracking-wider text-gray-500">Date of Birth</label>
                   <p className="text-white">{char.dateOfBirth || '-'}</p>
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">Sex</label>
+                  <label className="text-[11px] font-medium uppercase tracking-wider text-gray-500">Sex</label>
                   <p className="text-white">{char.sex === 'M' ? 'Male' : 'Female'}</p>
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">AKA</label>
+                  <label className="text-[11px] font-medium uppercase tracking-wider text-gray-500">AKA</label>
                   <p className="text-white">{char.aka || '-'}</p>
                 </div>
                 <div className="col-span-2">
-                  <label className="text-xs text-gray-500">Street Residence</label>
+                  <label className="text-[11px] font-medium uppercase tracking-wider text-gray-500">Street Residence</label>
                   <p className="text-white">{char.streetResidence || '-'}</p>
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">Postal Code</label>
+                  <label className="text-[11px] font-medium uppercase tracking-wider text-gray-500">Postal Code</label>
                   <p className="text-white">{char.postalCode || '-'}</p>
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">Height</label>
+                  <label className="text-[11px] font-medium uppercase tracking-wider text-gray-500">Height</label>
                   <p className="text-white">{char.height || '-'}</p>
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">Weight</label>
+                  <label className="text-[11px] font-medium uppercase tracking-wider text-gray-500">Weight</label>
                   <p className="text-white">{char.weight || '-'}</p>
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">Hair Color</label>
+                  <label className="text-[11px] font-medium uppercase tracking-wider text-gray-500">Hair Color</label>
                   <p className="text-white">{char.hairColor || '-'}</p>
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">Eye Color</label>
+                  <label className="text-[11px] font-medium uppercase tracking-wider text-gray-500">Eye Color</label>
                   <p className="text-white">{char.eyeColor || '-'}</p>
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">Cell Phone</label>
+                  <label className="text-[11px] font-medium uppercase tracking-wider text-gray-500">Cell Phone</label>
                   <p className="text-white">{char.cellPhone || '-'}</p>
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500">Organ Donor</label>
+                  <label className="text-[11px] font-medium uppercase tracking-wider text-gray-500">Organ Donor</label>
                   <p className={char.organDonor ? 'text-green-400' : 'text-gray-400'}>{char.organDonor ? 'Yes' : 'No'}</p>
                 </div>
                 <div className="col-span-3">
-                  <label className="text-xs text-gray-500">Scars / Marks / Tattoos</label>
+                  <label className="text-[11px] font-medium uppercase tracking-wider text-gray-500">Scars / Marks / Tattoos</label>
                   <p className="text-white">{char.scarsMarksTattoos || '-'}</p>
                 </div>
               </div>
@@ -1954,14 +2023,14 @@ const CADSystem = () => {
           </div>
 
           {/* DMV Records Section */}
-          <div className="bg-gray-800 rounded-lg p-6">
+          <div className="panel p-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold text-white">DMV Records</h3>
               <div className="flex gap-2">
                 <select
                   value={selectedDMVType}
                   onChange={(e) => setSelectedDMVType(e.target.value)}
-                  className="bg-gray-700 text-white rounded px-3 py-2"
+                  className="field"
                 >
                   <option value="">Select Record Type...</option>
                   {DMV_RECORD_TYPES.map(type => (
@@ -1971,7 +2040,7 @@ const CADSystem = () => {
                 <button
                   onClick={() => selectedDMVType && setShowDMVModal(true)}
                   disabled={!selectedDMVType}
-                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="btn btn-success disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Plus size={20} />
                 </button>
@@ -1981,7 +2050,7 @@ const CADSystem = () => {
             {char.dmvRecords && char.dmvRecords.length > 0 ? (
               <div className="space-y-3">
                 {char.dmvRecords.map(record => (
-                  <div key={record.id} className="bg-gray-700 rounded-lg p-4">
+                  <div key={record.id} className="panel-card">
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -2121,7 +2190,7 @@ const CADSystem = () => {
                             </div>
                             {/* Conceal Carry Info - Only show if has data */}
                             {record.data.concealPermitStatus && record.data.concealPermitStatus !== 'NONE' && (
-                              <div className="mt-2 pt-2 border-t border-gray-600 text-sm">
+                              <div className="mt-2 pt-2 border-t border-white/[0.08] text-sm">
                                 <p className="text-yellow-400 text-xs font-semibold mb-1">CONCEAL CARRY PERMIT</p>
                                 <div className="grid grid-cols-2 gap-x-4 gap-y-1">
                                   {record.data.authorizingOfficialName && (
@@ -2141,7 +2210,7 @@ const CADSystem = () => {
                             )}
                             {/* Law Enforcement Info - Only show if seized */}
                             {record.data.firearmSeized === 'YES' && (
-                              <div className="mt-2 pt-2 border-t border-gray-600 text-sm">
+                              <div className="mt-2 pt-2 border-t border-white/[0.08] text-sm">
                                 <p className="text-red-400 text-xs font-semibold mb-1">LAW ENFORCEMENT</p>
                                 {record.data.evidenceLockerNumber && (
                                   <p className="text-white">Evidence Locker: <span className="text-gray-300 font-mono">{record.data.evidenceLockerNumber}</span></p>
@@ -2239,7 +2308,7 @@ const CADSystem = () => {
 
                             {/* Charges List */}
                             {record.data.charges && record.data.charges.length > 0 && (
-                              <div className="mt-2 pt-2 border-t border-gray-600">
+                              <div className="mt-2 pt-2 border-t border-white/[0.08]">
                                 <p className="text-red-400 text-xs font-semibold mb-2">CHARGES ({record.data.charges.length})</p>
                                 <div className="space-y-1">
                                   {record.data.charges.map((charge, idx) => (
@@ -2309,7 +2378,7 @@ const CADSystem = () => {
 
                             {/* Charges List */}
                             {record.data.probationCharges && record.data.probationCharges.length > 0 && (
-                              <div className="mt-2 pt-2 border-t border-gray-600">
+                              <div className="mt-2 pt-2 border-t border-white/[0.08]">
                                 <p className="text-orange-400 text-xs font-semibold mb-2">CHARGES ({record.data.probationCharges.length})</p>
                                 <div className="space-y-1">
                                   {record.data.probationCharges.map((charge, idx) => (
@@ -2379,7 +2448,7 @@ const CADSystem = () => {
 
                             {/* Charges List */}
                             {record.data.paroleCharges && record.data.paroleCharges.length > 0 && (
-                              <div className="mt-2 pt-2 border-t border-gray-600">
+                              <div className="mt-2 pt-2 border-t border-white/[0.08]">
                                 <p className="text-purple-400 text-xs font-semibold mb-2">CHARGES ({record.data.paroleCharges.length})</p>
                                 <div className="space-y-1">
                                   {record.data.paroleCharges.map((charge, idx) => (
@@ -2429,7 +2498,7 @@ const CADSystem = () => {
                         {record.type === 'MEDICAL HAZARD' && (
                           <div className="mt-2 space-y-2">
                             {record.data.universalPrecautionsFlag && (
-                              <div className="bg-orange-900 border border-orange-600 rounded px-3 py-2">
+                              <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg px-3 py-2">
                                 <span className="text-orange-400 font-bold text-sm">⚠️ UNIVERSAL PRECAUTIONS REQUIRED</span>
                               </div>
                             )}
@@ -2467,12 +2536,12 @@ const CADSystem = () => {
           </div>
 
           {/* Records/Reports Section */}
-          <div className="bg-gray-800 rounded-lg p-6">
+          <div className="panel p-6">
             <h3 className="text-xl font-bold text-white mb-4">Records & Reports</h3>
             {char.records && char.records.length > 0 ? (
               <div className="space-y-3">
                 {char.records.map((record, idx) => (
-                  <div key={idx} className="bg-gray-700 rounded-lg p-4">
+                  <div key={idx} className="panel-card">
                     <p className="text-white">{record.description}</p>
                     <p className="text-gray-400 text-sm mt-1">{formatPSTDateTime(record.timestamp)}</p>
                   </div>
@@ -2491,12 +2560,12 @@ const CADSystem = () => {
 
     // DMV Record Modal
     const renderDMVModal = () => (
-      <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-        <div className={`bg-gray-800 rounded-lg p-6 w-full ${selectedDMVType === 'VEHICLE REGISTRATION' || selectedDMVType === 'MEDICAL HISTORY' || selectedDMVType === 'REGISTERED FIREARM' || selectedDMVType === 'OUT OF STATE WARRANT' || selectedDMVType === 'PROBATION' || selectedDMVType === 'PAROLE' ? 'max-w-3xl' : 'max-w-md'} max-h-[90vh] overflow-y-auto`}>
+      <div className="modal-backdrop z-50">
+        <div className={`modal-surface p-6 w-full ${selectedDMVType === 'VEHICLE REGISTRATION' || selectedDMVType === 'MEDICAL HISTORY' || selectedDMVType === 'REGISTERED FIREARM' || selectedDMVType === 'OUT OF STATE WARRANT' || selectedDMVType === 'PROBATION' || selectedDMVType === 'PAROLE' ? 'max-w-3xl' : 'max-w-md'} max-h-[90vh] overflow-y-auto`}>
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-xl font-bold text-white">Add {selectedDMVType}</h3>
-            <button onClick={() => setShowDMVModal(false)} className="text-gray-400 hover:text-white">
-              <X size={24} />
+            <button onClick={() => setShowDMVModal(false)} className="icon-btn">
+              <X size={20} />
             </button>
           </div>
 
@@ -2504,15 +2573,15 @@ const CADSystem = () => {
             {(selectedDMVType === 'VEHICLE REGISTRATION') && (
               <>
                 {/* Registration Information Section */}
-                <div className="border-b border-gray-600 pb-4">
-                  <h4 className="text-sm font-semibold text-green-400 mb-3">REGISTRATION INFORMATION</h4>
+                <div className="border-b border-white/[0.08] pb-4">
+                  <h4 className="section-title text-green-400">REGISTRATION INFORMATION</h4>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-sm text-gray-300 mb-1">Registration Status</label>
+                      <label className="field-label">Registration Status</label>
                       <select
                         value={dmvRecordData.registrationStatus || 'VALID'}
                         onChange={(e) => setDmvRecordData({...dmvRecordData, registrationStatus: e.target.value})}
-                        className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        className="field"
                       >
                         <option value="PENDING">PENDING</option>
                         <option value="VALID">VALID</option>
@@ -2524,20 +2593,20 @@ const CADSystem = () => {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-300 mb-1">Registration Expiration</label>
+                      <label className="field-label">Registration Expiration</label>
                       <input
                         type="date"
                         value={dmvRecordData.registrationExpiration || ''}
                         onChange={(e) => setDmvRecordData({...dmvRecordData, registrationExpiration: e.target.value})}
-                        className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        className="field"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-300 mb-1">Insurance Status</label>
+                      <label className="field-label">Insurance Status</label>
                       <select
                         value={dmvRecordData.insuranceStatus || 'VALID'}
                         onChange={(e) => setDmvRecordData({...dmvRecordData, insuranceStatus: e.target.value})}
-                        className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        className="field"
                       >
                         <option value="PENDING">PENDING</option>
                         <option value="VALID">VALID</option>
@@ -2546,12 +2615,12 @@ const CADSystem = () => {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-300 mb-1">Insurance Expiration</label>
+                      <label className="field-label">Insurance Expiration</label>
                       <input
                         type="date"
                         value={dmvRecordData.insuranceExpiration || ''}
                         onChange={(e) => setDmvRecordData({...dmvRecordData, insuranceExpiration: e.target.value})}
-                        className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        className="field"
                       />
                     </div>
                   </div>
@@ -2559,14 +2628,14 @@ const CADSystem = () => {
 
                 {/* Vehicle Information Section */}
                 <div>
-                  <h4 className="text-sm font-semibold text-green-400 mb-3">VEHICLE INFORMATION</h4>
+                  <h4 className="section-title text-green-400">VEHICLE INFORMATION</h4>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-sm text-gray-300 mb-1">Vehicle Type</label>
+                      <label className="field-label">Vehicle Type</label>
                       <select
                         value={dmvRecordData.vehicleType || 'SEDAN'}
                         onChange={(e) => setDmvRecordData({...dmvRecordData, vehicleType: e.target.value})}
-                        className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        className="field"
                       >
                         <option value="SEDAN">SEDAN</option>
                         <option value="COUPE">COUPE</option>
@@ -2583,62 +2652,62 @@ const CADSystem = () => {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-300 mb-1">License Plate</label>
+                      <label className="field-label">License Plate</label>
                       <input
                         type="text"
                         value={dmvRecordData.plateNumber || ''}
                         onChange={(e) => setDmvRecordData({...dmvRecordData, plateNumber: e.target.value.toUpperCase()})}
-                        className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        className="field"
                       />
                     </div>
                     <div className="col-span-2">
-                      <label className="block text-sm text-gray-300 mb-1">VIN</label>
+                      <label className="field-label">VIN</label>
                       <input
                         type="text"
                         value={dmvRecordData.vin || ''}
                         onChange={(e) => setDmvRecordData({...dmvRecordData, vin: e.target.value.toUpperCase()})}
-                        className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        className="field"
                         maxLength={17}
                         placeholder="17-character VIN"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-300 mb-1">Make</label>
+                      <label className="field-label">Make</label>
                       <input
                         type="text"
                         value={dmvRecordData.make || ''}
                         onChange={(e) => setDmvRecordData({...dmvRecordData, make: e.target.value})}
-                        className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        className="field"
                         placeholder="e.g., Toyota, Ford"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-300 mb-1">Model</label>
+                      <label className="field-label">Model</label>
                       <input
                         type="text"
                         value={dmvRecordData.model || ''}
                         onChange={(e) => setDmvRecordData({...dmvRecordData, model: e.target.value})}
-                        className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        className="field"
                         placeholder="e.g., Camry, F-150"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-300 mb-1">Color</label>
+                      <label className="field-label">Color</label>
                       <input
                         type="text"
                         value={dmvRecordData.color || ''}
                         onChange={(e) => setDmvRecordData({...dmvRecordData, color: e.target.value})}
-                        className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        className="field"
                         placeholder="e.g., Black, White"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-300 mb-1">Year</label>
+                      <label className="field-label">Year</label>
                       <input
                         type="text"
                         value={dmvRecordData.year || ''}
                         onChange={(e) => setDmvRecordData({...dmvRecordData, year: e.target.value})}
-                        className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        className="field"
                         maxLength={4}
                         placeholder="e.g., 2024"
                       />
@@ -2652,11 +2721,11 @@ const CADSystem = () => {
               <>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm text-gray-300 mb-1">Status</label>
+                    <label className="field-label">Status</label>
                     <select
                       value={dmvRecordData.status || 'VALID'}
                       onChange={(e) => setDmvRecordData({...dmvRecordData, status: e.target.value})}
-                      className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                      className="field"
                     >
                       <option value="PENDING">PENDING</option>
                       <option value="VALID">VALID</option>
@@ -2665,11 +2734,11 @@ const CADSystem = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-300 mb-1">License Type</label>
+                    <label className="field-label">License Type</label>
                     <select
                       value={dmvRecordData.licenseType || 'DRIVER LICENSE'}
                       onChange={(e) => setDmvRecordData({...dmvRecordData, licenseType: e.target.value})}
-                      className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                      className="field"
                     >
                       <option value="DRIVER LICENSE">DRIVER LICENSE</option>
                       <option value="PILOT LICENSE">PILOT LICENSE</option>
@@ -2682,11 +2751,11 @@ const CADSystem = () => {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm text-gray-300 mb-1">Class</label>
+                    <label className="field-label">Class</label>
                     <select
                       value={dmvRecordData.licenseClass || 'C'}
                       onChange={(e) => setDmvRecordData({...dmvRecordData, licenseClass: e.target.value})}
-                      className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                      className="field"
                     >
                       <option value="A">Class A</option>
                       <option value="B">Class B</option>
@@ -2694,11 +2763,11 @@ const CADSystem = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-300 mb-1">Motorcycle Endorsement</label>
+                    <label className="field-label">Motorcycle Endorsement</label>
                     <select
                       value={dmvRecordData.motorcycleEndorsement || 'NONE'}
                       onChange={(e) => setDmvRecordData({...dmvRecordData, motorcycleEndorsement: e.target.value})}
-                      className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                      className="field"
                     >
                       <option value="NONE">None</option>
                       <option value="M1">M1</option>
@@ -2707,21 +2776,21 @@ const CADSystem = () => {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-300 mb-1">Expiration Date</label>
+                  <label className="field-label">Expiration Date</label>
                   <input
                     type="date"
                     value={dmvRecordData.expirationDate || ''}
                     onChange={(e) => setDmvRecordData({...dmvRecordData, expirationDate: e.target.value})}
-                    className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                    className="field"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-300 mb-1">License Restrictions</label>
+                  <label className="field-label">License Restrictions</label>
                   <input
                     type="text"
                     value={dmvRecordData.restrictions || ''}
                     onChange={(e) => setDmvRecordData({...dmvRecordData, restrictions: e.target.value})}
-                    className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                    className="field"
                     placeholder="e.g., Corrective lenses required"
                   />
                 </div>
@@ -2731,21 +2800,21 @@ const CADSystem = () => {
             {selectedDMVType === 'SECURITY GUARD LICENSE' && (
               <>
                 <div>
-                  <label className="block text-sm text-gray-300 mb-1">License Number</label>
+                  <label className="field-label">License Number</label>
                   <input
                     type="text"
                     value={dmvRecordData.licenseNumber || ''}
                     onChange={(e) => setDmvRecordData({...dmvRecordData, licenseNumber: e.target.value})}
-                    className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                    className="field"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-300 mb-1">Expiration Date</label>
+                  <label className="field-label">Expiration Date</label>
                   <input
                     type="date"
                     value={dmvRecordData.expirationDate || ''}
                     onChange={(e) => setDmvRecordData({...dmvRecordData, expirationDate: e.target.value})}
-                    className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                    className="field"
                   />
                 </div>
               </>
@@ -2754,15 +2823,15 @@ const CADSystem = () => {
             {selectedDMVType === 'REGISTERED FIREARM' && (
               <>
                 {/* Firearm Information Section */}
-                <div className="border-b border-gray-600 pb-4">
-                  <h4 className="text-sm font-semibold text-green-400 mb-3">FIREARM INFORMATION</h4>
+                <div className="border-b border-white/[0.08] pb-4">
+                  <h4 className="section-title text-green-400">FIREARM INFORMATION</h4>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-sm text-gray-300 mb-1">Type of Weapon</label>
+                      <label className="field-label">Type of Weapon</label>
                       <select
                         value={dmvRecordData.weaponType || 'HANDGUN'}
                         onChange={(e) => setDmvRecordData({...dmvRecordData, weaponType: e.target.value})}
-                        className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        className="field"
                       >
                         <option value="HANDGUN">HANDGUN</option>
                         <option value="ASSAULT RIFLE">ASSAULT RIFLE</option>
@@ -2773,31 +2842,31 @@ const CADSystem = () => {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-300 mb-1">Name of Weapon</label>
+                      <label className="field-label">Name of Weapon</label>
                       <input
                         type="text"
                         value={dmvRecordData.weaponName || ''}
                         onChange={(e) => setDmvRecordData({...dmvRecordData, weaponName: e.target.value})}
-                        className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        className="field"
                         placeholder="e.g., Glock 19, AR-15"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-300 mb-1">Serial Number</label>
+                      <label className="field-label">Serial Number</label>
                       <input
                         type="text"
                         value={dmvRecordData.serialNumber || ''}
                         onChange={(e) => setDmvRecordData({...dmvRecordData, serialNumber: e.target.value.toUpperCase()})}
-                        className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        className="field"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-300 mb-1">Where Was Weapon Purchased/Acquired</label>
+                      <label className="field-label">Where Was Weapon Purchased/Acquired</label>
                       <input
                         type="text"
                         value={dmvRecordData.purchaseLocation || ''}
                         onChange={(e) => setDmvRecordData({...dmvRecordData, purchaseLocation: e.target.value})}
-                        className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        className="field"
                         placeholder="Store name, location, etc."
                       />
                     </div>
@@ -2805,37 +2874,37 @@ const CADSystem = () => {
                 </div>
 
                 {/* Acknowledgments Section */}
-                <div className="border-b border-gray-600 pb-4">
-                  <h4 className="text-sm font-semibold text-green-400 mb-3">ACKNOWLEDGMENTS</h4>
+                <div className="border-b border-white/[0.08] pb-4">
+                  <h4 className="section-title text-green-400">ACKNOWLEDGMENTS</h4>
                   <div className="space-y-3">
                     <div>
-                      <label className="block text-sm text-gray-300 mb-1">I Understand I Cannot Carry This Firearm On My Person Concealed or Within Reach Concealed In Vehicle Without A Valid Conceal Carry Permit</label>
+                      <label className="field-label">I Understand I Cannot Carry This Firearm On My Person Concealed or Within Reach Concealed In Vehicle Without A Valid Conceal Carry Permit</label>
                       <select
                         value={dmvRecordData.ackConcealed || ''}
                         onChange={(e) => setDmvRecordData({...dmvRecordData, ackConcealed: e.target.value})}
-                        className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        className="field"
                       >
                         <option value="">Select...</option>
                         <option value="YES I UNDERSTAND">YES I UNDERSTAND</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-300 mb-1">I Understand This Firearm Is For Myself Only And Shall Not Be Given To Any Other Subject</label>
+                      <label className="field-label">I Understand This Firearm Is For Myself Only And Shall Not Be Given To Any Other Subject</label>
                       <select
                         value={dmvRecordData.ackPersonalOnly || ''}
                         onChange={(e) => setDmvRecordData({...dmvRecordData, ackPersonalOnly: e.target.value})}
-                        className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        className="field"
                       >
                         <option value="">Select...</option>
                         <option value="YES I UNDERSTAND">YES I UNDERSTAND</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-300 mb-1">I Have Not Been Arrested For Any Felony Crimes And Understand That If Arrested For A Felony I No Longer Can Have My Firearm</label>
+                      <label className="field-label">I Have Not Been Arrested For Any Felony Crimes And Understand That If Arrested For A Felony I No Longer Can Have My Firearm</label>
                       <select
                         value={dmvRecordData.ackFelony || ''}
                         onChange={(e) => setDmvRecordData({...dmvRecordData, ackFelony: e.target.value})}
-                        className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        className="field"
                       >
                         <option value="">Select...</option>
                         <option value="YES I UNDERSTAND">YES I UNDERSTAND</option>
@@ -2846,15 +2915,15 @@ const CADSystem = () => {
 
                 {/* Conceal Carry Information Section - Admin Only */}
                 {permissions.canAccessDispatch && (
-                  <div className="border-b border-gray-600 pb-4">
-                    <h4 className="text-sm font-semibold text-yellow-400 mb-3">CONCEAL CARRY INFORMATION (Admin Only)</h4>
+                  <div className="border-b border-white/[0.08] pb-4">
+                    <h4 className="section-title text-yellow-400">CONCEAL CARRY INFORMATION (Admin Only)</h4>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-sm text-gray-300 mb-1">Conceal Permit Status</label>
+                        <label className="field-label">Conceal Permit Status</label>
                         <select
                           value={dmvRecordData.concealPermitStatus || 'NONE'}
                           onChange={(e) => setDmvRecordData({...dmvRecordData, concealPermitStatus: e.target.value})}
-                          className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                          className="field"
                         >
                           <option value="NONE">NONE</option>
                           <option value="PENDING">PENDING</option>
@@ -2865,39 +2934,39 @@ const CADSystem = () => {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-sm text-gray-300 mb-1">Authorizing Official Name</label>
+                        <label className="field-label">Authorizing Official Name</label>
                         <input
                           type="text"
                           value={dmvRecordData.authorizingOfficialName || ''}
                           onChange={(e) => setDmvRecordData({...dmvRecordData, authorizingOfficialName: e.target.value})}
-                          className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                          className="field"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm text-gray-300 mb-1">Authorizing Official Agency</label>
+                        <label className="field-label">Authorizing Official Agency</label>
                         <input
                           type="text"
                           value={dmvRecordData.authorizingAgency || ''}
                           onChange={(e) => setDmvRecordData({...dmvRecordData, authorizingAgency: e.target.value})}
-                          className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                          className="field"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm text-gray-300 mb-1">Name of Firearm Authorized</label>
+                        <label className="field-label">Name of Firearm Authorized</label>
                         <input
                           type="text"
                           value={dmvRecordData.authorizedFirearmName || ''}
                           onChange={(e) => setDmvRecordData({...dmvRecordData, authorizedFirearmName: e.target.value})}
-                          className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                          className="field"
                         />
                       </div>
                       <div className="col-span-2">
-                        <label className="block text-sm text-gray-300 mb-1">Serial Number of Firearm Authorized</label>
+                        <label className="field-label">Serial Number of Firearm Authorized</label>
                         <input
                           type="text"
                           value={dmvRecordData.authorizedFirearmSerial || ''}
                           onChange={(e) => setDmvRecordData({...dmvRecordData, authorizedFirearmSerial: e.target.value.toUpperCase()})}
-                          className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                          className="field"
                         />
                       </div>
                     </div>
@@ -2907,26 +2976,26 @@ const CADSystem = () => {
                 {/* Law Enforcement Use Only Section */}
                 {permissions.canAccessDispatch && (
                   <div>
-                    <h4 className="text-sm font-semibold text-red-400 mb-3">LAW ENFORCEMENT USE ONLY</h4>
+                    <h4 className="section-title text-red-400">LAW ENFORCEMENT USE ONLY</h4>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-sm text-gray-300 mb-1">Firearm Seized</label>
+                        <label className="field-label">Firearm Seized</label>
                         <select
                           value={dmvRecordData.firearmSeized || 'NO'}
                           onChange={(e) => setDmvRecordData({...dmvRecordData, firearmSeized: e.target.value})}
-                          className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                          className="field"
                         >
                           <option value="NO">NO</option>
                           <option value="YES">YES</option>
                         </select>
                       </div>
                       <div>
-                        <label className="block text-sm text-gray-300 mb-1">Evidence Locker Number</label>
+                        <label className="field-label">Evidence Locker Number</label>
                         <input
                           type="text"
                           value={dmvRecordData.evidenceLockerNumber || ''}
                           onChange={(e) => setDmvRecordData({...dmvRecordData, evidenceLockerNumber: e.target.value.toUpperCase()})}
-                          className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                          className="field"
                           placeholder="Enter if seized"
                         />
                       </div>
@@ -2939,70 +3008,70 @@ const CADSystem = () => {
             {selectedDMVType === 'MEDICAL HISTORY' && (
               <>
                 {/* Patient Medical History Section */}
-                <div className="border-b border-gray-600 pb-4">
-                  <h4 className="text-sm font-semibold text-green-400 mb-3">PATIENT MEDICAL HISTORY</h4>
+                <div className="border-b border-white/[0.08] pb-4">
+                  <h4 className="section-title text-green-400">PATIENT MEDICAL HISTORY</h4>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-sm text-gray-300 mb-1">High Blood Pressure</label>
+                      <label className="field-label">High Blood Pressure</label>
                       <select
                         value={dmvRecordData.highBloodPressure || 'NO'}
                         onChange={(e) => setDmvRecordData({...dmvRecordData, highBloodPressure: e.target.value})}
-                        className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        className="field"
                       >
                         <option value="YES">YES</option>
                         <option value="NO">NO</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-300 mb-1">Heart Attack History</label>
+                      <label className="field-label">Heart Attack History</label>
                       <select
                         value={dmvRecordData.heartAttackHistory || 'NO'}
                         onChange={(e) => setDmvRecordData({...dmvRecordData, heartAttackHistory: e.target.value})}
-                        className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        className="field"
                       >
                         <option value="YES">YES</option>
                         <option value="NO">NO</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-300 mb-1">High Cholesterol</label>
+                      <label className="field-label">High Cholesterol</label>
                       <select
                         value={dmvRecordData.highCholesterol || 'NO'}
                         onChange={(e) => setDmvRecordData({...dmvRecordData, highCholesterol: e.target.value})}
-                        className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        className="field"
                       >
                         <option value="YES">YES</option>
                         <option value="NO">NO</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-300 mb-1">Stroke History</label>
+                      <label className="field-label">Stroke History</label>
                       <select
                         value={dmvRecordData.strokeHistory || 'NO'}
                         onChange={(e) => setDmvRecordData({...dmvRecordData, strokeHistory: e.target.value})}
-                        className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        className="field"
                       >
                         <option value="YES">YES</option>
                         <option value="NO">NO</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-300 mb-1">Cancer History</label>
+                      <label className="field-label">Cancer History</label>
                       <select
                         value={dmvRecordData.cancerHistory || 'NO'}
                         onChange={(e) => setDmvRecordData({...dmvRecordData, cancerHistory: e.target.value})}
-                        className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        className="field"
                       >
                         <option value="YES">YES</option>
                         <option value="NO">NO</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-300 mb-1">Diabetes</label>
+                      <label className="field-label">Diabetes</label>
                       <select
                         value={dmvRecordData.diabetes || 'NO'}
                         onChange={(e) => setDmvRecordData({...dmvRecordData, diabetes: e.target.value})}
-                        className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        className="field"
                       >
                         <option value="YES">YES</option>
                         <option value="NO">NO</option>
@@ -3010,81 +3079,81 @@ const CADSystem = () => {
                     </div>
                   </div>
                   <div className="mt-3">
-                    <label className="block text-sm text-gray-300 mb-1">Medical History Not Listed Above</label>
+                    <label className="field-label">Medical History Not Listed Above</label>
                     <textarea
                       value={dmvRecordData.otherMedicalHistory || ''}
                       onChange={(e) => setDmvRecordData({...dmvRecordData, otherMedicalHistory: e.target.value})}
-                      className="w-full bg-gray-700 text-white rounded px-3 py-2 h-20"
+                      className="field h-20"
                       placeholder="Enter any additional medical history..."
                     />
                   </div>
                 </div>
 
                 {/* Medication/Item Usage Section */}
-                <div className="border-b border-gray-600 pb-4">
-                  <h4 className="text-sm font-semibold text-green-400 mb-3">MEDICATION / ITEM USAGE</h4>
+                <div className="border-b border-white/[0.08] pb-4">
+                  <h4 className="section-title text-green-400">MEDICATION / ITEM USAGE</h4>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-sm text-gray-300 mb-1">Blood Thinner Medication</label>
+                      <label className="field-label">Blood Thinner Medication</label>
                       <select
                         value={dmvRecordData.bloodThinner || 'NO'}
                         onChange={(e) => setDmvRecordData({...dmvRecordData, bloodThinner: e.target.value})}
-                        className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        className="field"
                       >
                         <option value="YES">YES</option>
                         <option value="NO">NO</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-300 mb-1">Anti-Depressant Medication</label>
+                      <label className="field-label">Anti-Depressant Medication</label>
                       <select
                         value={dmvRecordData.antiDepressant || 'NO'}
                         onChange={(e) => setDmvRecordData({...dmvRecordData, antiDepressant: e.target.value})}
-                        className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        className="field"
                       >
                         <option value="YES">YES</option>
                         <option value="NO">NO</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-300 mb-1">Recreational Drug Usage</label>
+                      <label className="field-label">Recreational Drug Usage</label>
                       <select
                         value={dmvRecordData.recreationalDrugs || 'NO'}
                         onChange={(e) => setDmvRecordData({...dmvRecordData, recreationalDrugs: e.target.value})}
-                        className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        className="field"
                       >
                         <option value="YES">YES</option>
                         <option value="NO">NO</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-300 mb-1">Alcohol Usage</label>
+                      <label className="field-label">Alcohol Usage</label>
                       <select
                         value={dmvRecordData.alcoholUsage || 'NO'}
                         onChange={(e) => setDmvRecordData({...dmvRecordData, alcoholUsage: e.target.value})}
-                        className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        className="field"
                       >
                         <option value="YES">YES</option>
                         <option value="NO">NO</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-300 mb-1">Tobacco Usage</label>
+                      <label className="field-label">Tobacco Usage</label>
                       <select
                         value={dmvRecordData.tobaccoUsage || 'NO'}
                         onChange={(e) => setDmvRecordData({...dmvRecordData, tobaccoUsage: e.target.value})}
-                        className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        className="field"
                       >
                         <option value="YES">YES</option>
                         <option value="NO">NO</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-300 mb-1">Packs of Smoke Per Day</label>
+                      <label className="field-label">Packs of Smoke Per Day</label>
                       <select
                         value={dmvRecordData.packsPerDay || 'NONE'}
                         onChange={(e) => setDmvRecordData({...dmvRecordData, packsPerDay: e.target.value})}
-                        className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        className="field"
                       >
                         <option value="NONE">NONE</option>
                         <option value="LESS THAN 1/2">LESS THAN 1/2</option>
@@ -3096,20 +3165,20 @@ const CADSystem = () => {
                     </div>
                   </div>
                   <div className="mt-3">
-                    <label className="block text-sm text-gray-300 mb-1">List Any Medications Currently Taking</label>
+                    <label className="field-label">List Any Medications Currently Taking</label>
                     <textarea
                       value={dmvRecordData.currentMedications || ''}
                       onChange={(e) => setDmvRecordData({...dmvRecordData, currentMedications: e.target.value})}
-                      className="w-full bg-gray-700 text-white rounded px-3 py-2 h-20"
+                      className="field h-20"
                       placeholder="List all current medications..."
                     />
                   </div>
                   <div className="mt-3">
-                    <label className="block text-sm text-gray-300 mb-1">List Any Allergies To Medications</label>
+                    <label className="field-label">List Any Allergies To Medications</label>
                     <textarea
                       value={dmvRecordData.medicationAllergies || ''}
                       onChange={(e) => setDmvRecordData({...dmvRecordData, medicationAllergies: e.target.value})}
-                      className="w-full bg-gray-700 text-white rounded px-3 py-2 h-20"
+                      className="field h-20"
                       placeholder="List all medication allergies..."
                     />
                   </div>
@@ -3117,12 +3186,12 @@ const CADSystem = () => {
 
                 {/* Date Updated */}
                 <div>
-                  <label className="block text-sm text-gray-300 mb-1">Date Updated</label>
+                  <label className="field-label">Date Updated</label>
                   <input
                     type="date"
                     value={dmvRecordData.dateUpdated || ''}
                     onChange={(e) => setDmvRecordData({...dmvRecordData, dateUpdated: e.target.value})}
-                    className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                    className="field"
                   />
                 </div>
               </>
@@ -3131,8 +3200,8 @@ const CADSystem = () => {
             {selectedDMVType === 'OUT OF STATE WARRANT' && (
               <>
                 {/* Warrant Information Section */}
-                <div className="border-b border-gray-600 pb-4">
-                  <h4 className="text-sm font-semibold text-red-400 mb-3">WARRANT INFORMATION</h4>
+                <div className="border-b border-white/[0.08] pb-4">
+                  <h4 className="section-title text-red-400">WARRANT INFORMATION</h4>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="flex items-center gap-3">
                       <label className="text-sm text-gray-300">Warrant Status:</label>
@@ -3141,7 +3210,7 @@ const CADSystem = () => {
                           type="checkbox"
                           checked={dmvRecordData.warrantActive || false}
                           onChange={(e) => setDmvRecordData({...dmvRecordData, warrantActive: e.target.checked})}
-                          className="w-5 h-5 rounded bg-gray-700 border-gray-600 text-red-600 focus:ring-red-500"
+                          className="w-5 h-5 rounded bg-gray-700 border-white/[0.08] text-red-600 focus:ring-red-500"
                         />
                         <span className={`text-sm font-semibold ${dmvRecordData.warrantActive ? 'text-red-400' : 'text-gray-400'}`}>
                           {dmvRecordData.warrantActive ? 'ACTIVE' : 'INACTIVE'}
@@ -3149,21 +3218,21 @@ const CADSystem = () => {
                       </label>
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-300 mb-1">Warrant Out Of:</label>
+                      <label className="field-label">Warrant Out Of:</label>
                       <input
                         type="text"
                         value={dmvRecordData.warrantOutOf || ''}
                         onChange={(e) => setDmvRecordData({...dmvRecordData, warrantOutOf: e.target.value})}
-                        className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        className="field"
                         placeholder="State/Location"
                       />
                     </div>
                     <div className="col-span-2">
-                      <label className="block text-sm text-gray-300 mb-1">Extraditable Warrant?</label>
+                      <label className="field-label">Extraditable Warrant?</label>
                       <select
                         value={dmvRecordData.extraditable || ''}
                         onChange={(e) => setDmvRecordData({...dmvRecordData, extraditable: e.target.value})}
-                        className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        className="field"
                       >
                         <option value="">Select...</option>
                         <option value="YES">YES - SUBJECT IS TO BE PLACED IN CUSTODY AND AWAIT TRANSPORT BACK TO WARRANT LOCATION</option>
@@ -3174,7 +3243,7 @@ const CADSystem = () => {
                 </div>
 
                 {/* Out Of State Charges Section */}
-                <div className="border-b border-gray-600 pb-4">
+                <div className="border-b border-white/[0.08] pb-4">
                   <div className="flex justify-between items-center mb-3">
                     <h4 className="text-sm font-semibold text-red-400">OUT OF STATE CHARGES</h4>
                     <button
@@ -3195,7 +3264,7 @@ const CADSystem = () => {
                           charges: [...(dmvRecordData.charges || []), newCharge]
                         });
                       }}
-                      className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-500 flex items-center gap-1"
+                      className="btn btn-danger btn-sm"
                     >
                       <Plus size={16} /> Add Charge
                     </button>
@@ -3206,7 +3275,7 @@ const CADSystem = () => {
                   ) : (
                     <div className="space-y-3">
                       {dmvRecordData.charges.map((charge, index) => (
-                        <div key={charge.id} className="bg-gray-700 rounded-lg p-3">
+                        <div key={charge.id} className="rounded-lg border border-white/[0.06] bg-white/[0.025] p-3">
                           <div className="flex justify-between items-start mb-2">
                             <span className="text-xs text-gray-400">Charge #{index + 1}</span>
                             <button
@@ -3224,7 +3293,7 @@ const CADSystem = () => {
                           </div>
                           <div className="grid grid-cols-4 gap-2">
                             <div className="col-span-2">
-                              <label className="block text-xs text-gray-400 mb-1">Charge</label>
+                              <label className="field-label">Charge</label>
                               <ChargeAutocompleteInput
                                 value={charge.charge}
                                 onChange={(value) => {
@@ -3252,7 +3321,7 @@ const CADSystem = () => {
                               />
                             </div>
                             <div>
-                              <label className="block text-xs text-gray-400 mb-1">Charge Type</label>
+                              <label className="field-label">Charge Type</label>
                               <select
                                 value={charge.chargeType}
                                 onChange={(e) => {
@@ -3261,7 +3330,7 @@ const CADSystem = () => {
                                   );
                                   setDmvRecordData({...dmvRecordData, charges: updated});
                                 }}
-                                className="w-full bg-gray-600 text-white rounded px-2 py-1 text-sm"
+                                className="field field-sm"
                               >
                                 <option value="FELONY">FELONY</option>
                                 <option value="MISDEMEANOR">MISDEMEANOR</option>
@@ -3271,7 +3340,7 @@ const CADSystem = () => {
                               </select>
                             </div>
                             <div>
-                              <label className="block text-xs text-gray-400 mb-1">Counts</label>
+                              <label className="field-label">Counts</label>
                               <input
                                 type="number"
                                 min="1"
@@ -3282,11 +3351,11 @@ const CADSystem = () => {
                                   );
                                   setDmvRecordData({...dmvRecordData, charges: updated});
                                 }}
-                                className="w-full bg-gray-600 text-white rounded px-2 py-1 text-sm"
+                                className="field field-sm"
                               />
                             </div>
                             <div>
-                              <label className="block text-xs text-gray-400 mb-1">Title/Code</label>
+                              <label className="field-label">Title/Code</label>
                               <input
                                 type="text"
                                 value={charge.titleCode}
@@ -3296,12 +3365,12 @@ const CADSystem = () => {
                                   );
                                   setDmvRecordData({...dmvRecordData, charges: updated});
                                 }}
-                                className="w-full bg-gray-600 text-white rounded px-2 py-1 text-sm"
+                                className="field field-sm"
                                 placeholder="e.g., PC 245"
                               />
                             </div>
                             <div>
-                              <label className="block text-xs text-gray-400 mb-1">Bond Type</label>
+                              <label className="field-label">Bond Type</label>
                               <select
                                 value={charge.bondType}
                                 onChange={(e) => {
@@ -3310,7 +3379,7 @@ const CADSystem = () => {
                                   );
                                   setDmvRecordData({...dmvRecordData, charges: updated});
                                 }}
-                                className="w-full bg-gray-600 text-white rounded px-2 py-1 text-sm"
+                                className="field field-sm"
                               >
                                 <option value="CITATION RELEASE">CITATION RELEASE</option>
                                 <option value="RECOGNIZANCE RELEASE">RECOGNIZANCE RELEASE</option>
@@ -3324,7 +3393,7 @@ const CADSystem = () => {
                               </select>
                             </div>
                             <div>
-                              <label className="block text-xs text-gray-400 mb-1">Bond/Fine ($)</label>
+                              <label className="field-label">Bond/Fine ($)</label>
                               <input
                                 type="number"
                                 min="0"
@@ -3335,11 +3404,11 @@ const CADSystem = () => {
                                   );
                                   setDmvRecordData({...dmvRecordData, charges: updated});
                                 }}
-                                className="w-full bg-gray-600 text-white rounded px-2 py-1 text-sm"
+                                className="field field-sm"
                               />
                             </div>
                             <div>
-                              <label className="block text-xs text-gray-400 mb-1">Jail Time</label>
+                              <label className="field-label">Jail Time</label>
                               <input
                                 type="text"
                                 value={charge.jailTime}
@@ -3349,7 +3418,7 @@ const CADSystem = () => {
                                   );
                                   setDmvRecordData({...dmvRecordData, charges: updated});
                                 }}
-                                className="w-full bg-gray-600 text-white rounded px-2 py-1 text-sm"
+                                className="field field-sm"
                                 placeholder="e.g., 30 days"
                               />
                             </div>
@@ -3361,8 +3430,8 @@ const CADSystem = () => {
 
                   {/* Fine Total */}
                   {dmvRecordData.charges && dmvRecordData.charges.length > 0 && (
-                    <div className="mt-4 pt-3 border-t border-gray-600 flex justify-end">
-                      <div className="bg-gray-700 rounded-lg px-4 py-2">
+                    <div className="mt-4 pt-3 border-t border-white/[0.08] flex justify-end">
+                      <div className="rounded-lg border border-white/[0.06] bg-white/[0.025] px-4 py-2">
                         <span className="text-gray-400 text-sm">Fine Total: </span>
                         <span className="text-green-400 font-bold text-lg">
                           ${dmvRecordData.charges.reduce((sum, c) => sum + (parseFloat(c.bondAmount) || 0), 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
@@ -3374,11 +3443,11 @@ const CADSystem = () => {
 
                 {/* Notes Section */}
                 <div>
-                  <label className="block text-sm text-gray-300 mb-1">Notes</label>
+                  <label className="field-label">Notes</label>
                   <textarea
                     value={dmvRecordData.warrantNotes || ''}
                     onChange={(e) => setDmvRecordData({...dmvRecordData, warrantNotes: e.target.value})}
-                    className="w-full bg-gray-700 text-white rounded px-3 py-2 h-24"
+                    className="field h-24"
                     placeholder="Additional warrant details..."
                   />
                 </div>
@@ -3388,25 +3457,25 @@ const CADSystem = () => {
             {selectedDMVType === 'PROBATION' && (
               <>
                 {/* Probation Information Section */}
-                <div className="border-b border-gray-600 pb-4">
-                  <h4 className="text-sm font-semibold text-orange-400 mb-3">PROBATION INFORMATION</h4>
+                <div className="border-b border-white/[0.08] pb-4">
+                  <h4 className="section-title text-orange-400">PROBATION INFORMATION</h4>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-sm text-gray-300 mb-1">Probation Start Date</label>
+                      <label className="field-label">Probation Start Date</label>
                       <input
                         type="date"
                         value={dmvRecordData.probationStartDate || ''}
                         onChange={(e) => setDmvRecordData({...dmvRecordData, probationStartDate: e.target.value})}
-                        className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        className="field"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-300 mb-1">Probation End Date</label>
+                      <label className="field-label">Probation End Date</label>
                       <input
                         type="date"
                         value={dmvRecordData.probationEndDate || ''}
                         onChange={(e) => setDmvRecordData({...dmvRecordData, probationEndDate: e.target.value})}
-                        className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        className="field"
                       />
                     </div>
                     <div className="flex items-center gap-3">
@@ -3416,7 +3485,7 @@ const CADSystem = () => {
                           type="checkbox"
                           checked={dmvRecordData.probationActive || false}
                           onChange={(e) => setDmvRecordData({...dmvRecordData, probationActive: e.target.checked})}
-                          className="w-5 h-5 rounded bg-gray-700 border-gray-600 text-orange-600 focus:ring-orange-500"
+                          className="w-5 h-5 rounded bg-gray-700 border-white/[0.08] text-orange-600 focus:ring-orange-500"
                         />
                         <span className={`text-sm font-semibold ${dmvRecordData.probationActive ? 'text-orange-400' : 'text-gray-400'}`}>
                           {dmvRecordData.probationActive ? 'ACTIVE' : 'INACTIVE'}
@@ -3424,12 +3493,12 @@ const CADSystem = () => {
                       </label>
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-300 mb-1">Probation Jurisdiction:</label>
+                      <label className="field-label">Probation Jurisdiction:</label>
                       <input
                         type="text"
                         value={dmvRecordData.probationJurisdiction || ''}
                         onChange={(e) => setDmvRecordData({...dmvRecordData, probationJurisdiction: e.target.value})}
-                        className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        className="field"
                         placeholder="County/State"
                       />
                     </div>
@@ -3437,7 +3506,7 @@ const CADSystem = () => {
                 </div>
 
                 {/* Probation Charges Section */}
-                <div className="border-b border-gray-600 pb-4">
+                <div className="border-b border-white/[0.08] pb-4">
                   <div className="flex justify-between items-center mb-3">
                     <h4 className="text-sm font-semibold text-orange-400">PROBATION CHARGES</h4>
                     <button
@@ -3469,7 +3538,7 @@ const CADSystem = () => {
                   ) : (
                     <div className="space-y-3">
                       {dmvRecordData.probationCharges.map((charge, index) => (
-                        <div key={charge.id} className="bg-gray-700 rounded-lg p-3">
+                        <div key={charge.id} className="rounded-lg border border-white/[0.06] bg-white/[0.025] p-3">
                           <div className="flex justify-between items-start mb-2">
                             <span className="text-xs text-gray-400">Charge #{index + 1}</span>
                             <button
@@ -3487,7 +3556,7 @@ const CADSystem = () => {
                           </div>
                           <div className="grid grid-cols-4 gap-2">
                             <div className="col-span-2">
-                              <label className="block text-xs text-gray-400 mb-1">Charge</label>
+                              <label className="field-label">Charge</label>
                               <ChargeAutocompleteInput
                                 value={charge.charge}
                                 onChange={(value) => {
@@ -3511,7 +3580,7 @@ const CADSystem = () => {
                               />
                             </div>
                             <div>
-                              <label className="block text-xs text-gray-400 mb-1">Charge Type</label>
+                              <label className="field-label">Charge Type</label>
                               <select
                                 value={charge.chargeType}
                                 onChange={(e) => {
@@ -3520,7 +3589,7 @@ const CADSystem = () => {
                                   );
                                   setDmvRecordData({...dmvRecordData, probationCharges: updated});
                                 }}
-                                className="w-full bg-gray-600 text-white rounded px-2 py-1 text-sm"
+                                className="field field-sm"
                               >
                                 <option value="FELONY">FELONY</option>
                                 <option value="MISDEMEANOR">MISDEMEANOR</option>
@@ -3530,7 +3599,7 @@ const CADSystem = () => {
                               </select>
                             </div>
                             <div>
-                              <label className="block text-xs text-gray-400 mb-1">Counts</label>
+                              <label className="field-label">Counts</label>
                               <input
                                 type="number"
                                 min="1"
@@ -3541,11 +3610,11 @@ const CADSystem = () => {
                                   );
                                   setDmvRecordData({...dmvRecordData, probationCharges: updated});
                                 }}
-                                className="w-full bg-gray-600 text-white rounded px-2 py-1 text-sm"
+                                className="field field-sm"
                               />
                             </div>
                             <div>
-                              <label className="block text-xs text-gray-400 mb-1">Title/Code</label>
+                              <label className="field-label">Title/Code</label>
                               <input
                                 type="text"
                                 value={charge.titleCode}
@@ -3555,12 +3624,12 @@ const CADSystem = () => {
                                   );
                                   setDmvRecordData({...dmvRecordData, probationCharges: updated});
                                 }}
-                                className="w-full bg-gray-600 text-white rounded px-2 py-1 text-sm"
+                                className="field field-sm"
                                 placeholder="e.g., VC 23152"
                               />
                             </div>
                             <div>
-                              <label className="block text-xs text-gray-400 mb-1">Bond Type</label>
+                              <label className="field-label">Bond Type</label>
                               <select
                                 value={charge.bondType}
                                 onChange={(e) => {
@@ -3569,7 +3638,7 @@ const CADSystem = () => {
                                   );
                                   setDmvRecordData({...dmvRecordData, probationCharges: updated});
                                 }}
-                                className="w-full bg-gray-600 text-white rounded px-2 py-1 text-sm"
+                                className="field field-sm"
                               >
                                 <option value="CITATION RELEASE">CITATION RELEASE</option>
                                 <option value="RECOGNIZANCE RELEASE">RECOGNIZANCE RELEASE</option>
@@ -3583,7 +3652,7 @@ const CADSystem = () => {
                               </select>
                             </div>
                             <div>
-                              <label className="block text-xs text-gray-400 mb-1">Bond/Fine ($)</label>
+                              <label className="field-label">Bond/Fine ($)</label>
                               <input
                                 type="number"
                                 min="0"
@@ -3594,11 +3663,11 @@ const CADSystem = () => {
                                   );
                                   setDmvRecordData({...dmvRecordData, probationCharges: updated});
                                 }}
-                                className="w-full bg-gray-600 text-white rounded px-2 py-1 text-sm"
+                                className="field field-sm"
                               />
                             </div>
                             <div>
-                              <label className="block text-xs text-gray-400 mb-1">Jail Time</label>
+                              <label className="field-label">Jail Time</label>
                               <input
                                 type="text"
                                 value={charge.jailTime}
@@ -3608,7 +3677,7 @@ const CADSystem = () => {
                                   );
                                   setDmvRecordData({...dmvRecordData, probationCharges: updated});
                                 }}
-                                className="w-full bg-gray-600 text-white rounded px-2 py-1 text-sm"
+                                className="field field-sm"
                                 placeholder="e.g., 90 days"
                               />
                             </div>
@@ -3620,8 +3689,8 @@ const CADSystem = () => {
 
                   {/* Fine Total */}
                   {dmvRecordData.probationCharges && dmvRecordData.probationCharges.length > 0 && (
-                    <div className="mt-4 pt-3 border-t border-gray-600 flex justify-end">
-                      <div className="bg-gray-700 rounded-lg px-4 py-2">
+                    <div className="mt-4 pt-3 border-t border-white/[0.08] flex justify-end">
+                      <div className="rounded-lg border border-white/[0.06] bg-white/[0.025] px-4 py-2">
                         <span className="text-gray-400 text-sm">Fine Total: </span>
                         <span className="text-green-400 font-bold text-lg">
                           ${dmvRecordData.probationCharges.reduce((sum, c) => sum + (parseFloat(c.bondAmount) || 0), 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
@@ -3633,11 +3702,11 @@ const CADSystem = () => {
 
                 {/* Notes Section */}
                 <div>
-                  <label className="block text-sm text-gray-300 mb-1">Notes</label>
+                  <label className="field-label">Notes</label>
                   <textarea
                     value={dmvRecordData.probationNotes || ''}
                     onChange={(e) => setDmvRecordData({...dmvRecordData, probationNotes: e.target.value})}
-                    className="w-full bg-gray-700 text-white rounded px-3 py-2 h-24"
+                    className="field h-24"
                     placeholder="Additional probation details, conditions, etc..."
                   />
                 </div>
@@ -3647,25 +3716,25 @@ const CADSystem = () => {
             {selectedDMVType === 'PAROLE' && (
               <>
                 {/* Parole Information Section */}
-                <div className="border-b border-gray-600 pb-4">
-                  <h4 className="text-sm font-semibold text-purple-400 mb-3">PAROLE INFORMATION</h4>
+                <div className="border-b border-white/[0.08] pb-4">
+                  <h4 className="section-title text-purple-400">PAROLE INFORMATION</h4>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-sm text-gray-300 mb-1">Parole Start Date</label>
+                      <label className="field-label">Parole Start Date</label>
                       <input
                         type="date"
                         value={dmvRecordData.paroleStartDate || ''}
                         onChange={(e) => setDmvRecordData({...dmvRecordData, paroleStartDate: e.target.value})}
-                        className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        className="field"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-300 mb-1">Parole End Date</label>
+                      <label className="field-label">Parole End Date</label>
                       <input
                         type="date"
                         value={dmvRecordData.paroleEndDate || ''}
                         onChange={(e) => setDmvRecordData({...dmvRecordData, paroleEndDate: e.target.value})}
-                        className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        className="field"
                       />
                     </div>
                     <div className="flex items-center gap-3">
@@ -3675,7 +3744,7 @@ const CADSystem = () => {
                           type="checkbox"
                           checked={dmvRecordData.paroleActive || false}
                           onChange={(e) => setDmvRecordData({...dmvRecordData, paroleActive: e.target.checked})}
-                          className="w-5 h-5 rounded bg-gray-700 border-gray-600 text-purple-600 focus:ring-purple-500"
+                          className="w-5 h-5 rounded bg-gray-700 border-white/[0.08] text-purple-600 focus:ring-purple-500"
                         />
                         <span className={`text-sm font-semibold ${dmvRecordData.paroleActive ? 'text-purple-400' : 'text-gray-400'}`}>
                           {dmvRecordData.paroleActive ? 'ACTIVE' : 'INACTIVE'}
@@ -3683,12 +3752,12 @@ const CADSystem = () => {
                       </label>
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-300 mb-1">Parole Jurisdiction:</label>
+                      <label className="field-label">Parole Jurisdiction:</label>
                       <input
                         type="text"
                         value={dmvRecordData.paroleJurisdiction || ''}
                         onChange={(e) => setDmvRecordData({...dmvRecordData, paroleJurisdiction: e.target.value})}
-                        className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                        className="field"
                         placeholder="County/State"
                       />
                     </div>
@@ -3696,7 +3765,7 @@ const CADSystem = () => {
                 </div>
 
                 {/* Parole Charges Section */}
-                <div className="border-b border-gray-600 pb-4">
+                <div className="border-b border-white/[0.08] pb-4">
                   <div className="flex justify-between items-center mb-3">
                     <h4 className="text-sm font-semibold text-purple-400">PAROLE CHARGES</h4>
                     <button
@@ -3728,7 +3797,7 @@ const CADSystem = () => {
                   ) : (
                     <div className="space-y-3">
                       {dmvRecordData.paroleCharges.map((charge, index) => (
-                        <div key={charge.id} className="bg-gray-700 rounded-lg p-3">
+                        <div key={charge.id} className="rounded-lg border border-white/[0.06] bg-white/[0.025] p-3">
                           <div className="flex justify-between items-start mb-2">
                             <span className="text-xs text-gray-400">Charge #{index + 1}</span>
                             <button
@@ -3746,7 +3815,7 @@ const CADSystem = () => {
                           </div>
                           <div className="grid grid-cols-4 gap-2">
                             <div className="col-span-2">
-                              <label className="block text-xs text-gray-400 mb-1">Charge</label>
+                              <label className="field-label">Charge</label>
                               <ChargeAutocompleteInput
                                 value={charge.charge}
                                 onChange={(value) => {
@@ -3770,7 +3839,7 @@ const CADSystem = () => {
                               />
                             </div>
                             <div>
-                              <label className="block text-xs text-gray-400 mb-1">Charge Type</label>
+                              <label className="field-label">Charge Type</label>
                               <select
                                 value={charge.chargeType}
                                 onChange={(e) => {
@@ -3779,7 +3848,7 @@ const CADSystem = () => {
                                   );
                                   setDmvRecordData({...dmvRecordData, paroleCharges: updated});
                                 }}
-                                className="w-full bg-gray-600 text-white rounded px-2 py-1 text-sm"
+                                className="field field-sm"
                               >
                                 <option value="FELONY">FELONY</option>
                                 <option value="MISDEMEANOR">MISDEMEANOR</option>
@@ -3789,7 +3858,7 @@ const CADSystem = () => {
                               </select>
                             </div>
                             <div>
-                              <label className="block text-xs text-gray-400 mb-1">Counts</label>
+                              <label className="field-label">Counts</label>
                               <input
                                 type="number"
                                 min="1"
@@ -3800,11 +3869,11 @@ const CADSystem = () => {
                                   );
                                   setDmvRecordData({...dmvRecordData, paroleCharges: updated});
                                 }}
-                                className="w-full bg-gray-600 text-white rounded px-2 py-1 text-sm"
+                                className="field field-sm"
                               />
                             </div>
                             <div>
-                              <label className="block text-xs text-gray-400 mb-1">Title/Code</label>
+                              <label className="field-label">Title/Code</label>
                               <input
                                 type="text"
                                 value={charge.titleCode}
@@ -3814,12 +3883,12 @@ const CADSystem = () => {
                                   );
                                   setDmvRecordData({...dmvRecordData, paroleCharges: updated});
                                 }}
-                                className="w-full bg-gray-600 text-white rounded px-2 py-1 text-sm"
+                                className="field field-sm"
                                 placeholder="e.g., PC 211"
                               />
                             </div>
                             <div>
-                              <label className="block text-xs text-gray-400 mb-1">Bond Type</label>
+                              <label className="field-label">Bond Type</label>
                               <select
                                 value={charge.bondType}
                                 onChange={(e) => {
@@ -3828,7 +3897,7 @@ const CADSystem = () => {
                                   );
                                   setDmvRecordData({...dmvRecordData, paroleCharges: updated});
                                 }}
-                                className="w-full bg-gray-600 text-white rounded px-2 py-1 text-sm"
+                                className="field field-sm"
                               >
                                 <option value="CITATION RELEASE">CITATION RELEASE</option>
                                 <option value="RECOGNIZANCE RELEASE">RECOGNIZANCE RELEASE</option>
@@ -3842,7 +3911,7 @@ const CADSystem = () => {
                               </select>
                             </div>
                             <div>
-                              <label className="block text-xs text-gray-400 mb-1">Bond/Fine ($)</label>
+                              <label className="field-label">Bond/Fine ($)</label>
                               <input
                                 type="number"
                                 min="0"
@@ -3853,11 +3922,11 @@ const CADSystem = () => {
                                   );
                                   setDmvRecordData({...dmvRecordData, paroleCharges: updated});
                                 }}
-                                className="w-full bg-gray-600 text-white rounded px-2 py-1 text-sm"
+                                className="field field-sm"
                               />
                             </div>
                             <div>
-                              <label className="block text-xs text-gray-400 mb-1">Jail Time</label>
+                              <label className="field-label">Jail Time</label>
                               <input
                                 type="text"
                                 value={charge.jailTime}
@@ -3867,7 +3936,7 @@ const CADSystem = () => {
                                   );
                                   setDmvRecordData({...dmvRecordData, paroleCharges: updated});
                                 }}
-                                className="w-full bg-gray-600 text-white rounded px-2 py-1 text-sm"
+                                className="field field-sm"
                                 placeholder="e.g., 5 years"
                               />
                             </div>
@@ -3879,8 +3948,8 @@ const CADSystem = () => {
 
                   {/* Fine Total */}
                   {dmvRecordData.paroleCharges && dmvRecordData.paroleCharges.length > 0 && (
-                    <div className="mt-4 pt-3 border-t border-gray-600 flex justify-end">
-                      <div className="bg-gray-700 rounded-lg px-4 py-2">
+                    <div className="mt-4 pt-3 border-t border-white/[0.08] flex justify-end">
+                      <div className="rounded-lg border border-white/[0.06] bg-white/[0.025] px-4 py-2">
                         <span className="text-gray-400 text-sm">Fine Total: </span>
                         <span className="text-green-400 font-bold text-lg">
                           ${dmvRecordData.paroleCharges.reduce((sum, c) => sum + (parseFloat(c.bondAmount) || 0), 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
@@ -3892,11 +3961,11 @@ const CADSystem = () => {
 
                 {/* Notes Section */}
                 <div>
-                  <label className="block text-sm text-gray-300 mb-1">Notes</label>
+                  <label className="field-label">Notes</label>
                   <textarea
                     value={dmvRecordData.paroleNotes || ''}
                     onChange={(e) => setDmvRecordData({...dmvRecordData, paroleNotes: e.target.value})}
-                    className="w-full bg-gray-700 text-white rounded px-3 py-2 h-24"
+                    className="field h-24"
                     placeholder="Additional parole details, conditions, parole officer info, etc..."
                   />
                 </div>
@@ -3906,7 +3975,7 @@ const CADSystem = () => {
             {selectedDMVType === 'MEDICAL HAZARD' && (
               <>
                 {/* Universal Precautions Header */}
-                <div className="bg-orange-900 border border-orange-600 rounded-lg p-4 mb-4">
+                <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4 mb-4">
                   <h4 className="text-orange-400 font-bold text-center mb-2">UNIVERSAL PRECAUTIONS (UP)</h4>
                   <p className="text-orange-200 text-sm text-center">
                     ORIGINALLY RECOMMENDED BY THE CDC IN THE 1980S, WAS INTRODUCED AS AN APPROACH TO INFECTION CONTROL TO PROTECT WORKERS FROM HIV, HBV, AND OTHER BLOODBORNE PATHOGENS IN HUMAN BLOOD AND CERTAIN OTHER BODY FLUIDS, REGARDLESS OF A PATIENT'S INFECTION STATUS.
@@ -3914,14 +3983,14 @@ const CADSystem = () => {
                 </div>
 
                 {/* Universal Precautions Flag */}
-                <div className="border-b border-gray-600 pb-4">
+                <div className="border-b border-white/[0.08] pb-4">
                   <div className="flex items-center gap-3">
                     <label className="flex items-center gap-3 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={dmvRecordData.universalPrecautionsFlag || false}
                         onChange={(e) => setDmvRecordData({...dmvRecordData, universalPrecautionsFlag: e.target.checked})}
-                        className="w-6 h-6 rounded bg-gray-700 border-gray-600 text-orange-600 focus:ring-orange-500"
+                        className="w-6 h-6 rounded bg-gray-700 border-white/[0.08] text-orange-600 focus:ring-orange-500"
                       />
                       <span className={`text-lg font-semibold ${dmvRecordData.universalPrecautionsFlag ? 'text-orange-400' : 'text-gray-400'}`}>
                         FLAG FOR UNIVERSAL PRECAUTIONS
@@ -3937,11 +4006,11 @@ const CADSystem = () => {
 
                 {/* Notes Section */}
                 <div>
-                  <label className="block text-sm text-gray-300 mb-1">Notes</label>
+                  <label className="field-label">Notes</label>
                   <textarea
                     value={dmvRecordData.medicalHazardNotes || ''}
                     onChange={(e) => setDmvRecordData({...dmvRecordData, medicalHazardNotes: e.target.value})}
-                    className="w-full bg-gray-700 text-white rounded px-3 py-2 h-24"
+                    className="field h-24"
                     placeholder="Additional medical hazard details..."
                   />
                 </div>
@@ -3950,11 +4019,11 @@ const CADSystem = () => {
 
             {selectedDMVType !== 'OUT OF STATE WARRANT' && selectedDMVType !== 'PROBATION' && selectedDMVType !== 'PAROLE' && selectedDMVType !== 'MEDICAL HAZARD' && (
               <div>
-                <label className="block text-sm text-gray-300 mb-1">Notes</label>
+                <label className="field-label">Notes</label>
                 <textarea
                   value={dmvRecordData.notes || ''}
                   onChange={(e) => setDmvRecordData({...dmvRecordData, notes: e.target.value})}
-                  className="w-full bg-gray-700 text-white rounded px-3 py-2 h-24"
+                  className="field h-24"
                   placeholder="Additional details..."
                 />
               </div>
@@ -3963,7 +4032,7 @@ const CADSystem = () => {
             <div className="flex gap-2 pt-4">
               <button
                 onClick={addDMVRecord}
-                className="flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-500"
+                className="btn btn-success flex-1"
               >
                 Add Record
               </button>
@@ -3972,7 +4041,7 @@ const CADSystem = () => {
                   setShowDMVModal(false);
                   setDmvRecordData({});
                 }}
-                className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-500"
+                className="btn btn-secondary"
               >
                 Cancel
               </button>
@@ -3983,34 +4052,44 @@ const CADSystem = () => {
     );
 
     return (
-      <div className="min-h-screen bg-gray-900 text-white flex flex-col">
-        <header className="bg-gradient-to-r from-purple-900 to-purple-800 border-b-4 border-purple-500 p-6">
-          <div className="max-w-6xl mx-auto">
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-xl text-white">Silver Lining Roleplay</p>
-              </div>
+      <div className="min-h-screen text-white flex flex-col">
+        <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-gray-900/75 backdrop-blur-md">
+          <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-purple-500/50 to-transparent" />
+          <div className="max-w-6xl mx-auto px-6 h-16 flex justify-between items-center">
+            <div className="flex items-center gap-4">
+              <BrandLockup size={30} />
+              <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-purple-500/25 bg-purple-500/10 px-2.5 py-0.5 text-xs font-medium text-purple-300">
+                <span className="h-1.5 w-1.5 rounded-full bg-purple-400" />
+                Civilian
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              {loggedInOfficer && (
+                <span className="hidden md:block text-sm text-gray-400">{loggedInOfficer.displayName}</span>
+              )}
               <button
                 onClick={() => setSelectedRole(null)}
-                className="px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-600"
+                className="btn btn-secondary"
               >
+                <LayoutGrid size={16} />
                 Change Role
               </button>
             </div>
           </div>
         </header>
 
-        <main className="flex-1 p-6">
-          <div className="max-w-6xl mx-auto">
+        <main className="flex-1 px-6 py-8">
+          <div className="max-w-6xl mx-auto animate-fade-in">
             {civilianView === 'list' && renderCharacterList()}
             {(civilianView === 'add' || civilianView === 'edit') && renderCharacterForm()}
             {civilianView === 'detail' && renderCharacterDetail()}
           </div>
         </main>
 
-        <footer className="bg-gray-800 border-t border-gray-700 p-4">
-          <div className="max-w-6xl mx-auto text-center text-gray-400 text-sm">
-            Silver Lining Roleplay - Los Santos Sheriff Office
+        <footer className="border-t border-white/[0.04]">
+          <div className="max-w-6xl mx-auto px-6 h-12 flex items-center justify-between text-xs text-gray-500">
+            <span>{BRAND.name} · Civilian Portal</span>
+            <span className="font-mono">v{APP_VERSION}</span>
           </div>
         </footer>
 
@@ -4022,8 +4101,9 @@ const CADSystem = () => {
   // Show loading state while checking for saved session (prevents hydration mismatch)
   if (!isClient) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-white text-xl">Loading...</div>
+      <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center gap-5">
+        <BrandMark size={48} className="animate-pulse" />
+        <div className="text-sm text-gray-400 tracking-wide">Loading {BRAND.name}…</div>
       </div>
     );
   }
@@ -4047,12 +4127,12 @@ const CADSystem = () => {
       <button
         onClick={() => selectedUnit && updateUnitStatus(selectedUnit, status)}
         disabled={!selectedUnit}
-        className={`px-4 py-2 rounded font-semibold transition ${
-          isActive 
-            ? 'bg-blue-700 text-white' 
-            : selectedUnit 
-              ? 'bg-gray-700 text-white hover:bg-gray-600' 
-              : 'bg-gray-800 text-gray-500 cursor-not-allowed'
+        className={`status-btn ${
+          isActive
+            ? '!border-accent-500/50 !bg-accent-500/15 !text-white'
+            : selectedUnit
+              ? ''
+              : 'opacity-50 cursor-not-allowed'
         }`}
       >
         {label} {code}
@@ -4060,84 +4140,89 @@ const CADSystem = () => {
     );
   };
 
+  const MenuRow = ({ onClick, Icon, title, subtitle, tone = 'default' }: any) => (
+    <button
+      onClick={onClick}
+      className={`group w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-white/[0.05] ${
+        tone === 'danger' ? 'hover:bg-red-500/10' : ''
+      }`}
+    >
+      <span
+        className={`inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg ring-1 ${
+          tone === 'danger'
+            ? 'bg-red-500/10 text-red-400 ring-red-500/20'
+            : tone === 'records'
+              ? 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/20'
+              : 'bg-white/[0.05] text-gray-300 ring-white/[0.08]'
+        }`}
+      >
+        <Icon size={16} />
+      </span>
+      <span className="min-w-0">
+        <span className={`block text-sm font-medium ${tone === 'danger' ? 'text-red-300' : 'text-white'}`}>{title}</span>
+        <span className="block text-xs text-gray-500">{subtitle}</span>
+      </span>
+    </button>
+  );
+
   const RoleMenu = () => {
     return (
-      <div className="fixed bottom-20 left-4 bg-gray-800 rounded-lg shadow-lg border border-gray-700 p-4 w-64 z-50">
-        <div className="flex justify-between items-center mb-3">
-          <h3 className="text-white font-bold">Menu</h3>
-          <button onClick={() => setShowRoleMenu(false)} className="text-gray-400 hover:text-white">
-            <X size={20} />
+      <div className="fixed bottom-24 left-4 z-50 w-72 animate-scale-in rounded-xl border border-white/[0.08] bg-gray-850/95 p-2 shadow-modal backdrop-blur-xl">
+        <div className="flex justify-between items-center px-2 pt-1 pb-2">
+          <span className="eyebrow">Menu</span>
+          <button onClick={() => setShowRoleMenu(false)} className="icon-btn !h-7 !w-7">
+            <X size={16} />
           </button>
         </div>
-        
-        <div className="space-y-2">
+
+        {selectedRole === 'police' && loggedInOfficer && (
+          <div className="mx-1 mb-2 flex items-center gap-3 rounded-lg border border-white/[0.06] bg-white/[0.03] p-3">
+            <div className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-sm font-bold text-white">
+              {(loggedInOfficer.displayName || '?').charAt(0).toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-white truncate">{loggedInOfficer.displayName}</div>
+              <div className="text-xs font-mono text-gray-400">{units.find(u => u.id === selectedUnit)?.callsign}</div>
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-0.5">
           {selectedRole === 'police' && loggedInOfficer && (
-            <>
-              <div className="bg-gray-700 rounded p-3 mb-3">
-                <div className="text-xs text-gray-400 mb-1">Logged in as:</div>
-                <div className="text-white font-semibold">{loggedInOfficer.displayName}</div>
-                <div className="text-sm text-gray-400">{units.find(u => u.id === selectedUnit)?.callsign}</div>
-              </div>
-
-              <button
-                onClick={() => {
-                  setShowRoleMenu(false);
-                  setShowRecordsMenu(true);
-                }}
-                className="w-full px-4 py-2 rounded text-left transition bg-green-700 text-white hover:bg-green-600"
-              >
-                <div className="font-semibold flex items-center gap-2">
-                  <Database size={16} />
-                  Records Management
-                </div>
-                <div className="text-xs text-gray-300">Lookup, Records, BOLO</div>
-              </button>
-
-              <button
-                onClick={() => {
-                  setShowRoleMenu(false);
-                  handleLogout();
-                }}
-                className="w-full px-4 py-2 rounded text-left transition bg-orange-700 text-white hover:bg-orange-600"
-              >
-                <div className="font-semibold flex items-center gap-2">
-                  <LogOut size={16} />
-                  Sign Out
-                </div>
-                <div className="text-xs text-gray-300">Log out and return to login</div>
-              </button>
-            </>
+            <MenuRow
+              onClick={() => {
+                setShowRoleMenu(false);
+                setShowRecordsMenu(true);
+              }}
+              Icon={Database}
+              title="Records Management"
+              subtitle="Lookup, Records, BOLO"
+              tone="records"
+            />
           )}
 
-          <button
+          <MenuRow
             onClick={() => {
               setShowRoleMenu(false);
               setSelectedRole(null);
             }}
-            className="w-full px-4 py-2 rounded text-left transition bg-purple-700 text-white hover:bg-purple-600"
-          >
-            <div className="font-semibold flex items-center gap-2">
-              <User size={16} />
-              Change Role
-            </div>
-            <div className="text-xs text-gray-300">Return to role selection</div>
-          </button>
+            Icon={LayoutGrid}
+            title="Change Role"
+            subtitle="Return to role selection"
+          />
 
-          {selectedRole !== 'police' && (
-            <button
-              onClick={() => {
-                setShowRoleMenu(false);
-                handleLogout();
-              }}
-              className="w-full px-4 py-2 rounded text-left transition bg-red-700 text-white hover:bg-red-600"
-            >
-              <div className="font-semibold flex items-center gap-2">
-                <LogOut size={16} />
-                Sign Out
-              </div>
-              <div className="text-xs text-gray-300">Log out and return to login</div>
-            </button>
-          )}
+          <div className="my-1 border-t border-white/[0.06]" />
+
+          <MenuRow
+            onClick={() => {
+              setShowRoleMenu(false);
+              handleLogout();
+            }}
+            Icon={LogOut}
+            title="Sign Out"
+            subtitle="Log out and return to login"
+            tone="danger"
+          />
         </div>
       </div>
     );
@@ -4157,86 +4242,57 @@ const CADSystem = () => {
       setShowRecordsMenu(false);
     };
 
+    const items = [
+      { key: 'lookup', title: 'Lookup', subtitle: 'Search persons & vehicles', Icon: Search, chip: 'bg-blue-500/10 text-blue-400 ring-blue-500/20' },
+      { key: 'records', title: 'Records', subtitle: 'View & manage records', Icon: FileText, chip: 'bg-purple-500/10 text-purple-400 ring-purple-500/20' },
+      { key: 'bolo', title: 'BOLO', subtitle: 'Be On the Lookout alerts', Icon: AlertTriangle, chip: 'bg-red-500/10 text-red-400 ring-red-500/20' },
+    ];
+
     return (
-      <div className="fixed bottom-20 left-4 bg-gray-800 rounded-lg shadow-lg border border-green-700 p-4 w-72 z-50">
-        <div className="flex justify-between items-center mb-3">
-          <h3 className="text-green-400 font-bold flex items-center gap-2">
-            <Database size={18} />
+      <div className="fixed bottom-24 left-4 z-50 w-80 animate-scale-in rounded-xl border border-white/[0.08] bg-gray-850/95 p-2 shadow-modal backdrop-blur-xl">
+        <div className="flex justify-between items-center px-2 pt-1 pb-2">
+          <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+            <Database size={16} className="text-emerald-400" />
             Records Management
           </h3>
-          <button onClick={() => setShowRecordsMenu(false)} className="text-gray-400 hover:text-white">
-            <X size={20} />
+          <button onClick={() => setShowRecordsMenu(false)} className="icon-btn !h-7 !w-7">
+            <X size={16} />
           </button>
         </div>
 
-        <div className="space-y-2">
-          {/* Lookup Button */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => handleButtonClick('lookup')}
-              className="flex-1 px-4 py-3 rounded text-left transition bg-blue-700 text-white hover:bg-blue-600"
-            >
-              <div className="font-semibold flex items-center gap-2">
-                <Search size={18} />
-                Lookup
-              </div>
-              <div className="text-xs text-gray-300">Search persons & vehicles</div>
-            </button>
-            <button
-              onClick={() => togglePin('lookup')}
-              className={`p-2 rounded transition ${pinnedRecordsButtons.lookup ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
-              title={pinnedRecordsButtons.lookup ? 'Unpin from toolbar' : 'Pin to toolbar'}
-            >
-              {pinnedRecordsButtons.lookup ? <PinOff size={18} /> : <Pin size={18} />}
-            </button>
-          </div>
-
-          {/* Records Button */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => handleButtonClick('records')}
-              className="flex-1 px-4 py-3 rounded text-left transition bg-purple-700 text-white hover:bg-purple-600"
-            >
-              <div className="font-semibold flex items-center gap-2">
-                <FileText size={18} />
-                Records
-              </div>
-              <div className="text-xs text-gray-300">View & manage records</div>
-            </button>
-            <button
-              onClick={() => togglePin('records')}
-              className={`p-2 rounded transition ${pinnedRecordsButtons.records ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
-              title={pinnedRecordsButtons.records ? 'Unpin from toolbar' : 'Pin to toolbar'}
-            >
-              {pinnedRecordsButtons.records ? <PinOff size={18} /> : <Pin size={18} />}
-            </button>
-          </div>
-
-          {/* BOLO Button */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => handleButtonClick('bolo')}
-              className="flex-1 px-4 py-3 rounded text-left transition bg-red-700 text-white hover:bg-red-600"
-            >
-              <div className="font-semibold flex items-center gap-2">
-                <AlertTriangle size={18} />
-                BOLO
-              </div>
-              <div className="text-xs text-gray-300">Be On the Lookout alerts</div>
-            </button>
-            <button
-              onClick={() => togglePin('bolo')}
-              className={`p-2 rounded transition ${pinnedRecordsButtons.bolo ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
-              title={pinnedRecordsButtons.bolo ? 'Unpin from toolbar' : 'Pin to toolbar'}
-            >
-              {pinnedRecordsButtons.bolo ? <PinOff size={18} /> : <Pin size={18} />}
-            </button>
-          </div>
+        <div className="space-y-0.5">
+          {items.map(({ key, title, subtitle, Icon, chip }) => (
+            <div key={key} className="flex items-center gap-1">
+              <button
+                onClick={() => handleButtonClick(key)}
+                className="flex-1 flex items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-white/[0.05]"
+              >
+                <span className={`inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg ring-1 ${chip}`}>
+                  <Icon size={16} />
+                </span>
+                <span>
+                  <span className="block text-sm font-medium text-white">{title}</span>
+                  <span className="block text-xs text-gray-500">{subtitle}</span>
+                </span>
+              </button>
+              <button
+                onClick={() => togglePin(key)}
+                className={`inline-flex h-9 w-9 items-center justify-center rounded-lg ${
+                  pinnedRecordsButtons[key]
+                    ? 'bg-accent-500/15 text-accent-300 ring-1 ring-accent-500/30'
+                    : 'text-gray-500 hover:bg-white/[0.06] hover:text-white'
+                }`}
+                title={pinnedRecordsButtons[key] ? 'Unpin from toolbar' : 'Pin to toolbar'}
+              >
+                {pinnedRecordsButtons[key] ? <PinOff size={16} /> : <Pin size={16} />}
+              </button>
+            </div>
+          ))}
         </div>
 
-        <div className="mt-3 pt-3 border-t border-gray-700">
-          <p className="text-xs text-gray-500 text-center">
-            Click the pin icon to add buttons to the toolbar
+        <div className="mt-2 border-t border-white/[0.06] px-2 pt-2 pb-1">
+          <p className="text-[11px] text-gray-500">
+            Pin items to add them to the bottom toolbar.
           </p>
         </div>
       </div>
@@ -4245,28 +4301,28 @@ const CADSystem = () => {
 
   // Records Panel JSX - Rendered inline to prevent re-render issues with form inputs
   const recordsPanelJSX = (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-gray-800 rounded-lg w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="modal-backdrop z-50">
+        <div className="modal-surface w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
           {/* Header */}
-          <div className="bg-gray-900 px-6 py-4 border-b border-gray-700 flex justify-between items-center">
-            <h2 className="text-xl font-bold text-purple-400 flex items-center gap-2">
+          <div className="modal-header">
+            <h2 className="text-lg font-semibold text-white flex items-center gap-2.5 [&>svg]:text-purple-400">
               <FileText size={24} />
               Records Management
             </h2>
             <button
               onClick={() => setActiveRecordsPanel(null)}
-              className="text-gray-400 hover:text-white transition"
+              className="icon-btn"
             >
-              <X size={24} />
+              <X size={20} />
             </button>
           </div>
 
           {/* Top Button Bar */}
-          <div className="bg-gray-850 px-6 py-3 border-b border-gray-700 flex gap-2 flex-wrap">
+          <div className="bg-gray-850 px-6 py-3 border-b border-white/[0.06] flex gap-2 flex-wrap">
             {/* Search Button */}
             <button
               onClick={() => {/* TODO: Implement search */}}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500 transition flex items-center gap-2"
+              className="btn btn-primary"
             >
               <Search size={18} />
               Search
@@ -4279,19 +4335,19 @@ const CADSystem = () => {
                   setShowNewReportDropdown(!showNewReportDropdown);
                   setShowNewRecordDropdown(false);
                 }}
-                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-500 transition flex items-center gap-2"
+                className="btn btn-success"
               >
                 <Plus size={18} />
                 New Report
                 <span className="text-xs">▼</span>
               </button>
               {showNewReportDropdown && (
-                <div className="absolute top-full left-0 mt-1 bg-gray-700 rounded-lg shadow-lg border border-gray-600 py-1 z-10 min-w-64">
+                <div className="absolute top-full left-0 mt-1 z-10 min-w-64 menu-list">
                   {REPORT_TYPES.map(type => (
                     <button
                       key={type}
                       onClick={() => handleNewReport(type)}
-                      className="w-full px-4 py-2 text-left text-white hover:bg-gray-600 transition text-sm"
+                      className="w-full text-left menu-item"
                     >
                       {type}
                     </button>
@@ -4314,12 +4370,12 @@ const CADSystem = () => {
                 <span className="text-xs">▼</span>
               </button>
               {showNewRecordDropdown && (
-                <div className="absolute top-full left-0 mt-1 bg-gray-700 rounded-lg shadow-lg border border-gray-600 py-1 z-10 min-w-48">
+                <div className="absolute top-full left-0 mt-1 z-10 min-w-48 menu-list">
                   {RECORD_TYPES.map(type => (
                     <button
                       key={type}
                       onClick={() => handleNewRecord(type)}
-                      className="w-full px-4 py-2 text-left text-white hover:bg-gray-600 transition text-sm"
+                      className="w-full text-left menu-item"
                     >
                       {type}
                     </button>
@@ -4331,7 +4387,7 @@ const CADSystem = () => {
             {/* Supervisor Panel Button */}
             <button
               onClick={() => {/* TODO: Implement supervisor panel */}}
-              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-500 transition flex items-center gap-2"
+              className="btn btn-danger"
             >
               <Shield size={18} />
               Supervisor Panel
@@ -4342,7 +4398,7 @@ const CADSystem = () => {
           <div className="flex-1 overflow-y-auto p-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Reports Section */}
-              <div className="bg-gray-700 rounded-lg p-4">
+              <div className="panel-card">
                 <h3 className="text-lg font-semibold text-green-400 mb-4 flex items-center gap-2">
                   <FileText size={20} />
                   My Reports
@@ -4359,7 +4415,7 @@ const CADSystem = () => {
                       <div
                         key={report.id}
                         onClick={() => openExistingReport(report)}
-                        className="bg-gray-800 rounded p-3 hover:bg-gray-750 cursor-pointer transition"
+                        className="well p-3 hover:bg-gray-750 cursor-pointer transition"
                       >
                         <div className="flex justify-between items-start">
                           <div>
@@ -4387,7 +4443,7 @@ const CADSystem = () => {
               </div>
 
               {/* Records Section */}
-              <div className="bg-gray-700 rounded-lg p-4">
+              <div className="panel-card">
                 <h3 className="text-lg font-semibold text-orange-400 mb-4 flex items-center gap-2">
                   <Database size={20} />
                   My Records
@@ -4404,7 +4460,7 @@ const CADSystem = () => {
                       <div
                         key={record.id}
                         onClick={() => openExistingRecord(record)}
-                        className="bg-gray-800 rounded p-3 hover:bg-gray-750 cursor-pointer transition"
+                        className="well p-3 hover:bg-gray-750 cursor-pointer transition"
                       >
                         <div className="flex justify-between items-start">
                           <div>
@@ -4439,9 +4495,9 @@ const CADSystem = () => {
 
         {/* Report Form Modal */}
         {activeReportForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[60] p-4">
-            <div className="bg-gray-800 rounded-lg w-full max-w-5xl max-h-[90vh] overflow-y-auto">
-              <div className="bg-gray-900 px-6 py-4 border-b border-gray-700 flex justify-between items-center sticky top-0 z-10">
+          <div className="modal-backdrop z-[60]">
+            <div className="modal-surface w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+              <div className="bg-gray-900 px-6 py-4 border-b border-white/[0.06] flex justify-between items-center sticky top-0 z-10">
                 <h3 className="text-lg font-bold text-green-400">{activeReportForm}</h3>
                 <button
                   onClick={() => {
@@ -4449,9 +4505,9 @@ const CADSystem = () => {
                     setCurrentReportData({});
                     setEditingReportId(null);
                   }}
-                  className="text-gray-400 hover:text-white"
+                  className="icon-btn"
                 >
-                  <X size={24} />
+                  <X size={20} />
                 </button>
               </div>
               <div className="p-6 space-y-6">
@@ -4459,103 +4515,103 @@ const CADSystem = () => {
                 {activeReportForm === 'TRAFFIC COLLISION REPORT' ? (
                   <>
                     {/* Agency Information Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Agency Information</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-blue-400">Agency Information</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Callsign</label>
+                          <label className="field-label">Callsign</label>
                           <input
                             type="text"
                             value={currentReportData.callsign || ''}
                             readOnly
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Department</label>
+                          <label className="field-label">Department</label>
                           <input
                             type="text"
                             value={currentReportData.department || ''}
                             readOnly
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Officer Name</label>
+                          <label className="field-label">Officer Name</label>
                           <input
                             type="text"
                             value={currentReportData.officer || ''}
                             readOnly
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date</label>
+                          <label className="field-label">Date</label>
                           <input
                             type="text"
                             value={currentReportData.date ? new Date(currentReportData.date).toLocaleDateString() : ''}
                             readOnly
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Record#</label>
+                          <label className="field-label">Record#</label>
                           <input
                             type="text"
                             value={currentReportData.recordNumber || ''}
                             readOnly
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                       </div>
                     </div>
 
                     {/* Location Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Location</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-blue-400">Location</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Collision Occurred On</label>
+                          <label className="field-label">Collision Occurred On</label>
                           <input
                             type="text"
                             value={currentReportData.collisionLocation || ''}
                             onChange={(e) => setCurrentReportData({...currentReportData, collisionLocation: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Postal</label>
+                          <label className="field-label">Postal</label>
                           <input
                             type="text"
                             value={currentReportData.postal || ''}
                             onChange={(e) => setCurrentReportData({...currentReportData, postal: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date of Collision</label>
+                          <label className="field-label">Date of Collision</label>
                           <input
                             type="date"
                             value={currentReportData.collisionDate || ''}
                             onChange={(e) => setCurrentReportData({...currentReportData, collisionDate: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Time of Collision</label>
+                          <label className="field-label">Time of Collision</label>
                           <input
                             type="time"
                             value={currentReportData.collisionTime || ''}
                             onChange={(e) => setCurrentReportData({...currentReportData, collisionTime: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Road Type</label>
+                          <label className="field-label">Road Type</label>
                           <select
                             value={currentReportData.roadType || ''}
                             onChange={(e) => setCurrentReportData({...currentReportData, roadType: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           >
                             <option value="">Select...</option>
                             <option value="HIGHWAY">Highway</option>
@@ -4566,11 +4622,11 @@ const CADSystem = () => {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Weather</label>
+                          <label className="field-label">Weather</label>
                           <select
                             value={currentReportData.weather || ''}
                             onChange={(e) => setCurrentReportData({...currentReportData, weather: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           >
                             <option value="">Select...</option>
                             <option value="CLEAR">Clear</option>
@@ -4594,32 +4650,32 @@ const CADSystem = () => {
                     </div>
 
                     {/* Vehicle #1 Information */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-yellow-400 mb-3 border-b border-gray-600 pb-2">Vehicle #1 Information</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-yellow-400">Vehicle #1 Information</h4>
                       <div className="mb-3">
-                        <label className="block text-xs text-gray-400 mb-1">Search by Plate</label>
+                        <label className="field-label">Search by Plate</label>
                         <div className="flex gap-2">
                           <input
                             type="text"
                             value={vehicleSearchPlate1}
                             onChange={(e) => setVehicleSearchPlate1(e.target.value)}
                             placeholder="Enter plate number..."
-                            className="flex-1 bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field flex-1 min-w-0"
                           />
                           <button
                             onClick={() => searchVehicleByPlate(vehicleSearchPlate1, 1)}
-                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500 text-sm"
+                            className="btn btn-primary"
                           >
                             Search
                           </button>
                         </div>
                         {vehicleSearchResults1.length > 0 && (
-                          <div className="mt-2 bg-gray-800 rounded p-2 max-h-32 overflow-y-auto">
+                          <div className="mt-2 menu-list max-h-32 overflow-y-auto">
                             {vehicleSearchResults1.map((v, i) => (
                               <div
                                 key={i}
                                 onClick={() => selectVehicle(v, 1)}
-                                className="p-2 hover:bg-gray-700 cursor-pointer rounded text-sm"
+                                className="menu-item"
                               >
                                 {v.plate} - {v.year} {v.make} {v.model} ({v.color}) - Owner: {v.ownerName}
                               </div>
@@ -4629,56 +4685,56 @@ const CADSystem = () => {
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Plate</label>
+                          <label className="field-label">Plate</label>
                           <input
                             type="text"
                             value={currentReportData.vehicle1?.plate || ''}
                             onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, plate: e.target.value}})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Year</label>
+                          <label className="field-label">Year</label>
                           <input
                             type="text"
                             value={currentReportData.vehicle1?.year || ''}
                             onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, year: e.target.value}})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Make</label>
+                          <label className="field-label">Make</label>
                           <input
                             type="text"
                             value={currentReportData.vehicle1?.make || ''}
                             onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, make: e.target.value}})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Model</label>
+                          <label className="field-label">Model</label>
                           <input
                             type="text"
                             value={currentReportData.vehicle1?.model || ''}
                             onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, model: e.target.value}})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Color</label>
+                          <label className="field-label">Color</label>
                           <input
                             type="text"
                             value={currentReportData.vehicle1?.color || ''}
                             onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, color: e.target.value}})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Damage</label>
+                          <label className="field-label">Damage</label>
                           <select
                             value={currentReportData.vehicle1?.damage || ''}
                             onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, damage: e.target.value}})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           >
                             <option value="">Select...</option>
                             <option value="NONE">None</option>
@@ -4689,20 +4745,20 @@ const CADSystem = () => {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Defects</label>
+                          <label className="field-label">Defects</label>
                           <input
                             type="text"
                             value={currentReportData.vehicle1?.defects || ''}
                             onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, defects: e.target.value}})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Damage Location</label>
+                          <label className="field-label">Damage Location</label>
                           <select
                             value={currentReportData.vehicle1?.damageLocation || ''}
                             onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, damageLocation: e.target.value}})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           >
                             <option value="">Select...</option>
                             <option value="FRONT">Front</option>
@@ -4713,7 +4769,7 @@ const CADSystem = () => {
                           </select>
                         </div>
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Disposition</label>
+                          <label className="field-label">Disposition</label>
                           <div className="flex gap-4">
                             <label className="flex items-center gap-2 text-sm text-gray-300">
                               <input
@@ -4741,32 +4797,32 @@ const CADSystem = () => {
                     </div>
 
                     {/* Party #1 Information */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-purple-400 mb-3 border-b border-gray-600 pb-2">Party #1 Information</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-purple-400">Party #1 Information</h4>
                       <div className="mb-3">
-                        <label className="block text-xs text-gray-400 mb-1">Search by Name</label>
+                        <label className="field-label">Search by Name</label>
                         <div className="flex gap-2">
                           <input
                             type="text"
                             value={partySearchName1}
                             onChange={(e) => setPartySearchName1(e.target.value)}
                             placeholder="Enter name..."
-                            className="flex-1 bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field flex-1 min-w-0"
                           />
                           <button
                             onClick={() => searchPersonByName(partySearchName1, 1)}
-                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500 text-sm"
+                            className="btn btn-primary"
                           >
                             Search
                           </button>
                         </div>
                         {partySearchResults1.length > 0 && (
-                          <div className="mt-2 bg-gray-800 rounded p-2 max-h-32 overflow-y-auto">
+                          <div className="mt-2 menu-list max-h-32 overflow-y-auto">
                             {partySearchResults1.map((p, i) => (
                               <div
                                 key={i}
                                 onClick={() => selectParty(p, 1)}
-                                className="p-2 hover:bg-gray-700 cursor-pointer rounded text-sm"
+                                className="menu-item"
                               >
                                 {p.firstName} {p.lastName} - DOB: {p.dob}
                               </div>
@@ -4776,71 +4832,71 @@ const CADSystem = () => {
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Name</label>
+                          <label className="field-label">Name</label>
                           <input
                             type="text"
                             value={currentReportData.party1?.name || ''}
                             onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, name: e.target.value}})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">DOB</label>
+                          <label className="field-label">DOB</label>
                           <input
                             type="text"
                             value={currentReportData.party1?.dob || ''}
                             onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, dob: e.target.value}})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Phone</label>
+                          <label className="field-label">Phone</label>
                           <input
                             type="text"
                             value={currentReportData.party1?.phone || ''}
                             onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, phone: e.target.value}})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Address</label>
+                          <label className="field-label">Address</label>
                           <input
                             type="text"
                             value={currentReportData.party1?.address || ''}
                             onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, address: e.target.value}})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                       </div>
                     </div>
 
                     {/* Vehicle #2 Information */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-yellow-400 mb-3 border-b border-gray-600 pb-2">Vehicle #2 Information</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-yellow-400">Vehicle #2 Information</h4>
                       <div className="mb-3">
-                        <label className="block text-xs text-gray-400 mb-1">Search by Plate</label>
+                        <label className="field-label">Search by Plate</label>
                         <div className="flex gap-2">
                           <input
                             type="text"
                             value={vehicleSearchPlate2}
                             onChange={(e) => setVehicleSearchPlate2(e.target.value)}
                             placeholder="Enter plate number..."
-                            className="flex-1 bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field flex-1 min-w-0"
                           />
                           <button
                             onClick={() => searchVehicleByPlate(vehicleSearchPlate2, 2)}
-                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500 text-sm"
+                            className="btn btn-primary"
                           >
                             Search
                           </button>
                         </div>
                         {vehicleSearchResults2.length > 0 && (
-                          <div className="mt-2 bg-gray-800 rounded p-2 max-h-32 overflow-y-auto">
+                          <div className="mt-2 menu-list max-h-32 overflow-y-auto">
                             {vehicleSearchResults2.map((v, i) => (
                               <div
                                 key={i}
                                 onClick={() => selectVehicle(v, 2)}
-                                className="p-2 hover:bg-gray-700 cursor-pointer rounded text-sm"
+                                className="menu-item"
                               >
                                 {v.plate} - {v.year} {v.make} {v.model} ({v.color}) - Owner: {v.ownerName}
                               </div>
@@ -4850,56 +4906,56 @@ const CADSystem = () => {
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Plate</label>
+                          <label className="field-label">Plate</label>
                           <input
                             type="text"
                             value={currentReportData.vehicle2?.plate || ''}
                             onChange={(e) => setCurrentReportData({...currentReportData, vehicle2: {...currentReportData.vehicle2, plate: e.target.value}})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Year</label>
+                          <label className="field-label">Year</label>
                           <input
                             type="text"
                             value={currentReportData.vehicle2?.year || ''}
                             onChange={(e) => setCurrentReportData({...currentReportData, vehicle2: {...currentReportData.vehicle2, year: e.target.value}})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Make</label>
+                          <label className="field-label">Make</label>
                           <input
                             type="text"
                             value={currentReportData.vehicle2?.make || ''}
                             onChange={(e) => setCurrentReportData({...currentReportData, vehicle2: {...currentReportData.vehicle2, make: e.target.value}})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Model</label>
+                          <label className="field-label">Model</label>
                           <input
                             type="text"
                             value={currentReportData.vehicle2?.model || ''}
                             onChange={(e) => setCurrentReportData({...currentReportData, vehicle2: {...currentReportData.vehicle2, model: e.target.value}})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Color</label>
+                          <label className="field-label">Color</label>
                           <input
                             type="text"
                             value={currentReportData.vehicle2?.color || ''}
                             onChange={(e) => setCurrentReportData({...currentReportData, vehicle2: {...currentReportData.vehicle2, color: e.target.value}})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Damage</label>
+                          <label className="field-label">Damage</label>
                           <select
                             value={currentReportData.vehicle2?.damage || ''}
                             onChange={(e) => setCurrentReportData({...currentReportData, vehicle2: {...currentReportData.vehicle2, damage: e.target.value}})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           >
                             <option value="">Select...</option>
                             <option value="NONE">None</option>
@@ -4910,20 +4966,20 @@ const CADSystem = () => {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Defects</label>
+                          <label className="field-label">Defects</label>
                           <input
                             type="text"
                             value={currentReportData.vehicle2?.defects || ''}
                             onChange={(e) => setCurrentReportData({...currentReportData, vehicle2: {...currentReportData.vehicle2, defects: e.target.value}})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Damage Location</label>
+                          <label className="field-label">Damage Location</label>
                           <select
                             value={currentReportData.vehicle2?.damageLocation || ''}
                             onChange={(e) => setCurrentReportData({...currentReportData, vehicle2: {...currentReportData.vehicle2, damageLocation: e.target.value}})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           >
                             <option value="">Select...</option>
                             <option value="FRONT">Front</option>
@@ -4934,7 +4990,7 @@ const CADSystem = () => {
                           </select>
                         </div>
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Disposition</label>
+                          <label className="field-label">Disposition</label>
                           <div className="flex gap-4">
                             <label className="flex items-center gap-2 text-sm text-gray-300">
                               <input
@@ -4962,32 +5018,32 @@ const CADSystem = () => {
                     </div>
 
                     {/* Party #2 Information */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-purple-400 mb-3 border-b border-gray-600 pb-2">Party #2 Information</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-purple-400">Party #2 Information</h4>
                       <div className="mb-3">
-                        <label className="block text-xs text-gray-400 mb-1">Search by Name</label>
+                        <label className="field-label">Search by Name</label>
                         <div className="flex gap-2">
                           <input
                             type="text"
                             value={partySearchName2}
                             onChange={(e) => setPartySearchName2(e.target.value)}
                             placeholder="Enter name..."
-                            className="flex-1 bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field flex-1 min-w-0"
                           />
                           <button
                             onClick={() => searchPersonByName(partySearchName2, 2)}
-                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500 text-sm"
+                            className="btn btn-primary"
                           >
                             Search
                           </button>
                         </div>
                         {partySearchResults2.length > 0 && (
-                          <div className="mt-2 bg-gray-800 rounded p-2 max-h-32 overflow-y-auto">
+                          <div className="mt-2 menu-list max-h-32 overflow-y-auto">
                             {partySearchResults2.map((p, i) => (
                               <div
                                 key={i}
                                 onClick={() => selectParty(p, 2)}
-                                className="p-2 hover:bg-gray-700 cursor-pointer rounded text-sm"
+                                className="menu-item"
                               >
                                 {p.firstName} {p.lastName} - DOB: {p.dob}
                               </div>
@@ -4997,54 +5053,54 @@ const CADSystem = () => {
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Name</label>
+                          <label className="field-label">Name</label>
                           <input
                             type="text"
                             value={currentReportData.party2?.name || ''}
                             onChange={(e) => setCurrentReportData({...currentReportData, party2: {...currentReportData.party2, name: e.target.value}})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">DOB</label>
+                          <label className="field-label">DOB</label>
                           <input
                             type="text"
                             value={currentReportData.party2?.dob || ''}
                             onChange={(e) => setCurrentReportData({...currentReportData, party2: {...currentReportData.party2, dob: e.target.value}})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Phone</label>
+                          <label className="field-label">Phone</label>
                           <input
                             type="text"
                             value={currentReportData.party2?.phone || ''}
                             onChange={(e) => setCurrentReportData({...currentReportData, party2: {...currentReportData.party2, phone: e.target.value}})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Address</label>
+                          <label className="field-label">Address</label>
                           <input
                             type="text"
                             value={currentReportData.party2?.address || ''}
                             onChange={(e) => setCurrentReportData({...currentReportData, party2: {...currentReportData.party2, address: e.target.value}})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                       </div>
                     </div>
 
                     {/* Traffic Collision Coding */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-red-400 mb-3 border-b border-gray-600 pb-2">Traffic Collision Coding</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-red-400">Traffic Collision Coding</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Primary Fault</label>
+                          <label className="field-label">Primary Fault</label>
                           <select
                             value={currentReportData.coding?.fault || ''}
                             onChange={(e) => setCurrentReportData({...currentReportData, coding: {...currentReportData.coding, fault: e.target.value}})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           >
                             <option value="">Select...</option>
                             <option value="PARTY_1">Party #1</option>
@@ -5054,11 +5110,11 @@ const CADSystem = () => {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Collision Type</label>
+                          <label className="field-label">Collision Type</label>
                           <select
                             value={currentReportData.coding?.collisionType || ''}
                             onChange={(e) => setCurrentReportData({...currentReportData, coding: {...currentReportData.coding, collisionType: e.target.value}})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           >
                             <option value="">Select...</option>
                             <option value="HEAD_ON">Head-On</option>
@@ -5072,11 +5128,11 @@ const CADSystem = () => {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Lighting</label>
+                          <label className="field-label">Lighting</label>
                           <select
                             value={currentReportData.coding?.lighting || ''}
                             onChange={(e) => setCurrentReportData({...currentReportData, coding: {...currentReportData.coding, lighting: e.target.value}})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           >
                             <option value="">Select...</option>
                             <option value="DAYLIGHT">Daylight</option>
@@ -5087,11 +5143,11 @@ const CADSystem = () => {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Road Surface</label>
+                          <label className="field-label">Road Surface</label>
                           <select
                             value={currentReportData.coding?.surface || ''}
                             onChange={(e) => setCurrentReportData({...currentReportData, coding: {...currentReportData.coding, surface: e.target.value}})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           >
                             <option value="">Select...</option>
                             <option value="DRY">Dry</option>
@@ -5102,11 +5158,11 @@ const CADSystem = () => {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Traffic Controls</label>
+                          <label className="field-label">Traffic Controls</label>
                           <select
                             value={currentReportData.coding?.controls || ''}
                             onChange={(e) => setCurrentReportData({...currentReportData, coding: {...currentReportData.coding, controls: e.target.value}})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           >
                             <option value="">Select...</option>
                             <option value="NONE">None</option>
@@ -5118,15 +5174,15 @@ const CADSystem = () => {
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-4 mt-4">
-                        <div className="bg-gray-800 rounded p-3">
+                        <div className="well p-3">
                           <h5 className="text-sm font-semibold text-yellow-400 mb-2">Party #1</h5>
                           <div className="grid grid-cols-3 gap-2">
                             <div>
-                              <label className="block text-xs text-gray-400 mb-1">Movement</label>
+                              <label className="field-label">Movement</label>
                               <select
                                 value={currentReportData.coding?.party1Movement || ''}
                                 onChange={(e) => setCurrentReportData({...currentReportData, coding: {...currentReportData.coding, party1Movement: e.target.value}})}
-                                className="w-full bg-gray-600 text-white rounded px-2 py-1 text-xs"
+                                className="field field-xs"
                               >
                                 <option value="">Select...</option>
                                 <option value="STRAIGHT">Straight</option>
@@ -5138,11 +5194,11 @@ const CADSystem = () => {
                               </select>
                             </div>
                             <div>
-                              <label className="block text-xs text-gray-400 mb-1">Sobriety</label>
+                              <label className="field-label">Sobriety</label>
                               <select
                                 value={currentReportData.coding?.party1Sobriety || ''}
                                 onChange={(e) => setCurrentReportData({...currentReportData, coding: {...currentReportData.coding, party1Sobriety: e.target.value}})}
-                                className="w-full bg-gray-600 text-white rounded px-2 py-1 text-xs"
+                                className="field field-xs"
                               >
                                 <option value="">Select...</option>
                                 <option value="SOBER">Sober</option>
@@ -5152,11 +5208,11 @@ const CADSystem = () => {
                               </select>
                             </div>
                             <div>
-                              <label className="block text-xs text-gray-400 mb-1">Injuries</label>
+                              <label className="field-label">Injuries</label>
                               <select
                                 value={currentReportData.coding?.party1Injuries || ''}
                                 onChange={(e) => setCurrentReportData({...currentReportData, coding: {...currentReportData.coding, party1Injuries: e.target.value}})}
-                                className="w-full bg-gray-600 text-white rounded px-2 py-1 text-xs"
+                                className="field field-xs"
                               >
                                 <option value="">Select...</option>
                                 <option value="NONE">None</option>
@@ -5168,15 +5224,15 @@ const CADSystem = () => {
                             </div>
                           </div>
                         </div>
-                        <div className="bg-gray-800 rounded p-3">
+                        <div className="well p-3">
                           <h5 className="text-sm font-semibold text-yellow-400 mb-2">Party #2</h5>
                           <div className="grid grid-cols-3 gap-2">
                             <div>
-                              <label className="block text-xs text-gray-400 mb-1">Movement</label>
+                              <label className="field-label">Movement</label>
                               <select
                                 value={currentReportData.coding?.party2Movement || ''}
                                 onChange={(e) => setCurrentReportData({...currentReportData, coding: {...currentReportData.coding, party2Movement: e.target.value}})}
-                                className="w-full bg-gray-600 text-white rounded px-2 py-1 text-xs"
+                                className="field field-xs"
                               >
                                 <option value="">Select...</option>
                                 <option value="STRAIGHT">Straight</option>
@@ -5188,11 +5244,11 @@ const CADSystem = () => {
                               </select>
                             </div>
                             <div>
-                              <label className="block text-xs text-gray-400 mb-1">Sobriety</label>
+                              <label className="field-label">Sobriety</label>
                               <select
                                 value={currentReportData.coding?.party2Sobriety || ''}
                                 onChange={(e) => setCurrentReportData({...currentReportData, coding: {...currentReportData.coding, party2Sobriety: e.target.value}})}
-                                className="w-full bg-gray-600 text-white rounded px-2 py-1 text-xs"
+                                className="field field-xs"
                               >
                                 <option value="">Select...</option>
                                 <option value="SOBER">Sober</option>
@@ -5202,11 +5258,11 @@ const CADSystem = () => {
                               </select>
                             </div>
                             <div>
-                              <label className="block text-xs text-gray-400 mb-1">Injuries</label>
+                              <label className="field-label">Injuries</label>
                               <select
                                 value={currentReportData.coding?.party2Injuries || ''}
                                 onChange={(e) => setCurrentReportData({...currentReportData, coding: {...currentReportData.coding, party2Injuries: e.target.value}})}
-                                className="w-full bg-gray-600 text-white rounded px-2 py-1 text-xs"
+                                className="field field-xs"
                               >
                                 <option value="">Select...</option>
                                 <option value="NONE">None</option>
@@ -5222,33 +5278,33 @@ const CADSystem = () => {
                     </div>
 
                     {/* Narrative Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Narrative</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-blue-400">Narrative</h4>
                       <textarea
                         value={currentReportData.narrative || ''}
                         onChange={(e) => setCurrentReportData({...currentReportData, narrative: e.target.value})}
-                        className="w-full bg-gray-600 text-white rounded px-3 py-2 h-40 text-sm"
+                        className="field h-40"
                         placeholder="Enter detailed narrative of the collision..."
                       />
                     </div>
 
                     {/* Scene Images Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Scene Images</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-blue-400">Scene Images</h4>
                       <div className="mb-3">
-                        <label className="block text-xs text-gray-400 mb-1">Upload Images</label>
+                        <label className="field-label">Upload Images</label>
                         <input
                           type="file"
                           multiple
                           accept="image/*"
                           onChange={handleSceneImageUpload}
-                          className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                          className="field"
                         />
                       </div>
                       {currentReportData.sceneImages?.length > 0 && (
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                           {currentReportData.sceneImages.map((img: any) => (
-                            <div key={img.id} className="relative bg-gray-800 rounded p-2">
+                            <div key={img.id} className="well relative p-2">
                               <img src={img.data} alt={img.name} className="w-full h-24 object-cover rounded" />
                               <button
                                 onClick={() => removeSceneImage(img.id)}
@@ -5261,7 +5317,7 @@ const CADSystem = () => {
                                 placeholder="Add note..."
                                 value={img.note || ''}
                                 onChange={(e) => updateImageNote(img.id, e.target.value)}
-                                className="w-full bg-gray-700 text-white rounded px-2 py-1 text-xs mt-1"
+                                className="field field-xs mt-1"
                               />
                             </div>
                           ))}
@@ -5270,20 +5326,20 @@ const CADSystem = () => {
                     </div>
 
                     {/* Completed By Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Completed By</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-blue-400">Completed By</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Officer Name</label>
-                          <input type="text" value={currentReportData.completedByOfficerName || ''} onChange={(e) => setCurrentReportData({...currentReportData, completedByOfficerName: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Officer Name</label>
+                          <input type="text" value={currentReportData.completedByOfficerName || ''} onChange={(e) => setCurrentReportData({...currentReportData, completedByOfficerName: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Badge#</label>
-                          <input type="text" value={currentReportData.completedByBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, completedByBadge: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Badge#</label>
+                          <input type="text" value={currentReportData.completedByBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, completedByBadge: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Department</label>
-                          <select value={currentReportData.completedByDepartment || ''} onChange={(e) => setCurrentReportData({...currentReportData, completedByDepartment: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Department</label>
+                          <select value={currentReportData.completedByDepartment || ''} onChange={(e) => setCurrentReportData({...currentReportData, completedByDepartment: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="LSSO">LSSO</option>
                             <option value="LSSO_CONTRACT">LSSO Contract Agency</option>
@@ -5292,46 +5348,46 @@ const CADSystem = () => {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date</label>
-                          <input type="date" value={currentReportData.completedByDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, completedByDate: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Date</label>
+                          <input type="date" value={currentReportData.completedByDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, completedByDate: e.target.value})} className="field" />
                         </div>
                       </div>
                     </div>
 
                     {/* Supervisor Signature Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Supervisor Signature</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-blue-400">Supervisor Signature</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Supervisor Name</label>
+                          <label className="field-label">Supervisor Name</label>
                           <input
                             type="text"
                             value={currentReportData.supervisorName || ''}
                             onChange={(e) => setCurrentReportData({...currentReportData, supervisorName: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Supervisor Badge #</label>
+                          <label className="field-label">Supervisor Badge #</label>
                           <input
                             type="text"
                             value={currentReportData.supervisorBadge || ''}
                             onChange={(e) => setCurrentReportData({...currentReportData, supervisorBadge: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date Signed</label>
+                          <label className="field-label">Date Signed</label>
                           <input
                             type="date"
                             value={currentReportData.supervisorSignDate || ''}
                             onChange={(e) => setCurrentReportData({...currentReportData, supervisorSignDate: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Report Status</label>
-                          <select value={currentReportData.reportStatus || ''} onChange={(e) => setCurrentReportData({...currentReportData, reportStatus: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Report Status</label>
+                          <select value={currentReportData.reportStatus || ''} onChange={(e) => setCurrentReportData({...currentReportData, reportStatus: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="APPROVED">Approved</option>
                             <option value="PENDING">Pending</option>
@@ -5342,11 +5398,11 @@ const CADSystem = () => {
                     </div>
 
                     {/* Linked Reports/Records Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Linked Reports/Records</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-blue-400">Linked Reports/Records</h4>
                       <button
                         onClick={addLinkedReport}
-                        className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-500 text-sm mb-3"
+                        className="btn btn-primary btn-sm mb-3"
                       >
                         + Add Link
                       </button>
@@ -5359,7 +5415,7 @@ const CADSystem = () => {
                               newLinks[index] = { ...newLinks[index], type: e.target.value };
                               setCurrentReportData({...currentReportData, linkedReports: newLinks});
                             }}
-                            className="bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           >
                             <option value="">Type...</option>
                             <option value="ARREST">Arrest</option>
@@ -5376,11 +5432,11 @@ const CADSystem = () => {
                               newLinks[index] = { ...newLinks[index], number: e.target.value };
                               setCurrentReportData({...currentReportData, linkedReports: newLinks});
                             }}
-                            className="flex-1 bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field flex-1 min-w-0"
                           />
                           <button
                             onClick={() => removeLinkedReport(index)}
-                            className="px-3 py-2 bg-red-600 text-white rounded hover:bg-red-500"
+                            className="btn btn-danger"
                           >
                             <X size={16} />
                           </button>
@@ -5392,43 +5448,43 @@ const CADSystem = () => {
                   /* Supplemental Report Form */
                   <>
                     {/* Agency Information Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Agency Information</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-blue-400">Agency Information</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Callsign</label>
-                          <input type="text" value={currentReportData.callsign || ''} readOnly className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Callsign</label>
+                          <input type="text" value={currentReportData.callsign || ''} readOnly className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Department</label>
-                          <input type="text" value={currentReportData.department || ''} readOnly className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Department</label>
+                          <input type="text" value={currentReportData.department || ''} readOnly className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Officer Name</label>
-                          <input type="text" value={currentReportData.officer || ''} readOnly className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Officer Name</label>
+                          <input type="text" value={currentReportData.officer || ''} readOnly className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date</label>
-                          <input type="text" value={currentReportData.date ? new Date(currentReportData.date).toLocaleDateString() : ''} readOnly className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Date</label>
+                          <input type="text" value={currentReportData.date ? new Date(currentReportData.date).toLocaleDateString() : ''} readOnly className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Record#</label>
-                          <input type="text" value={currentReportData.recordNumber || ''} readOnly className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Record#</label>
+                          <input type="text" value={currentReportData.recordNumber || ''} readOnly className="field" />
                         </div>
                       </div>
                     </div>
 
                     {/* Supplemental Report Reference */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-yellow-400 mb-3 border-b border-gray-600 pb-2">Supplemental Report Reference</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-yellow-400">Supplemental Report Reference</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date of Call</label>
-                          <input type="date" value={currentReportData.dateOfCall || ''} onChange={(e) => setCurrentReportData({...currentReportData, dateOfCall: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Date of Call</label>
+                          <input type="date" value={currentReportData.dateOfCall || ''} onChange={(e) => setCurrentReportData({...currentReportData, dateOfCall: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Primary Department</label>
-                          <select value={currentReportData.primaryDepartment || ''} onChange={(e) => setCurrentReportData({...currentReportData, primaryDepartment: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Primary Department</label>
+                          <select value={currentReportData.primaryDepartment || ''} onChange={(e) => setCurrentReportData({...currentReportData, primaryDepartment: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="LSSO">LSSO</option>
                             <option value="LSSO_CONTRACT">LSSO Contract Agency</option>
@@ -5437,68 +5493,68 @@ const CADSystem = () => {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Primary Officer Badge #</label>
-                          <input type="text" value={currentReportData.primaryOfficerBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, primaryOfficerBadge: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Primary Officer Badge #</label>
+                          <input type="text" value={currentReportData.primaryOfficerBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, primaryOfficerBadge: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Dispatch Call ID Ref#</label>
-                          <input type="text" value={currentReportData.dispatchCallRef || ''} onChange={(e) => setCurrentReportData({...currentReportData, dispatchCallRef: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Dispatch Call ID Ref#</label>
+                          <input type="text" value={currentReportData.dispatchCallRef || ''} onChange={(e) => setCurrentReportData({...currentReportData, dispatchCallRef: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Arrest Report Ref#</label>
-                          <input type="text" value={currentReportData.arrestReportRef || ''} onChange={(e) => setCurrentReportData({...currentReportData, arrestReportRef: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Arrest Report Ref#</label>
+                          <input type="text" value={currentReportData.arrestReportRef || ''} onChange={(e) => setCurrentReportData({...currentReportData, arrestReportRef: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Traffic Accident Ref#</label>
-                          <input type="text" value={currentReportData.trafficAccidentRef || ''} onChange={(e) => setCurrentReportData({...currentReportData, trafficAccidentRef: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Traffic Accident Ref#</label>
+                          <input type="text" value={currentReportData.trafficAccidentRef || ''} onChange={(e) => setCurrentReportData({...currentReportData, trafficAccidentRef: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Citation Ref#</label>
-                          <input type="text" value={currentReportData.citationRef || ''} onChange={(e) => setCurrentReportData({...currentReportData, citationRef: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Citation Ref#</label>
+                          <input type="text" value={currentReportData.citationRef || ''} onChange={(e) => setCurrentReportData({...currentReportData, citationRef: e.target.value})} className="field" />
                         </div>
                         <div className="col-span-2 md:col-span-4">
-                          <label className="block text-xs text-gray-400 mb-1">Additional Reference Info</label>
-                          <input type="text" value={currentReportData.additionalRefInfo || ''} onChange={(e) => setCurrentReportData({...currentReportData, additionalRefInfo: e.target.value})} placeholder="Any other reference information..." className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Additional Reference Info</label>
+                          <input type="text" value={currentReportData.additionalRefInfo || ''} onChange={(e) => setCurrentReportData({...currentReportData, additionalRefInfo: e.target.value})} placeholder="Any other reference information..." className="field" />
                         </div>
                       </div>
                     </div>
 
                     {/* Location Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Location</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-blue-400">Location</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Location/Address</label>
-                          <input type="text" value={currentReportData.location || ''} onChange={(e) => setCurrentReportData({...currentReportData, location: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Location/Address</label>
+                          <input type="text" value={currentReportData.location || ''} onChange={(e) => setCurrentReportData({...currentReportData, location: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Postal</label>
-                          <input type="text" value={currentReportData.postal || ''} onChange={(e) => setCurrentReportData({...currentReportData, postal: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Postal</label>
+                          <input type="text" value={currentReportData.postal || ''} onChange={(e) => setCurrentReportData({...currentReportData, postal: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date of Incident</label>
-                          <input type="date" value={currentReportData.incidentDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, incidentDate: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Date of Incident</label>
+                          <input type="date" value={currentReportData.incidentDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, incidentDate: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Time of Incident</label>
-                          <input type="time" value={currentReportData.incidentTime || ''} onChange={(e) => setCurrentReportData({...currentReportData, incidentTime: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Time of Incident</label>
+                          <input type="time" value={currentReportData.incidentTime || ''} onChange={(e) => setCurrentReportData({...currentReportData, incidentTime: e.target.value})} className="field" />
                         </div>
                       </div>
                     </div>
 
                     {/* Vehicle #1 Information */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-yellow-400 mb-3 border-b border-gray-600 pb-2">Vehicle #1 Information</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-yellow-400">Vehicle #1 Information</h4>
                       <div className="mb-3">
-                        <label className="block text-xs text-gray-400 mb-1">Search by Plate</label>
+                        <label className="field-label">Search by Plate</label>
                         <div className="flex gap-2">
-                          <input type="text" value={vehicleSearchPlate1} onChange={(e) => setVehicleSearchPlate1(e.target.value)} placeholder="Enter plate number..." className="flex-1 bg-gray-600 text-white rounded px-3 py-2 text-sm" />
-                          <button onClick={() => searchVehicleByPlate(vehicleSearchPlate1, 1)} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500 text-sm">Search</button>
+                          <input type="text" value={vehicleSearchPlate1} onChange={(e) => setVehicleSearchPlate1(e.target.value)} placeholder="Enter plate number..." className="field flex-1 min-w-0" />
+                          <button onClick={() => searchVehicleByPlate(vehicleSearchPlate1, 1)} className="btn btn-primary">Search</button>
                         </div>
                         {vehicleSearchResults1.length > 0 && (
-                          <div className="mt-2 bg-gray-800 rounded p-2 max-h-32 overflow-y-auto">
+                          <div className="mt-2 menu-list max-h-32 overflow-y-auto">
                             {vehicleSearchResults1.map((v, i) => (
-                              <div key={i} onClick={() => selectVehicle(v, 1)} className="p-2 hover:bg-gray-700 cursor-pointer rounded text-sm">
+                              <div key={i} onClick={() => selectVehicle(v, 1)} className="menu-item">
                                 {v.plate} - {v.year} {v.make} {v.model} ({v.color}) - Owner: {v.ownerName}
                               </div>
                             ))}
@@ -5507,41 +5563,41 @@ const CADSystem = () => {
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Plate</label>
-                          <input type="text" value={currentReportData.vehicle1?.plate || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, plate: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Plate</label>
+                          <input type="text" value={currentReportData.vehicle1?.plate || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, plate: e.target.value}})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Year</label>
-                          <input type="text" value={currentReportData.vehicle1?.year || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, year: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Year</label>
+                          <input type="text" value={currentReportData.vehicle1?.year || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, year: e.target.value}})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Make</label>
-                          <input type="text" value={currentReportData.vehicle1?.make || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, make: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Make</label>
+                          <input type="text" value={currentReportData.vehicle1?.make || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, make: e.target.value}})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Model</label>
-                          <input type="text" value={currentReportData.vehicle1?.model || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, model: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Model</label>
+                          <input type="text" value={currentReportData.vehicle1?.model || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, model: e.target.value}})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Color</label>
-                          <input type="text" value={currentReportData.vehicle1?.color || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, color: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Color</label>
+                          <input type="text" value={currentReportData.vehicle1?.color || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, color: e.target.value}})} className="field" />
                         </div>
                       </div>
                     </div>
 
                     {/* Party #1 Information */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-purple-400 mb-3 border-b border-gray-600 pb-2">Party #1 Information</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-purple-400">Party #1 Information</h4>
                       <div className="mb-3">
-                        <label className="block text-xs text-gray-400 mb-1">Search by Name</label>
+                        <label className="field-label">Search by Name</label>
                         <div className="flex gap-2">
-                          <input type="text" value={partySearchName1} onChange={(e) => setPartySearchName1(e.target.value)} placeholder="Enter name..." className="flex-1 bg-gray-600 text-white rounded px-3 py-2 text-sm" />
-                          <button onClick={() => searchPersonByName(partySearchName1, 1)} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500 text-sm">Search</button>
+                          <input type="text" value={partySearchName1} onChange={(e) => setPartySearchName1(e.target.value)} placeholder="Enter name..." className="field flex-1 min-w-0" />
+                          <button onClick={() => searchPersonByName(partySearchName1, 1)} className="btn btn-primary">Search</button>
                         </div>
                         {partySearchResults1.length > 0 && (
-                          <div className="mt-2 bg-gray-800 rounded p-2 max-h-32 overflow-y-auto">
+                          <div className="mt-2 menu-list max-h-32 overflow-y-auto">
                             {partySearchResults1.map((p, i) => (
-                              <div key={i} onClick={() => selectParty(p, 1)} className="p-2 hover:bg-gray-700 cursor-pointer rounded text-sm">
+                              <div key={i} onClick={() => selectParty(p, 1)} className="menu-item">
                                 {p.firstName} {p.lastName} - DOB: {p.dob}
                               </div>
                             ))}
@@ -5550,37 +5606,37 @@ const CADSystem = () => {
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Name</label>
-                          <input type="text" value={currentReportData.party1?.name || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, name: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Name</label>
+                          <input type="text" value={currentReportData.party1?.name || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, name: e.target.value}})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">DOB</label>
-                          <input type="text" value={currentReportData.party1?.dob || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, dob: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">DOB</label>
+                          <input type="text" value={currentReportData.party1?.dob || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, dob: e.target.value}})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Phone</label>
-                          <input type="text" value={currentReportData.party1?.phone || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, phone: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Phone</label>
+                          <input type="text" value={currentReportData.party1?.phone || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, phone: e.target.value}})} className="field" />
                         </div>
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Address</label>
-                          <input type="text" value={currentReportData.party1?.address || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, address: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Address</label>
+                          <input type="text" value={currentReportData.party1?.address || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, address: e.target.value}})} className="field" />
                         </div>
                       </div>
                     </div>
 
                     {/* Vehicle #2 Information */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-yellow-400 mb-3 border-b border-gray-600 pb-2">Vehicle #2 Information</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-yellow-400">Vehicle #2 Information</h4>
                       <div className="mb-3">
-                        <label className="block text-xs text-gray-400 mb-1">Search by Plate</label>
+                        <label className="field-label">Search by Plate</label>
                         <div className="flex gap-2">
-                          <input type="text" value={vehicleSearchPlate2} onChange={(e) => setVehicleSearchPlate2(e.target.value)} placeholder="Enter plate number..." className="flex-1 bg-gray-600 text-white rounded px-3 py-2 text-sm" />
-                          <button onClick={() => searchVehicleByPlate(vehicleSearchPlate2, 2)} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500 text-sm">Search</button>
+                          <input type="text" value={vehicleSearchPlate2} onChange={(e) => setVehicleSearchPlate2(e.target.value)} placeholder="Enter plate number..." className="field flex-1 min-w-0" />
+                          <button onClick={() => searchVehicleByPlate(vehicleSearchPlate2, 2)} className="btn btn-primary">Search</button>
                         </div>
                         {vehicleSearchResults2.length > 0 && (
-                          <div className="mt-2 bg-gray-800 rounded p-2 max-h-32 overflow-y-auto">
+                          <div className="mt-2 menu-list max-h-32 overflow-y-auto">
                             {vehicleSearchResults2.map((v, i) => (
-                              <div key={i} onClick={() => selectVehicle(v, 2)} className="p-2 hover:bg-gray-700 cursor-pointer rounded text-sm">
+                              <div key={i} onClick={() => selectVehicle(v, 2)} className="menu-item">
                                 {v.plate} - {v.year} {v.make} {v.model} ({v.color}) - Owner: {v.ownerName}
                               </div>
                             ))}
@@ -5589,41 +5645,41 @@ const CADSystem = () => {
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Plate</label>
-                          <input type="text" value={currentReportData.vehicle2?.plate || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle2: {...currentReportData.vehicle2, plate: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Plate</label>
+                          <input type="text" value={currentReportData.vehicle2?.plate || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle2: {...currentReportData.vehicle2, plate: e.target.value}})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Year</label>
-                          <input type="text" value={currentReportData.vehicle2?.year || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle2: {...currentReportData.vehicle2, year: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Year</label>
+                          <input type="text" value={currentReportData.vehicle2?.year || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle2: {...currentReportData.vehicle2, year: e.target.value}})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Make</label>
-                          <input type="text" value={currentReportData.vehicle2?.make || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle2: {...currentReportData.vehicle2, make: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Make</label>
+                          <input type="text" value={currentReportData.vehicle2?.make || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle2: {...currentReportData.vehicle2, make: e.target.value}})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Model</label>
-                          <input type="text" value={currentReportData.vehicle2?.model || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle2: {...currentReportData.vehicle2, model: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Model</label>
+                          <input type="text" value={currentReportData.vehicle2?.model || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle2: {...currentReportData.vehicle2, model: e.target.value}})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Color</label>
-                          <input type="text" value={currentReportData.vehicle2?.color || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle2: {...currentReportData.vehicle2, color: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Color</label>
+                          <input type="text" value={currentReportData.vehicle2?.color || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle2: {...currentReportData.vehicle2, color: e.target.value}})} className="field" />
                         </div>
                       </div>
                     </div>
 
                     {/* Party #2 Information */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-purple-400 mb-3 border-b border-gray-600 pb-2">Party #2 Information</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-purple-400">Party #2 Information</h4>
                       <div className="mb-3">
-                        <label className="block text-xs text-gray-400 mb-1">Search by Name</label>
+                        <label className="field-label">Search by Name</label>
                         <div className="flex gap-2">
-                          <input type="text" value={partySearchName2} onChange={(e) => setPartySearchName2(e.target.value)} placeholder="Enter name..." className="flex-1 bg-gray-600 text-white rounded px-3 py-2 text-sm" />
-                          <button onClick={() => searchPersonByName(partySearchName2, 2)} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500 text-sm">Search</button>
+                          <input type="text" value={partySearchName2} onChange={(e) => setPartySearchName2(e.target.value)} placeholder="Enter name..." className="field flex-1 min-w-0" />
+                          <button onClick={() => searchPersonByName(partySearchName2, 2)} className="btn btn-primary">Search</button>
                         </div>
                         {partySearchResults2.length > 0 && (
-                          <div className="mt-2 bg-gray-800 rounded p-2 max-h-32 overflow-y-auto">
+                          <div className="mt-2 menu-list max-h-32 overflow-y-auto">
                             {partySearchResults2.map((p, i) => (
-                              <div key={i} onClick={() => selectParty(p, 2)} className="p-2 hover:bg-gray-700 cursor-pointer rounded text-sm">
+                              <div key={i} onClick={() => selectParty(p, 2)} className="menu-item">
                                 {p.firstName} {p.lastName} - DOB: {p.dob}
                               </div>
                             ))}
@@ -5632,30 +5688,30 @@ const CADSystem = () => {
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Name</label>
-                          <input type="text" value={currentReportData.party2?.name || ''} onChange={(e) => setCurrentReportData({...currentReportData, party2: {...currentReportData.party2, name: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Name</label>
+                          <input type="text" value={currentReportData.party2?.name || ''} onChange={(e) => setCurrentReportData({...currentReportData, party2: {...currentReportData.party2, name: e.target.value}})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">DOB</label>
-                          <input type="text" value={currentReportData.party2?.dob || ''} onChange={(e) => setCurrentReportData({...currentReportData, party2: {...currentReportData.party2, dob: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">DOB</label>
+                          <input type="text" value={currentReportData.party2?.dob || ''} onChange={(e) => setCurrentReportData({...currentReportData, party2: {...currentReportData.party2, dob: e.target.value}})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Phone</label>
-                          <input type="text" value={currentReportData.party2?.phone || ''} onChange={(e) => setCurrentReportData({...currentReportData, party2: {...currentReportData.party2, phone: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Phone</label>
+                          <input type="text" value={currentReportData.party2?.phone || ''} onChange={(e) => setCurrentReportData({...currentReportData, party2: {...currentReportData.party2, phone: e.target.value}})} className="field" />
                         </div>
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Address</label>
-                          <input type="text" value={currentReportData.party2?.address || ''} onChange={(e) => setCurrentReportData({...currentReportData, party2: {...currentReportData.party2, address: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Address</label>
+                          <input type="text" value={currentReportData.party2?.address || ''} onChange={(e) => setCurrentReportData({...currentReportData, party2: {...currentReportData.party2, address: e.target.value}})} className="field" />
                         </div>
                       </div>
                     </div>
 
                     {/* Narrative Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Supplemental Narrative</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-blue-400">Supplemental Narrative</h4>
                       <div className="mb-3">
-                        <label className="block text-xs text-gray-400 mb-1">Reason for Supplement</label>
-                        <select value={currentReportData.supplementReason || ''} onChange={(e) => setCurrentReportData({...currentReportData, supplementReason: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                        <label className="field-label">Reason for Supplement</label>
+                        <select value={currentReportData.supplementReason || ''} onChange={(e) => setCurrentReportData({...currentReportData, supplementReason: e.target.value})} className="field">
                           <option value="">Select...</option>
                           <option value="NEW_INFO">New Information</option>
                           <option value="FOLLOW_UP">Follow-Up Investigation</option>
@@ -5666,14 +5722,14 @@ const CADSystem = () => {
                           <option value="OTHER">Other</option>
                         </select>
                       </div>
-                      <textarea value={currentReportData.narrative || ''} onChange={(e) => setCurrentReportData({...currentReportData, narrative: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 h-40 text-sm" placeholder="Enter detailed supplemental narrative..." />
+                      <textarea value={currentReportData.narrative || ''} onChange={(e) => setCurrentReportData({...currentReportData, narrative: e.target.value})} className="field h-40" placeholder="Enter detailed supplemental narrative..." />
                     </div>
 
                     {/* Evidence Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-orange-400 mb-3 border-b border-gray-600 pb-2">Evidence</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-orange-400">Evidence</h4>
                       <div className="mb-4">
-                        <label className="block text-xs text-gray-400 mb-2">Did You Book In Evidence Regards to this Supplemental?</label>
+                        <label className="field-label">Did You Book In Evidence Regards to this Supplemental?</label>
                         <div className="flex gap-4">
                           <label className="flex items-center gap-2 text-sm text-gray-300">
                             <input type="radio" name="bookedEvidence" value="YES" checked={currentReportData.bookedEvidence === 'YES'} onChange={(e) => setCurrentReportData({...currentReportData, bookedEvidence: e.target.value})} />
@@ -5688,30 +5744,30 @@ const CADSystem = () => {
                       {currentReportData.bookedEvidence === 'YES' && (
                         <>
                           <div className="mb-3">
-                            <label className="block text-xs text-gray-400 mb-1">Evidence Locker #</label>
-                            <input type="text" value={currentReportData.evidenceLockerNumber || ''} onChange={(e) => setCurrentReportData({...currentReportData, evidenceLockerNumber: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                            <label className="field-label">Evidence Locker #</label>
+                            <input type="text" value={currentReportData.evidenceLockerNumber || ''} onChange={(e) => setCurrentReportData({...currentReportData, evidenceLockerNumber: e.target.value})} className="field" />
                           </div>
                           <div>
-                            <label className="block text-xs text-gray-400 mb-1">List Item(s) Description Booked</label>
-                            <textarea value={currentReportData.evidenceDescription || ''} onChange={(e) => setCurrentReportData({...currentReportData, evidenceDescription: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 h-24 text-sm" placeholder="Describe all items booked into evidence..." />
+                            <label className="field-label">List Item(s) Description Booked</label>
+                            <textarea value={currentReportData.evidenceDescription || ''} onChange={(e) => setCurrentReportData({...currentReportData, evidenceDescription: e.target.value})} className="field h-24" placeholder="Describe all items booked into evidence..." />
                           </div>
                         </>
                       )}
                     </div>
 
                     {/* Scene Images Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Attachments/Images</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-blue-400">Attachments/Images</h4>
                       <div className="mb-3">
-                        <input type="file" multiple accept="image/*" onChange={handleSceneImageUpload} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                        <input type="file" multiple accept="image/*" onChange={handleSceneImageUpload} className="field" />
                       </div>
                       {currentReportData.sceneImages?.length > 0 && (
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                           {currentReportData.sceneImages.map((img: any) => (
-                            <div key={img.id} className="relative bg-gray-800 rounded p-2">
+                            <div key={img.id} className="well relative p-2">
                               <img src={img.data} alt={img.name} className="w-full h-24 object-cover rounded" />
                               <button onClick={() => removeSceneImage(img.id)} className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 hover:bg-red-500"><X size={12} /></button>
-                              <input type="text" placeholder="Add note..." value={img.note || ''} onChange={(e) => updateImageNote(img.id, e.target.value)} className="w-full bg-gray-700 text-white rounded px-2 py-1 text-xs mt-1" />
+                              <input type="text" placeholder="Add note..." value={img.note || ''} onChange={(e) => updateImageNote(img.id, e.target.value)} className="field field-xs mt-1" />
                             </div>
                           ))}
                         </div>
@@ -5719,20 +5775,20 @@ const CADSystem = () => {
                     </div>
 
                     {/* Completed By Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Completed By</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-blue-400">Completed By</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Officer Name</label>
-                          <input type="text" value={currentReportData.completedByOfficerName || ''} onChange={(e) => setCurrentReportData({...currentReportData, completedByOfficerName: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Officer Name</label>
+                          <input type="text" value={currentReportData.completedByOfficerName || ''} onChange={(e) => setCurrentReportData({...currentReportData, completedByOfficerName: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Badge#</label>
-                          <input type="text" value={currentReportData.completedByBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, completedByBadge: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Badge#</label>
+                          <input type="text" value={currentReportData.completedByBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, completedByBadge: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Department</label>
-                          <select value={currentReportData.completedByDepartment || ''} onChange={(e) => setCurrentReportData({...currentReportData, completedByDepartment: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Department</label>
+                          <select value={currentReportData.completedByDepartment || ''} onChange={(e) => setCurrentReportData({...currentReportData, completedByDepartment: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="LSSO">LSSO</option>
                             <option value="LSSO_CONTRACT">LSSO Contract Agency</option>
@@ -5741,31 +5797,31 @@ const CADSystem = () => {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date</label>
-                          <input type="date" value={currentReportData.completedByDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, completedByDate: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Date</label>
+                          <input type="date" value={currentReportData.completedByDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, completedByDate: e.target.value})} className="field" />
                         </div>
                       </div>
                     </div>
 
                     {/* Supervisor Signature Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Supervisor Signature</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-blue-400">Supervisor Signature</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Supervisor Name</label>
-                          <input type="text" value={currentReportData.supervisorName || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorName: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Supervisor Name</label>
+                          <input type="text" value={currentReportData.supervisorName || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorName: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Supervisor Badge #</label>
-                          <input type="text" value={currentReportData.supervisorBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorBadge: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Supervisor Badge #</label>
+                          <input type="text" value={currentReportData.supervisorBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorBadge: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date Signed</label>
-                          <input type="date" value={currentReportData.supervisorSignDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorSignDate: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Date Signed</label>
+                          <input type="date" value={currentReportData.supervisorSignDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorSignDate: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Report Status</label>
-                          <select value={currentReportData.reportStatus || ''} onChange={(e) => setCurrentReportData({...currentReportData, reportStatus: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Report Status</label>
+                          <select value={currentReportData.reportStatus || ''} onChange={(e) => setCurrentReportData({...currentReportData, reportStatus: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="APPROVED">Approved</option>
                             <option value="PENDING">Pending</option>
@@ -5779,47 +5835,47 @@ const CADSystem = () => {
                   /* Use of Force Report Form */
                   <>
                     {/* Agency Information Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Agency Information</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-blue-400">Agency Information</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Callsign</label>
-                          <input type="text" value={currentReportData.callsign || ''} readOnly className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Callsign</label>
+                          <input type="text" value={currentReportData.callsign || ''} readOnly className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Department</label>
-                          <input type="text" value={currentReportData.department || ''} readOnly className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Department</label>
+                          <input type="text" value={currentReportData.department || ''} readOnly className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Officer Name</label>
-                          <input type="text" value={currentReportData.officer || ''} readOnly className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Officer Name</label>
+                          <input type="text" value={currentReportData.officer || ''} readOnly className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date</label>
-                          <input type="text" value={currentReportData.date ? new Date(currentReportData.date).toLocaleDateString() : ''} readOnly className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Date</label>
+                          <input type="text" value={currentReportData.date ? new Date(currentReportData.date).toLocaleDateString() : ''} readOnly className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Record#</label>
-                          <input type="text" value={currentReportData.recordNumber || ''} readOnly className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Record#</label>
+                          <input type="text" value={currentReportData.recordNumber || ''} readOnly className="field" />
                         </div>
                       </div>
                     </div>
 
                     {/* Officer Involved Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Officer Involved</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-blue-400">Officer Involved</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Officer Name</label>
-                          <input type="text" value={currentReportData.officerInvolvedName || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerInvolvedName: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Officer Name</label>
+                          <input type="text" value={currentReportData.officerInvolvedName || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerInvolvedName: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Badge #</label>
-                          <input type="text" value={currentReportData.officerInvolvedBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerInvolvedBadge: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Badge #</label>
+                          <input type="text" value={currentReportData.officerInvolvedBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerInvolvedBadge: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Agency</label>
-                          <select value={currentReportData.officerInvolvedAgency || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerInvolvedAgency: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Agency</label>
+                          <select value={currentReportData.officerInvolvedAgency || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerInvolvedAgency: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="LSSO">LSSO</option>
                             <option value="LSSO_CONTRACT">LSSO Contract Agency</option>
@@ -5828,16 +5884,16 @@ const CADSystem = () => {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Officer Rank</label>
-                          <input type="text" value={currentReportData.officerInvolvedRank || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerInvolvedRank: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Officer Rank</label>
+                          <input type="text" value={currentReportData.officerInvolvedRank || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerInvolvedRank: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Approximate Time in Agency</label>
-                          <input type="text" value={currentReportData.officerTimeInAgency || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerTimeInAgency: e.target.value})} placeholder="e.g., 5 years 3 months" className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Approximate Time in Agency</label>
+                          <input type="text" value={currentReportData.officerTimeInAgency || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerTimeInAgency: e.target.value})} placeholder="e.g., 5 years 3 months" className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Duty Status at Time of Incident</label>
-                          <select value={currentReportData.officerDutyStatus || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerDutyStatus: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Duty Status at Time of Incident</label>
+                          <select value={currentReportData.officerDutyStatus || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerDutyStatus: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="ON_DUTY">On Duty</option>
                             <option value="OFF_DUTY">Off Duty</option>
@@ -5849,40 +5905,40 @@ const CADSystem = () => {
                     </div>
 
                     {/* Incident Information Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Incident Information</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-blue-400">Incident Information</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Incident Date</label>
-                          <input type="date" value={currentReportData.incidentDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, incidentDate: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Incident Date</label>
+                          <input type="date" value={currentReportData.incidentDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, incidentDate: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Incident Time</label>
-                          <input type="time" value={currentReportData.incidentTime || ''} onChange={(e) => setCurrentReportData({...currentReportData, incidentTime: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Incident Time</label>
+                          <input type="time" value={currentReportData.incidentTime || ''} onChange={(e) => setCurrentReportData({...currentReportData, incidentTime: e.target.value})} className="field" />
                         </div>
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Location Address</label>
-                          <input type="text" value={currentReportData.locationAddress || ''} onChange={(e) => setCurrentReportData({...currentReportData, locationAddress: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Street Address" />
+                          <label className="field-label">Location Address</label>
+                          <input type="text" value={currentReportData.locationAddress || ''} onChange={(e) => setCurrentReportData({...currentReportData, locationAddress: e.target.value})} className="field" placeholder="Street Address" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Postal</label>
-                          <input type="text" value={currentReportData.postal || ''} onChange={(e) => setCurrentReportData({...currentReportData, postal: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Postal</label>
+                          <input type="text" value={currentReportData.postal || ''} onChange={(e) => setCurrentReportData({...currentReportData, postal: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Dispatch Call Ref#</label>
-                          <input type="text" value={currentReportData.dispatchCallRef || ''} onChange={(e) => setCurrentReportData({...currentReportData, dispatchCallRef: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Dispatch Call Ref#</label>
+                          <input type="text" value={currentReportData.dispatchCallRef || ''} onChange={(e) => setCurrentReportData({...currentReportData, dispatchCallRef: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Arrest Report Ref#</label>
-                          <input type="text" value={currentReportData.arrestReportRef || ''} onChange={(e) => setCurrentReportData({...currentReportData, arrestReportRef: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Arrest Report Ref#</label>
+                          <input type="text" value={currentReportData.arrestReportRef || ''} onChange={(e) => setCurrentReportData({...currentReportData, arrestReportRef: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Citation Report Ref#</label>
-                          <input type="text" value={currentReportData.citationReportRef || ''} onChange={(e) => setCurrentReportData({...currentReportData, citationReportRef: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Citation Report Ref#</label>
+                          <input type="text" value={currentReportData.citationReportRef || ''} onChange={(e) => setCurrentReportData({...currentReportData, citationReportRef: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Other Agency Involvement</label>
-                          <select value={currentReportData.otherAgencyInvolvement || ''} onChange={(e) => setCurrentReportData({...currentReportData, otherAgencyInvolvement: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Other Agency Involvement</label>
+                          <select value={currentReportData.otherAgencyInvolvement || ''} onChange={(e) => setCurrentReportData({...currentReportData, otherAgencyInvolvement: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="LSSO">LSSO</option>
                             <option value="LSPD">LSPD</option>
@@ -5892,45 +5948,45 @@ const CADSystem = () => {
                           </select>
                         </div>
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Supervisor Name | ID#</label>
-                          <input type="text" value={currentReportData.supervisorAdvised || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorAdvised: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Name | Badge #" />
+                          <label className="field-label">Supervisor Name | ID#</label>
+                          <input type="text" value={currentReportData.supervisorAdvised || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorAdvised: e.target.value})} className="field" placeholder="Name | Badge #" />
                         </div>
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Witness Name #1</label>
-                          <input type="text" value={currentReportData.witness1Name || ''} onChange={(e) => setCurrentReportData({...currentReportData, witness1Name: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Witness Name #1</label>
+                          <input type="text" value={currentReportData.witness1Name || ''} onChange={(e) => setCurrentReportData({...currentReportData, witness1Name: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Witness #1 Contact</label>
-                          <input type="text" value={currentReportData.witness1Contact || ''} onChange={(e) => setCurrentReportData({...currentReportData, witness1Contact: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Witness #1 Contact</label>
+                          <input type="text" value={currentReportData.witness1Contact || ''} onChange={(e) => setCurrentReportData({...currentReportData, witness1Contact: e.target.value})} className="field" />
                         </div>
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Witness Name #2</label>
-                          <input type="text" value={currentReportData.witness2Name || ''} onChange={(e) => setCurrentReportData({...currentReportData, witness2Name: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Witness Name #2</label>
+                          <input type="text" value={currentReportData.witness2Name || ''} onChange={(e) => setCurrentReportData({...currentReportData, witness2Name: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Witness #2 Contact</label>
-                          <input type="text" value={currentReportData.witness2Contact || ''} onChange={(e) => setCurrentReportData({...currentReportData, witness2Contact: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Witness #2 Contact</label>
+                          <input type="text" value={currentReportData.witness2Contact || ''} onChange={(e) => setCurrentReportData({...currentReportData, witness2Contact: e.target.value})} className="field" />
                         </div>
                       </div>
                     </div>
 
                     {/* Justification for Using Force Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Justification for Using Force</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-blue-400">Justification for Using Force</h4>
                       <div className="space-y-3">
-                        <div className="flex items-center gap-3 p-3 bg-gray-600 rounded">
+                        <div className="subcard flex items-center gap-3 p-3">
                           <input type="checkbox" id="protectSelf" checked={currentReportData.justifyProtectSelf || false} onChange={(e) => setCurrentReportData({...currentReportData, justifyProtectSelf: e.target.checked})} className="w-4 h-4" />
                           <label htmlFor="protectSelf" className="text-sm text-gray-200 cursor-pointer">To Protect Oneself or Others from Harm</label>
                         </div>
-                        <div className="flex items-center gap-3 p-3 bg-gray-600 rounded">
+                        <div className="subcard flex items-center gap-3 p-3">
                           <input type="checkbox" id="restrainSubdue" checked={currentReportData.justifyRestrainSubdue || false} onChange={(e) => setCurrentReportData({...currentReportData, justifyRestrainSubdue: e.target.checked})} className="w-4 h-4" />
                           <label htmlFor="restrainSubdue" className="text-sm text-gray-200 cursor-pointer">To Restrain or Subdue a Resistant Individual</label>
                         </div>
-                        <div className="flex items-center gap-3 p-3 bg-gray-600 rounded">
+                        <div className="subcard flex items-center gap-3 p-3">
                           <input type="checkbox" id="bringControl" checked={currentReportData.justifyBringControl || false} onChange={(e) => setCurrentReportData({...currentReportData, justifyBringControl: e.target.checked})} className="w-4 h-4" />
                           <label htmlFor="bringControl" className="text-sm text-gray-200 cursor-pointer">To Bring an Unlawful Situation Under Control</label>
                         </div>
-                        <div className="flex items-center gap-3 p-3 bg-gray-600 rounded">
+                        <div className="subcard flex items-center gap-3 p-3">
                           <input type="checkbox" id="other" checked={currentReportData.justifyOther || false} onChange={(e) => setCurrentReportData({...currentReportData, justifyOther: e.target.checked})} className="w-4 h-4" />
                           <label htmlFor="other" className="text-sm text-gray-200 cursor-pointer">Other (Explained in Narrative)</label>
                         </div>
@@ -5938,18 +5994,18 @@ const CADSystem = () => {
                     </div>
 
                     {/* Victim of Force Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-red-400 mb-3 border-b border-gray-600 pb-2">Victim of Force</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-red-400">Victim of Force</h4>
                       <div className="mb-3">
-                        <label className="block text-xs text-gray-400 mb-1">Search by Name</label>
+                        <label className="field-label">Search by Name</label>
                         <div className="flex gap-2">
-                          <input type="text" value={partySearchName1} onChange={(e) => setPartySearchName1(e.target.value)} placeholder="Enter name..." className="flex-1 bg-gray-600 text-white rounded px-3 py-2 text-sm" />
-                          <button onClick={() => searchPersonByName(partySearchName1, 1)} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500 text-sm">Search</button>
+                          <input type="text" value={partySearchName1} onChange={(e) => setPartySearchName1(e.target.value)} placeholder="Enter name..." className="field flex-1 min-w-0" />
+                          <button onClick={() => searchPersonByName(partySearchName1, 1)} className="btn btn-primary">Search</button>
                         </div>
                         {partySearchResults1.length > 0 && (
-                          <div className="mt-2 bg-gray-800 rounded p-2 max-h-32 overflow-y-auto">
+                          <div className="mt-2 menu-list max-h-32 overflow-y-auto">
                             {partySearchResults1.map((p, i) => (
-                              <div key={i} onClick={() => selectParty(p, 1)} className="p-2 hover:bg-gray-700 cursor-pointer rounded text-sm">
+                              <div key={i} onClick={() => selectParty(p, 1)} className="menu-item">
                                 {p.firstName} {p.lastName} - DOB: {p.dob}
                               </div>
                             ))}
@@ -5958,31 +6014,31 @@ const CADSystem = () => {
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Name</label>
-                          <input type="text" value={currentReportData.victimOfForce?.name || ''} onChange={(e) => setCurrentReportData({...currentReportData, victimOfForce: {...currentReportData.victimOfForce, name: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Name</label>
+                          <input type="text" value={currentReportData.victimOfForce?.name || ''} onChange={(e) => setCurrentReportData({...currentReportData, victimOfForce: {...currentReportData.victimOfForce, name: e.target.value}})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">DOB</label>
-                          <input type="text" value={currentReportData.victimOfForce?.dob || ''} onChange={(e) => setCurrentReportData({...currentReportData, victimOfForce: {...currentReportData.victimOfForce, dob: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">DOB</label>
+                          <input type="text" value={currentReportData.victimOfForce?.dob || ''} onChange={(e) => setCurrentReportData({...currentReportData, victimOfForce: {...currentReportData.victimOfForce, dob: e.target.value}})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Phone</label>
-                          <input type="text" value={currentReportData.victimOfForce?.phone || ''} onChange={(e) => setCurrentReportData({...currentReportData, victimOfForce: {...currentReportData.victimOfForce, phone: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Phone</label>
+                          <input type="text" value={currentReportData.victimOfForce?.phone || ''} onChange={(e) => setCurrentReportData({...currentReportData, victimOfForce: {...currentReportData.victimOfForce, phone: e.target.value}})} className="field" />
                         </div>
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Address</label>
-                          <input type="text" value={currentReportData.victimOfForce?.address || ''} onChange={(e) => setCurrentReportData({...currentReportData, victimOfForce: {...currentReportData.victimOfForce, address: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Address</label>
+                          <input type="text" value={currentReportData.victimOfForce?.address || ''} onChange={(e) => setCurrentReportData({...currentReportData, victimOfForce: {...currentReportData.victimOfForce, address: e.target.value}})} className="field" />
                         </div>
                       </div>
                     </div>
 
                     {/* Subject Details Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-red-400 mb-3 border-b border-gray-600 pb-2">Subject Details</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-red-400">Subject Details</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Subject Weapon</label>
-                          <select value={currentReportData.subjectWeapon || ''} onChange={(e) => setCurrentReportData({...currentReportData, subjectWeapon: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Subject Weapon</label>
+                          <select value={currentReportData.subjectWeapon || ''} onChange={(e) => setCurrentReportData({...currentReportData, subjectWeapon: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="KNIFE">Knife</option>
                             <option value="FIREARM">Firearm</option>
@@ -5994,8 +6050,8 @@ const CADSystem = () => {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Subject Under Influence</label>
-                          <select value={currentReportData.subjectInfluence || ''} onChange={(e) => setCurrentReportData({...currentReportData, subjectInfluence: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Subject Under Influence</label>
+                          <select value={currentReportData.subjectInfluence || ''} onChange={(e) => setCurrentReportData({...currentReportData, subjectInfluence: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="ALCOHOL">Alcohol</option>
                             <option value="DRUGS">Drugs</option>
@@ -6004,8 +6060,8 @@ const CADSystem = () => {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Subject Injured?</label>
-                          <select value={currentReportData.subjectInjured || ''} onChange={(e) => setCurrentReportData({...currentReportData, subjectInjured: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Subject Injured?</label>
+                          <select value={currentReportData.subjectInjured || ''} onChange={(e) => setCurrentReportData({...currentReportData, subjectInjured: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="YES">Yes</option>
                             <option value="NO">No</option>
@@ -6013,13 +6069,13 @@ const CADSystem = () => {
                         </div>
                         {currentReportData.subjectInjured === 'YES' && (
                           <div>
-                            <label className="block text-xs text-gray-400 mb-1">Describe Injuries</label>
-                            <input type="text" value={currentReportData.subjectInjuriesDesc || ''} onChange={(e) => setCurrentReportData({...currentReportData, subjectInjuriesDesc: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Describe injuries..." />
+                            <label className="field-label">Describe Injuries</label>
+                            <input type="text" value={currentReportData.subjectInjuriesDesc || ''} onChange={(e) => setCurrentReportData({...currentReportData, subjectInjuriesDesc: e.target.value})} className="field" placeholder="Describe injuries..." />
                           </div>
                         )}
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Medically Treated By</label>
-                          <select value={currentReportData.subjectTreatedBy || ''} onChange={(e) => setCurrentReportData({...currentReportData, subjectTreatedBy: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Medically Treated By</label>
+                          <select value={currentReportData.subjectTreatedBy || ''} onChange={(e) => setCurrentReportData({...currentReportData, subjectTreatedBy: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="OFFICER">Officer</option>
                             <option value="FIRE_DEPT">Fire Department</option>
@@ -6029,8 +6085,8 @@ const CADSystem = () => {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Transported to Hospital</label>
-                          <select value={currentReportData.subjectTransported || ''} onChange={(e) => setCurrentReportData({...currentReportData, subjectTransported: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Transported to Hospital</label>
+                          <select value={currentReportData.subjectTransported || ''} onChange={(e) => setCurrentReportData({...currentReportData, subjectTransported: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="YES">Yes</option>
                             <option value="NO">No</option>
@@ -6041,12 +6097,12 @@ const CADSystem = () => {
                     </div>
 
                     {/* Officer Information Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Officer Information</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-blue-400">Officer Information</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Officer Uniform</label>
-                          <select value={currentReportData.officerUniform || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerUniform: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Officer Uniform</label>
+                          <select value={currentReportData.officerUniform || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerUniform: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="PATROL">Patrol Uniform</option>
                             <option value="TACTICAL">Tactical Vest Stating Agency</option>
@@ -6057,15 +6113,15 @@ const CADSystem = () => {
                           </select>
                         </div>
                         <div className="col-span-3">
-                          <label className="block text-xs text-gray-400 mb-1">Officer Precise Activity at Time of Incident</label>
-                          <input type="text" value={currentReportData.officerActivityDesc || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerActivityDesc: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Describe officer activity..." />
+                          <label className="field-label">Officer Precise Activity at Time of Incident</label>
+                          <input type="text" value={currentReportData.officerActivityDesc || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerActivityDesc: e.target.value})} className="field" placeholder="Describe officer activity..." />
                         </div>
                       </div>
                     </div>
 
                     {/* Weapons Utilized by Officer Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-yellow-400 mb-3 border-b border-gray-600 pb-2">Weapon(s) Utilized by Officer</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-yellow-400">Weapon(s) Utilized by Officer</h4>
                       <div className="space-y-2 mb-4">
                         <div className="flex items-center gap-3">
                           <input type="checkbox" id="weaponTaser" checked={currentReportData.weaponTaser || false} onChange={(e) => setCurrentReportData({...currentReportData, weaponTaser: e.target.checked})} className="w-4 h-4" />
@@ -6114,28 +6170,28 @@ const CADSystem = () => {
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Approximate Rounds Fired</label>
-                          <input type="text" value={currentReportData.roundsFired || ''} onChange={(e) => setCurrentReportData({...currentReportData, roundsFired: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="e.g., 3 rounds" />
+                          <label className="field-label">Approximate Rounds Fired</label>
+                          <input type="text" value={currentReportData.roundsFired || ''} onChange={(e) => setCurrentReportData({...currentReportData, roundsFired: e.target.value})} className="field" placeholder="e.g., 3 rounds" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Taser Cartridges Used</label>
-                          <input type="text" value={currentReportData.taserCartridges || ''} onChange={(e) => setCurrentReportData({...currentReportData, taserCartridges: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="e.g., 2 cartridges" />
+                          <label className="field-label">Taser Cartridges Used</label>
+                          <input type="text" value={currentReportData.taserCartridges || ''} onChange={(e) => setCurrentReportData({...currentReportData, taserCartridges: e.target.value})} className="field" placeholder="e.g., 2 cartridges" />
                         </div>
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Describe Impact Locations</label>
-                          <input type="text" value={currentReportData.impactLocations || ''} onChange={(e) => setCurrentReportData({...currentReportData, impactLocations: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Describe where weapon impacted..." />
+                          <label className="field-label">Describe Impact Locations</label>
+                          <input type="text" value={currentReportData.impactLocations || ''} onChange={(e) => setCurrentReportData({...currentReportData, impactLocations: e.target.value})} className="field" placeholder="Describe where weapon impacted..." />
                         </div>
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Describe Weapon Usage</label>
-                          <input type="text" value={currentReportData.weaponUsageDesc || ''} onChange={(e) => setCurrentReportData({...currentReportData, weaponUsageDesc: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Describe how weapon was used..." />
+                          <label className="field-label">Describe Weapon Usage</label>
+                          <input type="text" value={currentReportData.weaponUsageDesc || ''} onChange={(e) => setCurrentReportData({...currentReportData, weaponUsageDesc: e.target.value})} className="field" placeholder="Describe how weapon was used..." />
                         </div>
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Effectiveness of Applied Weapon(s)</label>
-                          <input type="text" value={currentReportData.weaponEffectiveness || ''} onChange={(e) => setCurrentReportData({...currentReportData, weaponEffectiveness: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Describe effectiveness..." />
+                          <label className="field-label">Effectiveness of Applied Weapon(s)</label>
+                          <input type="text" value={currentReportData.weaponEffectiveness || ''} onChange={(e) => setCurrentReportData({...currentReportData, weaponEffectiveness: e.target.value})} className="field" placeholder="Describe effectiveness..." />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Officer Injured?</label>
-                          <select value={currentReportData.officerInjured || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerInjured: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Officer Injured?</label>
+                          <select value={currentReportData.officerInjured || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerInjured: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="YES">Yes</option>
                             <option value="NO">No</option>
@@ -6143,13 +6199,13 @@ const CADSystem = () => {
                         </div>
                         {currentReportData.officerInjured === 'YES' && (
                           <div>
-                            <label className="block text-xs text-gray-400 mb-1">If Injured Describe Injuries</label>
-                            <input type="text" value={currentReportData.officerInjuriesDesc || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerInjuriesDesc: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Describe injuries..." />
+                            <label className="field-label">If Injured Describe Injuries</label>
+                            <input type="text" value={currentReportData.officerInjuriesDesc || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerInjuriesDesc: e.target.value})} className="field" placeholder="Describe injuries..." />
                           </div>
                         )}
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Release by Doctor</label>
-                          <select value={currentReportData.releasedByDoctor || ''} onChange={(e) => setCurrentReportData({...currentReportData, releasedByDoctor: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Release by Doctor</label>
+                          <select value={currentReportData.releasedByDoctor || ''} onChange={(e) => setCurrentReportData({...currentReportData, releasedByDoctor: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="YES">Yes</option>
                             <option value="NO">No</option>
@@ -6160,49 +6216,49 @@ const CADSystem = () => {
                     </div>
 
                     {/* Narrative Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Narrative</h4>
-                      <textarea value={currentReportData.narrative || ''} onChange={(e) => setCurrentReportData({...currentReportData, narrative: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 h-40 text-sm" placeholder="Provide a detailed account of the incident and use of force..." />
+                    <div className="panel-card">
+                      <h4 className="section-title text-blue-400">Narrative</h4>
+                      <textarea value={currentReportData.narrative || ''} onChange={(e) => setCurrentReportData({...currentReportData, narrative: e.target.value})} className="field h-40" placeholder="Provide a detailed account of the incident and use of force..." />
                     </div>
 
                     {/* Certification Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-purple-400 mb-3 border-b border-gray-600 pb-2">Certification</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-purple-400">Certification</h4>
                       <div className="space-y-4">
                         <div className="flex items-start gap-3">
                           <input type="checkbox" id="certifyAccuracy" checked={currentReportData.certifyAccuracy || false} onChange={(e) => setCurrentReportData({...currentReportData, certifyAccuracy: e.target.checked})} className="w-4 h-4 mt-1" />
                           <label htmlFor="certifyAccuracy" className="text-sm text-gray-200 cursor-pointer">I UNDERSTAND FALSIFICATION OF THIS DOCUMENT MAY RESULT IN DISCIPLINARY ACTION</label>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date Submitted</label>
-                          <input type="date" value={currentReportData.dateSubmitted || ''} onChange={(e) => setCurrentReportData({...currentReportData, dateSubmitted: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Date Submitted</label>
+                          <input type="date" value={currentReportData.dateSubmitted || ''} onChange={(e) => setCurrentReportData({...currentReportData, dateSubmitted: e.target.value})} className="field" />
                         </div>
                       </div>
                     </div>
 
                     {/* Chain of Command Review Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-purple-400 mb-3 border-b border-gray-600 pb-2">Chain of Command Review</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-purple-400">Chain of Command Review</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Administration Signature</label>
-                          <input type="text" value={currentReportData.administrationSignature || ''} onChange={(e) => setCurrentReportData({...currentReportData, administrationSignature: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Name/Title" />
+                          <label className="field-label">Administration Signature</label>
+                          <input type="text" value={currentReportData.administrationSignature || ''} onChange={(e) => setCurrentReportData({...currentReportData, administrationSignature: e.target.value})} className="field" placeholder="Name/Title" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date</label>
-                          <input type="date" value={currentReportData.chainOfCommandDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, chainOfCommandDate: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Date</label>
+                          <input type="date" value={currentReportData.chainOfCommandDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, chainOfCommandDate: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Result</label>
-                          <select value={currentReportData.reviewResult || ''} onChange={(e) => setCurrentReportData({...currentReportData, reviewResult: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Result</label>
+                          <select value={currentReportData.reviewResult || ''} onChange={(e) => setCurrentReportData({...currentReportData, reviewResult: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="APPROVED">Approved</option>
                             <option value="NEEDS_REVIEW">Needs Review</option>
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Final Ruling</label>
-                          <select value={currentReportData.finalRuling || ''} onChange={(e) => setCurrentReportData({...currentReportData, finalRuling: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Final Ruling</label>
+                          <select value={currentReportData.finalRuling || ''} onChange={(e) => setCurrentReportData({...currentReportData, finalRuling: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="PROPER_USE">Proper Use of Force</option>
                             <option value="RETRAINING">Retraining Class Required</option>
@@ -6213,20 +6269,20 @@ const CADSystem = () => {
                     </div>
 
                     {/* Detective Reference Area Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-orange-400 mb-3 border-b border-gray-600 pb-2">Detective Reference Area</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-orange-400">Detective Reference Area</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Detective Assigned</label>
-                          <input type="text" value={currentReportData.detectiveAssigned || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectiveAssigned: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Detective Assigned</label>
+                          <input type="text" value={currentReportData.detectiveAssigned || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectiveAssigned: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Detective Badge #</label>
-                          <input type="text" value={currentReportData.detectiveBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectiveBadge: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Detective Badge #</label>
+                          <input type="text" value={currentReportData.detectiveBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectiveBadge: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Detective Agency</label>
-                          <select value={currentReportData.detectiveAgency || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectiveAgency: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Detective Agency</label>
+                          <select value={currentReportData.detectiveAgency || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectiveAgency: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="LSSO">LSSO</option>
                             <option value="LSPD">LSPD</option>
@@ -6234,8 +6290,8 @@ const CADSystem = () => {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Detective Case Status</label>
-                          <select value={currentReportData.detectiveCaseStatus || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectiveCaseStatus: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Detective Case Status</label>
+                          <select value={currentReportData.detectiveCaseStatus || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectiveCaseStatus: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="COMPLETE">Complete</option>
                             <option value="UNDER_INVESTIGATION">Under Investigation</option>
@@ -6244,8 +6300,8 @@ const CADSystem = () => {
                         </div>
                       </div>
                       <div className="mt-4">
-                        <label className="block text-xs text-gray-400 mb-1">Detective Reference Info</label>
-                        <textarea value={currentReportData.detectiveReferenceInfo || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectiveReferenceInfo: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 h-20 text-sm" placeholder="Any additional reference information..." />
+                        <label className="field-label">Detective Reference Info</label>
+                        <textarea value={currentReportData.detectiveReferenceInfo || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectiveReferenceInfo: e.target.value})} className="field h-20" placeholder="Any additional reference information..." />
                       </div>
                     </div>
                   </>
@@ -6253,35 +6309,35 @@ const CADSystem = () => {
                   /* General Report Form */
                   <>
                     {/* Agency Information Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Agency Information</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-blue-400">Agency Information</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Callsign</label>
-                          <input type="text" value={currentReportData.callsign || ''} readOnly className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Callsign</label>
+                          <input type="text" value={currentReportData.callsign || ''} readOnly className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Department</label>
-                          <input type="text" value={currentReportData.department || ''} readOnly className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Department</label>
+                          <input type="text" value={currentReportData.department || ''} readOnly className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Officer Name</label>
-                          <input type="text" value={currentReportData.officer || ''} readOnly className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Officer Name</label>
+                          <input type="text" value={currentReportData.officer || ''} readOnly className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Record#</label>
-                          <input type="text" value={currentReportData.recordNumber || ''} readOnly className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Record#</label>
+                          <input type="text" value={currentReportData.recordNumber || ''} readOnly className="field" />
                         </div>
                       </div>
                     </div>
 
                     {/* Type of Report Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Type of Report</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-blue-400">Type of Report</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="col-span-2 md:col-span-4">
-                          <label className="block text-xs text-gray-400 mb-1">Report Type</label>
-                          <select value={currentReportData.reportType || ''} onChange={(e) => setCurrentReportData({...currentReportData, reportType: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Report Type</label>
+                          <select value={currentReportData.reportType || ''} onChange={(e) => setCurrentReportData({...currentReportData, reportType: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="SUSPICIOUS">Suspicious Circumstance</option>
                             <option value="CRIMINAL_ACTION">Criminal Actions Awaiting Capture</option>
@@ -6295,20 +6351,20 @@ const CADSystem = () => {
                     </div>
 
                     {/* Case Information Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Case Information</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-blue-400">Case Information</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date of Incident</label>
-                          <input type="date" value={currentReportData.incidentDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, incidentDate: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Date of Incident</label>
+                          <input type="date" value={currentReportData.incidentDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, incidentDate: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Time of Incident</label>
-                          <input type="time" value={currentReportData.incidentTime || ''} onChange={(e) => setCurrentReportData({...currentReportData, incidentTime: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Time of Incident</label>
+                          <input type="time" value={currentReportData.incidentTime || ''} onChange={(e) => setCurrentReportData({...currentReportData, incidentTime: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Primary Department</label>
-                          <select value={currentReportData.primaryDepartment || ''} onChange={(e) => setCurrentReportData({...currentReportData, primaryDepartment: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Primary Department</label>
+                          <select value={currentReportData.primaryDepartment || ''} onChange={(e) => setCurrentReportData({...currentReportData, primaryDepartment: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="LSSO">LSSO</option>
                             <option value="LSSO_COMMUNITY">LSSO Community Service</option>
@@ -6316,8 +6372,8 @@ const CADSystem = () => {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Criminal Charges Possible</label>
-                          <select value={currentReportData.criminalCharges || ''} onChange={(e) => setCurrentReportData({...currentReportData, criminalCharges: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Criminal Charges Possible</label>
+                          <select value={currentReportData.criminalCharges || ''} onChange={(e) => setCurrentReportData({...currentReportData, criminalCharges: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="YES">Yes</option>
                             <option value="NO">No</option>
@@ -6326,29 +6382,29 @@ const CADSystem = () => {
                           </select>
                         </div>
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Location of Incident</label>
-                          <input type="text" value={currentReportData.location || ''} onChange={(e) => setCurrentReportData({...currentReportData, location: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Location of Incident</label>
+                          <input type="text" value={currentReportData.location || ''} onChange={(e) => setCurrentReportData({...currentReportData, location: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Postal</label>
-                          <input type="text" value={currentReportData.postal || ''} onChange={(e) => setCurrentReportData({...currentReportData, postal: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Postal</label>
+                          <input type="text" value={currentReportData.postal || ''} onChange={(e) => setCurrentReportData({...currentReportData, postal: e.target.value})} className="field" />
                         </div>
                       </div>
                     </div>
 
                     {/* Vehicle #1 Information */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-yellow-400 mb-3 border-b border-gray-600 pb-2">Vehicle #1 Information</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-yellow-400">Vehicle #1 Information</h4>
                       <div className="mb-3">
-                        <label className="block text-xs text-gray-400 mb-1">Search by Plate</label>
+                        <label className="field-label">Search by Plate</label>
                         <div className="flex gap-2">
-                          <input type="text" value={vehicleSearchPlate1} onChange={(e) => setVehicleSearchPlate1(e.target.value)} placeholder="Enter plate number..." className="flex-1 bg-gray-600 text-white rounded px-3 py-2 text-sm" />
-                          <button onClick={() => searchVehicleByPlate(vehicleSearchPlate1, 1)} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500 text-sm">Search</button>
+                          <input type="text" value={vehicleSearchPlate1} onChange={(e) => setVehicleSearchPlate1(e.target.value)} placeholder="Enter plate number..." className="field flex-1 min-w-0" />
+                          <button onClick={() => searchVehicleByPlate(vehicleSearchPlate1, 1)} className="btn btn-primary">Search</button>
                         </div>
                         {vehicleSearchResults1.length > 0 && (
-                          <div className="mt-2 bg-gray-800 rounded p-2 max-h-32 overflow-y-auto">
+                          <div className="mt-2 menu-list max-h-32 overflow-y-auto">
                             {vehicleSearchResults1.map((v, i) => (
-                              <div key={i} onClick={() => selectVehicle(v, 1)} className="p-2 hover:bg-gray-700 cursor-pointer rounded text-sm">
+                              <div key={i} onClick={() => selectVehicle(v, 1)} className="menu-item">
                                 {v.plate} - {v.year} {v.make} {v.model} ({v.color}) - Owner: {v.ownerName}
                               </div>
                             ))}
@@ -6357,41 +6413,41 @@ const CADSystem = () => {
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Plate</label>
-                          <input type="text" value={currentReportData.vehicle1?.plate || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, plate: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Plate</label>
+                          <input type="text" value={currentReportData.vehicle1?.plate || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, plate: e.target.value}})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Year</label>
-                          <input type="text" value={currentReportData.vehicle1?.year || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, year: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Year</label>
+                          <input type="text" value={currentReportData.vehicle1?.year || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, year: e.target.value}})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Make</label>
-                          <input type="text" value={currentReportData.vehicle1?.make || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, make: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Make</label>
+                          <input type="text" value={currentReportData.vehicle1?.make || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, make: e.target.value}})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Model</label>
-                          <input type="text" value={currentReportData.vehicle1?.model || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, model: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Model</label>
+                          <input type="text" value={currentReportData.vehicle1?.model || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, model: e.target.value}})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Color</label>
-                          <input type="text" value={currentReportData.vehicle1?.color || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, color: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Color</label>
+                          <input type="text" value={currentReportData.vehicle1?.color || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, color: e.target.value}})} className="field" />
                         </div>
                       </div>
                     </div>
 
                     {/* Party #1 Information - General Report */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-purple-400 mb-3 border-b border-gray-600 pb-2">Party #1 Information</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-purple-400">Party #1 Information</h4>
                       <div className="mb-3">
-                        <label className="block text-xs text-gray-400 mb-1">Search by Name</label>
+                        <label className="field-label">Search by Name</label>
                         <div className="flex gap-2">
-                          <input type="text" value={partySearchName1} onChange={(e) => setPartySearchName1(e.target.value)} placeholder="Enter name..." className="flex-1 bg-gray-600 text-white rounded px-3 py-2 text-sm" />
-                          <button onClick={() => searchPersonByName(partySearchName1, 1)} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500 text-sm">Search</button>
+                          <input type="text" value={partySearchName1} onChange={(e) => setPartySearchName1(e.target.value)} placeholder="Enter name..." className="field flex-1 min-w-0" />
+                          <button onClick={() => searchPersonByName(partySearchName1, 1)} className="btn btn-primary">Search</button>
                         </div>
                         {partySearchResults1.length > 0 && (
-                          <div className="mt-2 bg-gray-800 rounded p-2 max-h-32 overflow-y-auto">
+                          <div className="mt-2 menu-list max-h-32 overflow-y-auto">
                             {partySearchResults1.map((p, i) => (
-                              <div key={i} onClick={() => selectParty(p, 1)} className="p-2 hover:bg-gray-700 cursor-pointer rounded text-sm">
+                              <div key={i} onClick={() => selectParty(p, 1)} className="menu-item">
                                 {p.firstName} {p.lastName} - DOB: {p.dob}
                               </div>
                             ))}
@@ -6400,31 +6456,31 @@ const CADSystem = () => {
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Name</label>
-                          <input type="text" value={currentReportData.party1?.name || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, name: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Name</label>
+                          <input type="text" value={currentReportData.party1?.name || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, name: e.target.value}})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">DOB</label>
-                          <input type="text" value={currentReportData.party1?.dob || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, dob: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">DOB</label>
+                          <input type="text" value={currentReportData.party1?.dob || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, dob: e.target.value}})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Phone</label>
-                          <input type="text" value={currentReportData.party1?.phone || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, phone: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Phone</label>
+                          <input type="text" value={currentReportData.party1?.phone || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, phone: e.target.value}})} className="field" />
                         </div>
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Address</label>
-                          <input type="text" value={currentReportData.party1?.address || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, address: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Address</label>
+                          <input type="text" value={currentReportData.party1?.address || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, address: e.target.value}})} className="field" />
                         </div>
                       </div>
                     </div>
 
                     {/* Party #1 Details Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-cyan-400 mb-3 border-b border-gray-600 pb-2">Party #1 Details</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-cyan-400">Party #1 Details</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Party #1 Involvement</label>
-                          <select value={currentReportData.party1Involvement || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1Involvement: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Party #1 Involvement</label>
+                          <select value={currentReportData.party1Involvement || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1Involvement: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="VICTIM">Victim</option>
                             <option value="WITNESS">Witness</option>
@@ -6434,30 +6490,30 @@ const CADSystem = () => {
                         </div>
                         {currentReportData.party1Involvement === 'OTHER' && (
                           <div className="col-span-2">
-                            <label className="block text-xs text-gray-400 mb-1">If Other</label>
-                            <input type="text" value={currentReportData.party1InvolvementOther || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1InvolvementOther: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Specify other involvement..." />
+                            <label className="field-label">If Other</label>
+                            <input type="text" value={currentReportData.party1InvolvementOther || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1InvolvementOther: e.target.value})} className="field" placeholder="Specify other involvement..." />
                           </div>
                         )}
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Party #1 Phone Number</label>
-                          <input type="text" value={currentReportData.party1PhoneNumber || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1PhoneNumber: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Phone number..." />
+                          <label className="field-label">Party #1 Phone Number</label>
+                          <input type="text" value={currentReportData.party1PhoneNumber || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1PhoneNumber: e.target.value})} className="field" placeholder="Phone number..." />
                         </div>
                       </div>
                     </div>
 
                     {/* Vehicle #2 Information */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-yellow-400 mb-3 border-b border-gray-600 pb-2">Vehicle #2 Information</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-yellow-400">Vehicle #2 Information</h4>
                       <div className="mb-3">
-                        <label className="block text-xs text-gray-400 mb-1">Search by Plate</label>
+                        <label className="field-label">Search by Plate</label>
                         <div className="flex gap-2">
-                          <input type="text" value={vehicleSearchPlate2} onChange={(e) => setVehicleSearchPlate2(e.target.value)} placeholder="Enter plate number..." className="flex-1 bg-gray-600 text-white rounded px-3 py-2 text-sm" />
-                          <button onClick={() => searchVehicleByPlate(vehicleSearchPlate2, 2)} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500 text-sm">Search</button>
+                          <input type="text" value={vehicleSearchPlate2} onChange={(e) => setVehicleSearchPlate2(e.target.value)} placeholder="Enter plate number..." className="field flex-1 min-w-0" />
+                          <button onClick={() => searchVehicleByPlate(vehicleSearchPlate2, 2)} className="btn btn-primary">Search</button>
                         </div>
                         {vehicleSearchResults2.length > 0 && (
-                          <div className="mt-2 bg-gray-800 rounded p-2 max-h-32 overflow-y-auto">
+                          <div className="mt-2 menu-list max-h-32 overflow-y-auto">
                             {vehicleSearchResults2.map((v, i) => (
-                              <div key={i} onClick={() => selectVehicle(v, 2)} className="p-2 hover:bg-gray-700 cursor-pointer rounded text-sm">
+                              <div key={i} onClick={() => selectVehicle(v, 2)} className="menu-item">
                                 {v.plate} - {v.year} {v.make} {v.model} ({v.color}) - Owner: {v.ownerName}
                               </div>
                             ))}
@@ -6466,41 +6522,41 @@ const CADSystem = () => {
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Plate</label>
-                          <input type="text" value={currentReportData.vehicle2?.plate || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle2: {...currentReportData.vehicle2, plate: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Plate</label>
+                          <input type="text" value={currentReportData.vehicle2?.plate || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle2: {...currentReportData.vehicle2, plate: e.target.value}})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Year</label>
-                          <input type="text" value={currentReportData.vehicle2?.year || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle2: {...currentReportData.vehicle2, year: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Year</label>
+                          <input type="text" value={currentReportData.vehicle2?.year || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle2: {...currentReportData.vehicle2, year: e.target.value}})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Make</label>
-                          <input type="text" value={currentReportData.vehicle2?.make || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle2: {...currentReportData.vehicle2, make: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Make</label>
+                          <input type="text" value={currentReportData.vehicle2?.make || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle2: {...currentReportData.vehicle2, make: e.target.value}})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Model</label>
-                          <input type="text" value={currentReportData.vehicle2?.model || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle2: {...currentReportData.vehicle2, model: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Model</label>
+                          <input type="text" value={currentReportData.vehicle2?.model || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle2: {...currentReportData.vehicle2, model: e.target.value}})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Color</label>
-                          <input type="text" value={currentReportData.vehicle2?.color || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle2: {...currentReportData.vehicle2, color: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Color</label>
+                          <input type="text" value={currentReportData.vehicle2?.color || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle2: {...currentReportData.vehicle2, color: e.target.value}})} className="field" />
                         </div>
                       </div>
                     </div>
 
                     {/* Party #2 Information */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-purple-400 mb-3 border-b border-gray-600 pb-2">Party #2 Information</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-purple-400">Party #2 Information</h4>
                       <div className="mb-3">
-                        <label className="block text-xs text-gray-400 mb-1">Search by Name</label>
+                        <label className="field-label">Search by Name</label>
                         <div className="flex gap-2">
-                          <input type="text" value={partySearchName2} onChange={(e) => setPartySearchName2(e.target.value)} placeholder="Enter name..." className="flex-1 bg-gray-600 text-white rounded px-3 py-2 text-sm" />
-                          <button onClick={() => searchPersonByName(partySearchName2, 2)} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500 text-sm">Search</button>
+                          <input type="text" value={partySearchName2} onChange={(e) => setPartySearchName2(e.target.value)} placeholder="Enter name..." className="field flex-1 min-w-0" />
+                          <button onClick={() => searchPersonByName(partySearchName2, 2)} className="btn btn-primary">Search</button>
                         </div>
                         {partySearchResults2.length > 0 && (
-                          <div className="mt-2 bg-gray-800 rounded p-2 max-h-32 overflow-y-auto">
+                          <div className="mt-2 menu-list max-h-32 overflow-y-auto">
                             {partySearchResults2.map((p, i) => (
-                              <div key={i} onClick={() => selectParty(p, 2)} className="p-2 hover:bg-gray-700 cursor-pointer rounded text-sm">
+                              <div key={i} onClick={() => selectParty(p, 2)} className="menu-item">
                                 {p.firstName} {p.lastName} - DOB: {p.dob}
                               </div>
                             ))}
@@ -6509,31 +6565,31 @@ const CADSystem = () => {
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Name</label>
-                          <input type="text" value={currentReportData.party2?.name || ''} onChange={(e) => setCurrentReportData({...currentReportData, party2: {...currentReportData.party2, name: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Name</label>
+                          <input type="text" value={currentReportData.party2?.name || ''} onChange={(e) => setCurrentReportData({...currentReportData, party2: {...currentReportData.party2, name: e.target.value}})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">DOB</label>
-                          <input type="text" value={currentReportData.party2?.dob || ''} onChange={(e) => setCurrentReportData({...currentReportData, party2: {...currentReportData.party2, dob: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">DOB</label>
+                          <input type="text" value={currentReportData.party2?.dob || ''} onChange={(e) => setCurrentReportData({...currentReportData, party2: {...currentReportData.party2, dob: e.target.value}})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Phone</label>
-                          <input type="text" value={currentReportData.party2?.phone || ''} onChange={(e) => setCurrentReportData({...currentReportData, party2: {...currentReportData.party2, phone: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Phone</label>
+                          <input type="text" value={currentReportData.party2?.phone || ''} onChange={(e) => setCurrentReportData({...currentReportData, party2: {...currentReportData.party2, phone: e.target.value}})} className="field" />
                         </div>
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Address</label>
-                          <input type="text" value={currentReportData.party2?.address || ''} onChange={(e) => setCurrentReportData({...currentReportData, party2: {...currentReportData.party2, address: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Address</label>
+                          <input type="text" value={currentReportData.party2?.address || ''} onChange={(e) => setCurrentReportData({...currentReportData, party2: {...currentReportData.party2, address: e.target.value}})} className="field" />
                         </div>
                       </div>
                     </div>
 
                     {/* Party #2 Details Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-cyan-400 mb-3 border-b border-gray-600 pb-2">Party #2 Details</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-cyan-400">Party #2 Details</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Party #2 Involvement</label>
-                          <select value={currentReportData.party2Involvement || ''} onChange={(e) => setCurrentReportData({...currentReportData, party2Involvement: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Party #2 Involvement</label>
+                          <select value={currentReportData.party2Involvement || ''} onChange={(e) => setCurrentReportData({...currentReportData, party2Involvement: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="VICTIM">Victim</option>
                             <option value="WITNESS">Witness</option>
@@ -6543,30 +6599,30 @@ const CADSystem = () => {
                         </div>
                         {currentReportData.party2Involvement === 'OTHER' && (
                           <div className="col-span-2">
-                            <label className="block text-xs text-gray-400 mb-1">If Other</label>
-                            <input type="text" value={currentReportData.party2InvolvementOther || ''} onChange={(e) => setCurrentReportData({...currentReportData, party2InvolvementOther: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Specify other involvement..." />
+                            <label className="field-label">If Other</label>
+                            <input type="text" value={currentReportData.party2InvolvementOther || ''} onChange={(e) => setCurrentReportData({...currentReportData, party2InvolvementOther: e.target.value})} className="field" placeholder="Specify other involvement..." />
                           </div>
                         )}
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Party #2 Phone Number</label>
-                          <input type="text" value={currentReportData.party2PhoneNumber || ''} onChange={(e) => setCurrentReportData({...currentReportData, party2PhoneNumber: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Phone number..." />
+                          <label className="field-label">Party #2 Phone Number</label>
+                          <input type="text" value={currentReportData.party2PhoneNumber || ''} onChange={(e) => setCurrentReportData({...currentReportData, party2PhoneNumber: e.target.value})} className="field" placeholder="Phone number..." />
                         </div>
                       </div>
                     </div>
 
                     {/* Narrative Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Narrative</h4>
-                      <textarea value={currentReportData.narrative || ''} onChange={(e) => setCurrentReportData({...currentReportData, narrative: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 h-40 text-sm" placeholder="Enter detailed narrative of the incident..." />
+                    <div className="panel-card">
+                      <h4 className="section-title text-blue-400">Narrative</h4>
+                      <textarea value={currentReportData.narrative || ''} onChange={(e) => setCurrentReportData({...currentReportData, narrative: e.target.value})} className="field h-40" placeholder="Enter detailed narrative of the incident..." />
                     </div>
 
                     {/* Evidence Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-orange-400 mb-3 border-b border-gray-600 pb-2">Evidence</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-orange-400">Evidence</h4>
                       <div className="space-y-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Did You Book Evidence in Regards to This Report?</label>
-                          <select value={currentReportData.bookedEvidence || ''} onChange={(e) => setCurrentReportData({...currentReportData, bookedEvidence: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Did You Book Evidence in Regards to This Report?</label>
+                          <select value={currentReportData.bookedEvidence || ''} onChange={(e) => setCurrentReportData({...currentReportData, bookedEvidence: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="YES">Yes</option>
                             <option value="NO">No</option>
@@ -6575,12 +6631,12 @@ const CADSystem = () => {
                         {currentReportData.bookedEvidence === 'YES' && (
                           <>
                             <div>
-                              <label className="block text-xs text-gray-400 mb-1">What Locker # Was Evidence Booked Into</label>
-                              <input type="text" value={currentReportData.evidenceLocker || ''} onChange={(e) => setCurrentReportData({...currentReportData, evidenceLocker: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Locker number..." />
+                              <label className="field-label">What Locker # Was Evidence Booked Into</label>
+                              <input type="text" value={currentReportData.evidenceLocker || ''} onChange={(e) => setCurrentReportData({...currentReportData, evidenceLocker: e.target.value})} className="field" placeholder="Locker number..." />
                             </div>
                             <div>
-                              <label className="block text-xs text-gray-400 mb-1">List Item(s) Description Booked</label>
-                              <textarea value={currentReportData.evidenceItems || ''} onChange={(e) => setCurrentReportData({...currentReportData, evidenceItems: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 h-20 text-sm" placeholder="Describe items booked..." />
+                              <label className="field-label">List Item(s) Description Booked</label>
+                              <textarea value={currentReportData.evidenceItems || ''} onChange={(e) => setCurrentReportData({...currentReportData, evidenceItems: e.target.value})} className="field h-20" placeholder="Describe items booked..." />
                             </div>
                           </>
                         )}
@@ -6588,20 +6644,20 @@ const CADSystem = () => {
                     </div>
 
                     {/* Scene Images Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Scene Images</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-blue-400">Scene Images</h4>
                       <div className="mb-3">
-                        <label className="block text-xs text-gray-400 mb-2">Image Description</label>
-                        <input type="text" value={currentReportData.imageDescription || ''} onChange={(e) => setCurrentReportData({...currentReportData, imageDescription: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm mb-2" placeholder="Describe what these images show..." />
-                        <input type="file" multiple accept="image/*" onChange={handleSceneImageUpload} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                        <label className="field-label">Image Description</label>
+                        <input type="text" value={currentReportData.imageDescription || ''} onChange={(e) => setCurrentReportData({...currentReportData, imageDescription: e.target.value})} className="field mb-2" placeholder="Describe what these images show..." />
+                        <input type="file" multiple accept="image/*" onChange={handleSceneImageUpload} className="field" />
                       </div>
                       {currentReportData.sceneImages?.length > 0 && (
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                           {currentReportData.sceneImages.map((img: any) => (
-                            <div key={img.id} className="relative bg-gray-800 rounded p-2">
+                            <div key={img.id} className="well relative p-2">
                               <img src={img.data} alt={img.name} className="w-full h-24 object-cover rounded" />
                               <button onClick={() => removeSceneImage(img.id)} className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 hover:bg-red-500"><X size={12} /></button>
-                              <input type="text" placeholder="Add note..." value={img.note || ''} onChange={(e) => updateImageNote(img.id, e.target.value)} className="w-full bg-gray-700 text-white rounded px-2 py-1 text-xs mt-1" />
+                              <input type="text" placeholder="Add note..." value={img.note || ''} onChange={(e) => updateImageNote(img.id, e.target.value)} className="field field-xs mt-1" />
                             </div>
                           ))}
                         </div>
@@ -6609,27 +6665,27 @@ const CADSystem = () => {
                     </div>
 
                     {/* Administrative Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Administrative</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-blue-400">Administrative</h4>
                       <div className="space-y-4">
-                        <div className="border-b border-gray-600 pb-4">
+                        <div className="border-b border-white/[0.08] pb-4">
                           <h5 className="text-sm font-semibold text-gray-300 mb-3">Officer Section</h5>
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                             <div className="col-span-2">
-                              <label className="block text-xs text-gray-400 mb-1">Officer Signature</label>
-                              <input type="text" value={currentReportData.officerSignature || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerSignature: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Name/Signature" />
+                              <label className="field-label">Officer Signature</label>
+                              <input type="text" value={currentReportData.officerSignature || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerSignature: e.target.value})} className="field" placeholder="Name/Signature" />
                             </div>
                             <div>
-                              <label className="block text-xs text-gray-400 mb-1">Officer Badge #</label>
-                              <input type="text" value={currentReportData.officerBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerBadge: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                              <label className="field-label">Officer Badge #</label>
+                              <input type="text" value={currentReportData.officerBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerBadge: e.target.value})} className="field" />
                             </div>
                             <div>
-                              <label className="block text-xs text-gray-400 mb-1">Date</label>
-                              <input type="date" value={currentReportData.officerDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerDate: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                              <label className="field-label">Date</label>
+                              <input type="date" value={currentReportData.officerDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerDate: e.target.value})} className="field" />
                             </div>
                             <div className="col-span-2 md:col-span-4">
-                              <label className="block text-xs text-gray-400 mb-1">Status Report</label>
-                              <select value={currentReportData.officerStatus || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerStatus: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                              <label className="field-label">Status Report</label>
+                              <select value={currentReportData.officerStatus || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerStatus: e.target.value})} className="field">
                                 <option value="">Select...</option>
                                 <option value="DOCUMENTATION_ONLY">Documentation Only</option>
                                 <option value="FORWARD_DETECTIVE">Request Forward to Detectives</option>
@@ -6642,20 +6698,20 @@ const CADSystem = () => {
                           <h5 className="text-sm font-semibold text-gray-300 mb-3">Supervisor Section</h5>
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                             <div className="col-span-2">
-                              <label className="block text-xs text-gray-400 mb-1">Supervisor Signature</label>
-                              <input type="text" value={currentReportData.supervisorSignature || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorSignature: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Name/Signature" />
+                              <label className="field-label">Supervisor Signature</label>
+                              <input type="text" value={currentReportData.supervisorSignature || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorSignature: e.target.value})} className="field" placeholder="Name/Signature" />
                             </div>
                             <div>
-                              <label className="block text-xs text-gray-400 mb-1">Supervisor Badge #</label>
-                              <input type="text" value={currentReportData.supervisorBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorBadge: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                              <label className="field-label">Supervisor Badge #</label>
+                              <input type="text" value={currentReportData.supervisorBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorBadge: e.target.value})} className="field" />
                             </div>
                             <div>
-                              <label className="block text-xs text-gray-400 mb-1">Date</label>
-                              <input type="date" value={currentReportData.supervisorDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorDate: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                              <label className="field-label">Date</label>
+                              <input type="date" value={currentReportData.supervisorDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorDate: e.target.value})} className="field" />
                             </div>
                             <div className="col-span-2 md:col-span-4">
-                              <label className="block text-xs text-gray-400 mb-1">Status</label>
-                              <select value={currentReportData.supervisorStatus || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorStatus: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                              <label className="field-label">Status</label>
+                              <select value={currentReportData.supervisorStatus || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorStatus: e.target.value})} className="field">
                                 <option value="">Select...</option>
                                 <option value="CLOSED_APPROVED">Closed/Approved</option>
                                 <option value="FORWARD_DETECTIVE">Forward to Detectives</option>
@@ -6664,8 +6720,8 @@ const CADSystem = () => {
                               </select>
                             </div>
                             <div className="col-span-2 md:col-span-4">
-                              <label className="block text-xs text-gray-400 mb-1">Has Case Gone to Court?</label>
-                              <select value={currentReportData.caseTooCourt || ''} onChange={(e) => setCurrentReportData({...currentReportData, caseTooCourt: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                              <label className="field-label">Has Case Gone to Court?</label>
+                              <select value={currentReportData.caseTooCourt || ''} onChange={(e) => setCurrentReportData({...currentReportData, caseTooCourt: e.target.value})} className="field">
                                 <option value="">Select...</option>
                                 <option value="YES">Yes</option>
                                 <option value="NO">No</option>
@@ -6678,20 +6734,20 @@ const CADSystem = () => {
                     </div>
 
                     {/* Detective Section - Only Complete if Detective */}
-                    <div className="bg-gray-700 rounded-lg p-4 border-2 border-red-400">
-                      <h4 className="text-md font-semibold text-red-400 mb-3 border-b border-gray-600 pb-2">⚠️ ONLY COMPLETE IF DETECTIVE - Investigative/Detective Information</h4>
+                    <div className="panel-card border-2 border-red-400">
+                      <h4 className="section-title text-red-400">⚠️ ONLY COMPLETE IF DETECTIVE - Investigative/Detective Information</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Detective Assigned</label>
-                          <input type="text" value={currentReportData.detectiveAssigned || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectiveAssigned: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Detective Assigned</label>
+                          <input type="text" value={currentReportData.detectiveAssigned || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectiveAssigned: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Detective Badge #</label>
-                          <input type="text" value={currentReportData.detectiveBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectiveBadge: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Detective Badge #</label>
+                          <input type="text" value={currentReportData.detectiveBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectiveBadge: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Detective Agency</label>
-                          <select value={currentReportData.detectiveAgency || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectiveAgency: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Detective Agency</label>
+                          <select value={currentReportData.detectiveAgency || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectiveAgency: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="LSSO">LSSO</option>
                             <option value="LSPD">LSPD</option>
@@ -6699,8 +6755,8 @@ const CADSystem = () => {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Case Status</label>
-                          <select value={currentReportData.detectiveCaseStatus || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectiveCaseStatus: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Case Status</label>
+                          <select value={currentReportData.detectiveCaseStatus || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectiveCaseStatus: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="COMPLETE">Complete/Closed</option>
                             <option value="INPROGRESS">In-Progress Investigation</option>
@@ -6709,33 +6765,33 @@ const CADSystem = () => {
                         </div>
                       </div>
                       <div className="mt-4">
-                        <label className="block text-xs text-gray-400 mb-1">Detective Reference (Include Agency Case # If Needed)</label>
-                        <textarea value={currentReportData.detectiveReference || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectiveReference: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 h-20 text-sm" placeholder="Reference information..." />
+                        <label className="field-label">Detective Reference (Include Agency Case # If Needed)</label>
+                        <textarea value={currentReportData.detectiveReference || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectiveReference: e.target.value})} className="field h-20" placeholder="Reference information..." />
                       </div>
                     </div>
 
                     {/* Link Cases/Citations Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Link Cases/Citations</h4>
-                      <button onClick={addLinkedReport} className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-500 text-sm mb-3">+ Add Link</button>
+                    <div className="panel-card">
+                      <h4 className="section-title text-blue-400">Link Cases/Citations</h4>
+                      <button onClick={addLinkedReport} className="btn btn-primary btn-sm mb-3">+ Add Link</button>
                       {currentReportData.linkedReports?.map((link: any, index: number) => (
                         <div key={index} className="flex gap-2 mb-2">
-                          <select value={link.type || ''} onChange={(e) => { const newLinks = [...currentReportData.linkedReports]; newLinks[index] = { ...newLinks[index], type: e.target.value }; setCurrentReportData({...currentReportData, linkedReports: newLinks}); }} className="bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <select value={link.type || ''} onChange={(e) => { const newLinks = [...currentReportData.linkedReports]; newLinks[index] = { ...newLinks[index], type: e.target.value }; setCurrentReportData({...currentReportData, linkedReports: newLinks}); }} className="field">
                             <option value="">Type...</option>
                             <option value="ARREST">Arrest</option>
                             <option value="CITATION">Citation</option>
                             <option value="TOW">Tow Report</option>
                             <option value="SUPPLEMENTAL">Supplemental</option>
                           </select>
-                          <input type="text" placeholder="Report/Record #" value={link.number || ''} onChange={(e) => { const newLinks = [...currentReportData.linkedReports]; newLinks[index] = { ...newLinks[index], number: e.target.value }; setCurrentReportData({...currentReportData, linkedReports: newLinks}); }} className="flex-1 bg-gray-600 text-white rounded px-3 py-2 text-sm" />
-                          <button onClick={() => removeLinkedReport(index)} className="px-3 py-2 bg-red-600 text-white rounded hover:bg-red-500"><X size={16} /></button>
+                          <input type="text" placeholder="Report/Record #" value={link.number || ''} onChange={(e) => { const newLinks = [...currentReportData.linkedReports]; newLinks[index] = { ...newLinks[index], number: e.target.value }; setCurrentReportData({...currentReportData, linkedReports: newLinks}); }} className="field flex-1 min-w-0" />
+                          <button onClick={() => removeLinkedReport(index)} className="btn btn-danger"><X size={16} /></button>
                         </div>
                       ))}
                     </div>
 
                     {/* Admin Only Flags Section */}
-                    <div className="bg-gray-700 rounded-lg p-4 border-2 border-orange-400">
-                      <h4 className="text-md font-semibold text-orange-400 mb-3 border-b border-gray-600 pb-2">⚠️ ADMIN ONLY FLAGS</h4>
+                    <div className="panel-card border-2 border-orange-400">
+                      <h4 className="section-title text-orange-400">⚠️ ADMIN ONLY FLAGS</h4>
                       <div className="space-y-3">
                         <label className="flex items-center gap-3 text-sm text-gray-200 cursor-pointer">
                           <input type="checkbox" checked={currentReportData.knownArmed || false} onChange={(e) => setCurrentReportData({...currentReportData, knownArmed: e.target.checked})} className="w-4 h-4" />
@@ -6760,32 +6816,32 @@ const CADSystem = () => {
                   /* Vehicle Tow/Release Report Form */
                   <>
                     {/* Agency Information Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Agency Information</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-blue-400">Agency Information</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Callsign</label>
-                          <input type="text" value={currentReportData.callsign || ''} readOnly className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Callsign</label>
+                          <input type="text" value={currentReportData.callsign || ''} readOnly className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Department</label>
-                          <input type="text" value={currentReportData.department || ''} readOnly className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Department</label>
+                          <input type="text" value={currentReportData.department || ''} readOnly className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Officer Name</label>
-                          <input type="text" value={currentReportData.officer || ''} readOnly className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Officer Name</label>
+                          <input type="text" value={currentReportData.officer || ''} readOnly className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date</label>
-                          <input type="text" value={currentReportData.date ? new Date(currentReportData.date).toLocaleDateString() : ''} readOnly className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Date</label>
+                          <input type="text" value={currentReportData.date ? new Date(currentReportData.date).toLocaleDateString() : ''} readOnly className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Record#</label>
-                          <input type="text" value={currentReportData.recordNumber || ''} readOnly className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Record#</label>
+                          <input type="text" value={currentReportData.recordNumber || ''} readOnly className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Report Type</label>
-                          <select value={currentReportData.towType || ''} onChange={(e) => setCurrentReportData({...currentReportData, towType: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Report Type</label>
+                          <select value={currentReportData.towType || ''} onChange={(e) => setCurrentReportData({...currentReportData, towType: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="TOW">Vehicle Tow</option>
                             <option value="RELEASE">Vehicle Release</option>
@@ -6796,37 +6852,37 @@ const CADSystem = () => {
                     </div>
 
                     {/* Reference Information Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-yellow-400 mb-3 border-b border-gray-600 pb-2">Reference Information</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-yellow-400">Reference Information</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Dispatch Call ID#</label>
-                          <input type="text" value={currentReportData.dispatchCallId || ''} onChange={(e) => setCurrentReportData({...currentReportData, dispatchCallId: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Dispatch Call ID#</label>
+                          <input type="text" value={currentReportData.dispatchCallId || ''} onChange={(e) => setCurrentReportData({...currentReportData, dispatchCallId: e.target.value})} className="field" />
                         </div>
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Street Towed From</label>
-                          <input type="text" value={currentReportData.streetTowedFrom || ''} onChange={(e) => setCurrentReportData({...currentReportData, streetTowedFrom: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Street Towed From</label>
+                          <input type="text" value={currentReportData.streetTowedFrom || ''} onChange={(e) => setCurrentReportData({...currentReportData, streetTowedFrom: e.target.value})} className="field" />
                         </div>
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Postal</label>
-                          <input type="text" value={currentReportData.postal || ''} onChange={(e) => setCurrentReportData({...currentReportData, postal: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Postal</label>
+                          <input type="text" value={currentReportData.postal || ''} onChange={(e) => setCurrentReportData({...currentReportData, postal: e.target.value})} className="field" />
                         </div>
                       </div>
                     </div>
 
                     {/* Vehicle Information */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-yellow-400 mb-3 border-b border-gray-600 pb-2">Vehicle Information</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-yellow-400">Vehicle Information</h4>
                       <div className="mb-3">
-                        <label className="block text-xs text-gray-400 mb-1">Search by Plate</label>
+                        <label className="field-label">Search by Plate</label>
                         <div className="flex gap-2">
-                          <input type="text" value={vehicleSearchPlate1} onChange={(e) => setVehicleSearchPlate1(e.target.value)} placeholder="Enter plate number..." className="flex-1 bg-gray-600 text-white rounded px-3 py-2 text-sm" />
-                          <button onClick={() => searchVehicleByPlate(vehicleSearchPlate1, 1)} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500 text-sm">Search</button>
+                          <input type="text" value={vehicleSearchPlate1} onChange={(e) => setVehicleSearchPlate1(e.target.value)} placeholder="Enter plate number..." className="field flex-1 min-w-0" />
+                          <button onClick={() => searchVehicleByPlate(vehicleSearchPlate1, 1)} className="btn btn-primary">Search</button>
                         </div>
                         {vehicleSearchResults1.length > 0 && (
-                          <div className="mt-2 bg-gray-800 rounded p-2 max-h-32 overflow-y-auto">
+                          <div className="mt-2 menu-list max-h-32 overflow-y-auto">
                             {vehicleSearchResults1.map((v, i) => (
-                              <div key={i} onClick={() => selectVehicle(v, 1)} className="p-2 hover:bg-gray-700 cursor-pointer rounded text-sm">
+                              <div key={i} onClick={() => selectVehicle(v, 1)} className="menu-item">
                                 {v.plate} - {v.year} {v.make} {v.model} ({v.color}) - Owner: {v.ownerName}
                               </div>
                             ))}
@@ -6835,30 +6891,30 @@ const CADSystem = () => {
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Plate</label>
-                          <input type="text" value={currentReportData.vehicle1?.plate || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, plate: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Plate</label>
+                          <input type="text" value={currentReportData.vehicle1?.plate || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, plate: e.target.value}})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Year</label>
-                          <input type="text" value={currentReportData.vehicle1?.year || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, year: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Year</label>
+                          <input type="text" value={currentReportData.vehicle1?.year || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, year: e.target.value}})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Make</label>
-                          <input type="text" value={currentReportData.vehicle1?.make || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, make: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Make</label>
+                          <input type="text" value={currentReportData.vehicle1?.make || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, make: e.target.value}})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Model</label>
-                          <input type="text" value={currentReportData.vehicle1?.model || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, model: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Model</label>
+                          <input type="text" value={currentReportData.vehicle1?.model || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, model: e.target.value}})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Color</label>
-                          <input type="text" value={currentReportData.vehicle1?.color || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, color: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Color</label>
+                          <input type="text" value={currentReportData.vehicle1?.color || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicle1: {...currentReportData.vehicle1, color: e.target.value}})} className="field" />
                         </div>
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Work Vehicle?</label>
-                          <select value={currentReportData.isWorkVehicle || ''} onChange={(e) => setCurrentReportData({...currentReportData, isWorkVehicle: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Work Vehicle?</label>
+                          <select value={currentReportData.isWorkVehicle || ''} onChange={(e) => setCurrentReportData({...currentReportData, isWorkVehicle: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="YES">Yes</option>
                             <option value="NO">No</option>
@@ -6866,8 +6922,8 @@ const CADSystem = () => {
                         </div>
                         {currentReportData.isWorkVehicle === 'YES' && (
                           <div className="col-span-2">
-                            <label className="block text-xs text-gray-400 mb-1">Company/Job Info</label>
-                            <input type="text" value={currentReportData.companyJobInfo || ''} onChange={(e) => setCurrentReportData({...currentReportData, companyJobInfo: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Company name or job details..." />
+                            <label className="field-label">Company/Job Info</label>
+                            <input type="text" value={currentReportData.companyJobInfo || ''} onChange={(e) => setCurrentReportData({...currentReportData, companyJobInfo: e.target.value})} className="field" placeholder="Company name or job details..." />
                           </div>
                         )}
                       </div>
@@ -6888,18 +6944,18 @@ const CADSystem = () => {
                     </div>
 
                     {/* Registered Owner Information */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-purple-400 mb-3 border-b border-gray-600 pb-2">Registered Owner Information</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-purple-400">Registered Owner Information</h4>
                       <div className="mb-3">
-                        <label className="block text-xs text-gray-400 mb-1">Search by Name</label>
+                        <label className="field-label">Search by Name</label>
                         <div className="flex gap-2">
-                          <input type="text" value={partySearchName1} onChange={(e) => setPartySearchName1(e.target.value)} placeholder="Enter name..." className="flex-1 bg-gray-600 text-white rounded px-3 py-2 text-sm" />
-                          <button onClick={() => searchPersonByName(partySearchName1, 1)} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500 text-sm">Search</button>
+                          <input type="text" value={partySearchName1} onChange={(e) => setPartySearchName1(e.target.value)} placeholder="Enter name..." className="field flex-1 min-w-0" />
+                          <button onClick={() => searchPersonByName(partySearchName1, 1)} className="btn btn-primary">Search</button>
                         </div>
                         {partySearchResults1.length > 0 && (
-                          <div className="mt-2 bg-gray-800 rounded p-2 max-h-32 overflow-y-auto">
+                          <div className="mt-2 menu-list max-h-32 overflow-y-auto">
                             {partySearchResults1.map((p, i) => (
-                              <div key={i} onClick={() => selectParty(p, 1)} className="p-2 hover:bg-gray-700 cursor-pointer rounded text-sm">
+                              <div key={i} onClick={() => selectParty(p, 1)} className="menu-item">
                                 {p.firstName} {p.lastName} - DOB: {p.dob}
                               </div>
                             ))}
@@ -6908,31 +6964,31 @@ const CADSystem = () => {
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Registered Owner Name</label>
-                          <input type="text" value={currentReportData.party1?.name || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, name: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Registered Owner Name</label>
+                          <input type="text" value={currentReportData.party1?.name || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, name: e.target.value}})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">DOB</label>
-                          <input type="text" value={currentReportData.party1?.dob || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, dob: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">DOB</label>
+                          <input type="text" value={currentReportData.party1?.dob || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, dob: e.target.value}})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Phone</label>
-                          <input type="text" value={currentReportData.party1?.phone || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, phone: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Phone</label>
+                          <input type="text" value={currentReportData.party1?.phone || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, phone: e.target.value}})} className="field" />
                         </div>
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Address</label>
-                          <input type="text" value={currentReportData.party1?.address || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, address: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Address</label>
+                          <input type="text" value={currentReportData.party1?.address || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, address: e.target.value}})} className="field" />
                         </div>
                       </div>
                     </div>
 
                     {/* Towing Information */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-orange-400 mb-3 border-b border-gray-600 pb-2">Towing Information</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-orange-400">Towing Information</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Towing Company</label>
-                          <select value={currentReportData.towingCompany || ''} onChange={(e) => setCurrentReportData({...currentReportData, towingCompany: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Towing Company</label>
+                          <select value={currentReportData.towingCompany || ''} onChange={(e) => setCurrentReportData({...currentReportData, towingCompany: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="ACTION_TOWING">Action Towing Inc</option>
                             <option value="COUNTY_TOW">County Tow</option>
@@ -6940,12 +6996,12 @@ const CADSystem = () => {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Driver Name</label>
-                          <input type="text" value={currentReportData.driverName || ''} onChange={(e) => setCurrentReportData({...currentReportData, driverName: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Tow driver name..." />
+                          <label className="field-label">Driver Name</label>
+                          <input type="text" value={currentReportData.driverName || ''} onChange={(e) => setCurrentReportData({...currentReportData, driverName: e.target.value})} className="field" placeholder="Tow driver name..." />
                         </div>
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Towing Authority/Reason</label>
-                          <select value={currentReportData.towingAuthority || ''} onChange={(e) => setCurrentReportData({...currentReportData, towingAuthority: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Towing Authority/Reason</label>
+                          <select value={currentReportData.towingAuthority || ''} onChange={(e) => setCurrentReportData({...currentReportData, towingAuthority: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="BLOCKING_ROADWAY">Vehicle Blocking Roadway</option>
                             <option value="ILLEGAL_PARKING">Vehicle Illegally Parked</option>
@@ -6958,8 +7014,8 @@ const CADSystem = () => {
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Release Vehicle To</label>
-                          <select value={currentReportData.releaseVehicleTo || ''} onChange={(e) => setCurrentReportData({...currentReportData, releaseVehicleTo: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Release Vehicle To</label>
+                          <select value={currentReportData.releaseVehicleTo || ''} onChange={(e) => setCurrentReportData({...currentReportData, releaseVehicleTo: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="OWNER">Registered Owner</option>
                             <option value="HOLD_DATE">Agency Hold Until Specified Date</option>
@@ -6967,8 +7023,8 @@ const CADSystem = () => {
                           </select>
                         </div>
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Agency Hold Duration</label>
-                          <select value={currentReportData.agencyHoldDuration || ''} onChange={(e) => setCurrentReportData({...currentReportData, agencyHoldDuration: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Agency Hold Duration</label>
+                          <select value={currentReportData.agencyHoldDuration || ''} onChange={(e) => setCurrentReportData({...currentReportData, agencyHoldDuration: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="NO_HOLD">No Hold</option>
                             <option value="1_HOUR">1 Hour</option>
@@ -6983,8 +7039,8 @@ const CADSystem = () => {
                     </div>
 
                     {/* Driver Information */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-indigo-400 mb-3 border-b border-gray-600 pb-2">Driver Information</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-indigo-400">Driver Information</h4>
                       <div className="mb-3">
                         <div className="flex items-center gap-2">
                           <input type="checkbox" checked={currentReportData.driverSameAsOwner || false} onChange={(e) => setCurrentReportData({...currentReportData, driverSameAsOwner: e.target.checked})} className="w-4 h-4" />
@@ -6994,16 +7050,16 @@ const CADSystem = () => {
                       {!currentReportData.driverSameAsOwner && (
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                           <div className="col-span-2">
-                            <label className="block text-xs text-gray-400 mb-1">Driver Name</label>
-                            <input type="text" value={currentReportData.driverInformationName || ''} onChange={(e) => setCurrentReportData({...currentReportData, driverInformationName: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Driver name..." />
+                            <label className="field-label">Driver Name</label>
+                            <input type="text" value={currentReportData.driverInformationName || ''} onChange={(e) => setCurrentReportData({...currentReportData, driverInformationName: e.target.value})} className="field" placeholder="Driver name..." />
                           </div>
                           <div>
-                            <label className="block text-xs text-gray-400 mb-1">Arrested / Section</label>
-                            <input type="text" value={currentReportData.arrestedSection || ''} onChange={(e) => setCurrentReportData({...currentReportData, arrestedSection: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="PC Section..." />
+                            <label className="field-label">Arrested / Section</label>
+                            <input type="text" value={currentReportData.arrestedSection || ''} onChange={(e) => setCurrentReportData({...currentReportData, arrestedSection: e.target.value})} className="field" placeholder="PC Section..." />
                           </div>
                           <div>
-                            <label className="block text-xs text-gray-400 mb-1">Arresting Agency</label>
-                            <select value={currentReportData.arrestingAgency || ''} onChange={(e) => setCurrentReportData({...currentReportData, arrestingAgency: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                            <label className="field-label">Arresting Agency</label>
+                            <select value={currentReportData.arrestingAgency || ''} onChange={(e) => setCurrentReportData({...currentReportData, arrestingAgency: e.target.value})} className="field">
                               <option value="">Select...</option>
                               <option value="LSSO">LSSO</option>
                               <option value="LSSO_METRO">LSSO - Metro</option>
@@ -7011,34 +7067,34 @@ const CADSystem = () => {
                             </select>
                           </div>
                           <div>
-                            <label className="block text-xs text-gray-400 mb-1">Officer Badge#</label>
-                            <input type="text" value={currentReportData.arrestingOfficerBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, arrestingOfficerBadge: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Badge number..." />
+                            <label className="field-label">Officer Badge#</label>
+                            <input type="text" value={currentReportData.arrestingOfficerBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, arrestingOfficerBadge: e.target.value})} className="field" placeholder="Badge number..." />
                           </div>
                         </div>
                       )}
                     </div>
 
                     {/* Remarks Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-green-400 mb-3 border-b border-gray-600 pb-2">Remarks</h4>
-                      <textarea value={currentReportData.remarks || ''} onChange={(e) => setCurrentReportData({...currentReportData, remarks: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 h-24 text-sm" placeholder="LIST PROPERTY, TOOLS, VEHICLE DAMAGE, ARRESTS" />
+                    <div className="panel-card">
+                      <h4 className="section-title text-green-400">Remarks</h4>
+                      <textarea value={currentReportData.remarks || ''} onChange={(e) => setCurrentReportData({...currentReportData, remarks: e.target.value})} className="field h-24" placeholder="LIST PROPERTY, TOOLS, VEHICLE DAMAGE, ARRESTS" />
                     </div>
 
                     {/* Authorizing Signature Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Authorizing Signature</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-blue-400">Authorizing Signature</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Officer Signature</label>
-                          <input type="text" value={currentReportData.officerSignature || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerSignature: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Signature..." />
+                          <label className="field-label">Officer Signature</label>
+                          <input type="text" value={currentReportData.officerSignature || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerSignature: e.target.value})} className="field" placeholder="Signature..." />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Officer Badge#</label>
-                          <input type="text" value={currentReportData.officerBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerBadge: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Badge number..." />
+                          <label className="field-label">Officer Badge#</label>
+                          <input type="text" value={currentReportData.officerBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerBadge: e.target.value})} className="field" placeholder="Badge number..." />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Officer Agency</label>
-                          <select value={currentReportData.officerAgency || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerAgency: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Officer Agency</label>
+                          <select value={currentReportData.officerAgency || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerAgency: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="LSSO">LSSO</option>
                             <option value="LSSO_COMMUNITY">LSSO Community Service</option>
@@ -7048,20 +7104,20 @@ const CADSystem = () => {
                     </div>
 
                     {/* Administrative Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Administrative</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-blue-400">Administrative</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Supervisor Signature</label>
-                          <input type="text" value={currentReportData.supervisorSignature || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorSignature: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Signature..." />
+                          <label className="field-label">Supervisor Signature</label>
+                          <input type="text" value={currentReportData.supervisorSignature || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorSignature: e.target.value})} className="field" placeholder="Signature..." />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Supervisor Badge#</label>
-                          <input type="text" value={currentReportData.supervisorBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorBadge: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Badge number..." />
+                          <label className="field-label">Supervisor Badge#</label>
+                          <input type="text" value={currentReportData.supervisorBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorBadge: e.target.value})} className="field" placeholder="Badge number..." />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date</label>
-                          <input type="date" value={currentReportData.administrativeDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, administrativeDate: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Date</label>
+                          <input type="date" value={currentReportData.administrativeDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, administrativeDate: e.target.value})} className="field" />
                         </div>
                       </div>
                     </div>
@@ -7069,9 +7125,9 @@ const CADSystem = () => {
                 ) : activeReportForm === 'DETECTIVE REQUEST FORM' ? (
                   <>
                     {/* Type of Case Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Type of Case</h4>
-                      <select value={currentReportData.typeOfCase || ''} onChange={(e) => setCurrentReportData({...currentReportData, typeOfCase: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm mb-4">
+                    <div className="panel-card">
+                      <h4 className="section-title text-blue-400">Type of Case</h4>
+                      <select value={currentReportData.typeOfCase || ''} onChange={(e) => setCurrentReportData({...currentReportData, typeOfCase: e.target.value})} className="field mb-4">
                         <option value="">Select Case Type...</option>
                         <option value="HOMICIDE">HOMICIDE</option>
                         <option value="ROBBERY/BURGLARY">ROBBERY/BURGLARY</option>
@@ -7084,35 +7140,35 @@ const CADSystem = () => {
                         <option value="SUSPICIOUS CIRCUMSTANCES">SUSPICIOUS CIRCUMSTANCES</option>
                         <option value="OTHER">OTHER - NOTED BELOW</option>
                       </select>
-                      <div className="bg-gray-800 rounded p-3 text-xs text-gray-300 space-y-2">
+                      <div className="well p-3 text-xs text-gray-300 space-y-2">
                         <p className="font-semibold">REQUESTING OFFICER MUST SUBMIT A NORMAL REPORT/RECORD TO LINK TO REQUEST</p>
                         <p className="font-semibold">ORIGINAL REPORT MUST CONTAIN ALL NEEDED INFORMATION</p>
                       </div>
                     </div>
 
                     {/* Case Information Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-green-400 mb-3 border-b border-gray-600 pb-2">Case Information</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-green-400">Case Information</h4>
                       <div className="grid grid-cols-2 gap-4 mb-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date of Incident</label>
-                          <input type="date" value={currentReportData.dateOfIncident || ''} onChange={(e) => setCurrentReportData({...currentReportData, dateOfIncident: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Date of Incident</label>
+                          <input type="date" value={currentReportData.dateOfIncident || ''} onChange={(e) => setCurrentReportData({...currentReportData, dateOfIncident: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Time of Incident</label>
-                          <input type="time" value={currentReportData.timeOfIncident || ''} onChange={(e) => setCurrentReportData({...currentReportData, timeOfIncident: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Time of Incident</label>
+                          <input type="time" value={currentReportData.timeOfIncident || ''} onChange={(e) => setCurrentReportData({...currentReportData, timeOfIncident: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Primary Department</label>
-                          <select value={currentReportData.primaryDepartment || ''} onChange={(e) => setCurrentReportData({...currentReportData, primaryDepartment: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Primary Department</label>
+                          <select value={currentReportData.primaryDepartment || ''} onChange={(e) => setCurrentReportData({...currentReportData, primaryDepartment: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="LSPD">LSPD</option>
                             <option value="LSSO">LSSO</option>
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Criminal Charges Possible</label>
-                          <select value={currentReportData.criminalChargesPossible || ''} onChange={(e) => setCurrentReportData({...currentReportData, criminalChargesPossible: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Criminal Charges Possible</label>
+                          <select value={currentReportData.criminalChargesPossible || ''} onChange={(e) => setCurrentReportData({...currentReportData, criminalChargesPossible: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="YES">YES</option>
                             <option value="NO">NO</option>
@@ -7121,16 +7177,16 @@ const CADSystem = () => {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Location of Incident</label>
-                          <input type="text" value={currentReportData.locationOfIncident || ''} onChange={(e) => setCurrentReportData({...currentReportData, locationOfIncident: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Location of Incident</label>
+                          <input type="text" value={currentReportData.locationOfIncident || ''} onChange={(e) => setCurrentReportData({...currentReportData, locationOfIncident: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Postal</label>
-                          <input type="text" value={currentReportData.postal || ''} onChange={(e) => setCurrentReportData({...currentReportData, postal: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Postal</label>
+                          <input type="text" value={currentReportData.postal || ''} onChange={(e) => setCurrentReportData({...currentReportData, postal: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Gang Related?</label>
-                          <select value={currentReportData.gangRelated || ''} onChange={(e) => setCurrentReportData({...currentReportData, gangRelated: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Gang Related?</label>
+                          <select value={currentReportData.gangRelated || ''} onChange={(e) => setCurrentReportData({...currentReportData, gangRelated: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="YES">YES</option>
                             <option value="NO">NO</option>
@@ -7141,37 +7197,37 @@ const CADSystem = () => {
 
                       {currentReportData.gangRelated === 'YES' && (
                         <div className="mb-4">
-                          <label className="block text-xs text-gray-400 mb-1">Gang Affiliation/Gang Involved</label>
-                          <input type="text" value={currentReportData.gangAffiliation || ''} onChange={(e) => setCurrentReportData({...currentReportData, gangAffiliation: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Gang Affiliation/Gang Involved</label>
+                          <input type="text" value={currentReportData.gangAffiliation || ''} onChange={(e) => setCurrentReportData({...currentReportData, gangAffiliation: e.target.value})} className="field" />
                         </div>
                       )}
 
                       <div className="mb-4">
-                        <label className="block text-xs text-gray-400 mb-1">List All Involved Law Enforcement Badge#'s and Agency</label>
-                        <textarea value={currentReportData.involvedLawEnforcement || ''} onChange={(e) => setCurrentReportData({...currentReportData, involvedLawEnforcement: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 h-20 text-sm" placeholder="List badge numbers and agencies..." />
+                        <label className="field-label">List All Involved Law Enforcement Badge#'s and Agency</label>
+                        <textarea value={currentReportData.involvedLawEnforcement || ''} onChange={(e) => setCurrentReportData({...currentReportData, involvedLawEnforcement: e.target.value})} className="field h-20" placeholder="List badge numbers and agencies..." />
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Case/Report # to Review (Link below if able)</label>
-                          <input type="text" value={currentReportData.caseReportNumber || ''} onChange={(e) => setCurrentReportData({...currentReportData, caseReportNumber: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Case/Report # to Review (Link below if able)</label>
+                          <input type="text" value={currentReportData.caseReportNumber || ''} onChange={(e) => setCurrentReportData({...currentReportData, caseReportNumber: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Evidence Locker # Related</label>
-                          <input type="text" value={currentReportData.evidenceLockerNumber || ''} onChange={(e) => setCurrentReportData({...currentReportData, evidenceLockerNumber: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Evidence Locker # Related</label>
+                          <input type="text" value={currentReportData.evidenceLockerNumber || ''} onChange={(e) => setCurrentReportData({...currentReportData, evidenceLockerNumber: e.target.value})} className="field" />
                         </div>
                       </div>
 
                       {/* Linked Cases/Citations */}
-                      <div className="mt-4 pt-4 border-t border-gray-600">
+                      <div className="mt-4 pt-4 border-t border-white/[0.08]">
                         <h5 className="text-sm font-semibold text-purple-400 mb-2">Linked Cases/Citations</h5>
-                        <div className="bg-gray-800 rounded p-3 min-h-20">
+                        <div className="well p-3 min-h-20">
                           {currentReportData.linkedCases && currentReportData.linkedCases.length > 0 ? (
                             <ul className="space-y-2">
                               {currentReportData.linkedCases.map((linkedCase, index) => (
                                 <li key={index} className="text-sm text-blue-300 hover:text-blue-200 cursor-pointer flex justify-between items-center">
                                   <span>{linkedCase}</span>
-                                  <button onClick={() => setCurrentReportData({...currentReportData, linkedCases: currentReportData.linkedCases.filter((_, i) => i !== index)})} className="text-xs px-2 py-1 bg-red-600 hover:bg-red-500 rounded">Remove</button>
+                                  <button onClick={() => setCurrentReportData({...currentReportData, linkedCases: currentReportData.linkedCases.filter((_, i) => i !== index)})} className="btn btn-danger btn-sm">Remove</button>
                                 </li>
                               ))}
                             </ul>
@@ -7184,42 +7240,42 @@ const CADSystem = () => {
                             setCurrentReportData({...currentReportData, linkedCases: [...(currentReportData.linkedCases || []), e.currentTarget.value]});
                             e.currentTarget.value = '';
                           }
-                        }} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm mt-2" />
+                        }} className="field mt-2" />
                       </div>
                     </div>
 
                     {/* Requester Action Taken Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-orange-400 mb-3 border-b border-gray-600 pb-2">Requester Action Taken</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-orange-400">Requester Action Taken</h4>
                       <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <label className="block text-xs text-gray-400 mb-1">Report Filed? (IF NO - DESCRIBE IN NOTES)</label>
-                            <select value={currentReportData.reportFiled || ''} onChange={(e) => setCurrentReportData({...currentReportData, reportFiled: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                            <label className="field-label">Report Filed? (IF NO - DESCRIBE IN NOTES)</label>
+                            <select value={currentReportData.reportFiled || ''} onChange={(e) => setCurrentReportData({...currentReportData, reportFiled: e.target.value})} className="field">
                               <option value="">Select...</option>
                               <option value="YES">YES</option>
                               <option value="NO">NO</option>
                             </select>
                           </div>
                           <div>
-                            <label className="block text-xs text-gray-400 mb-1">More Details Needed? (DETECTIVES NEED MORE INFO)</label>
-                            <select value={currentReportData.moreDetailsNeeded || ''} onChange={(e) => setCurrentReportData({...currentReportData, moreDetailsNeeded: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                            <label className="field-label">More Details Needed? (DETECTIVES NEED MORE INFO)</label>
+                            <select value={currentReportData.moreDetailsNeeded || ''} onChange={(e) => setCurrentReportData({...currentReportData, moreDetailsNeeded: e.target.value})} className="field">
                               <option value="">Select...</option>
                               <option value="YES">YES</option>
                               <option value="NO">NO</option>
                             </select>
                           </div>
                           <div>
-                            <label className="block text-xs text-gray-400 mb-1">Arrest Made?</label>
-                            <select value={currentReportData.arrestMade || ''} onChange={(e) => setCurrentReportData({...currentReportData, arrestMade: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                            <label className="field-label">Arrest Made?</label>
+                            <select value={currentReportData.arrestMade || ''} onChange={(e) => setCurrentReportData({...currentReportData, arrestMade: e.target.value})} className="field">
                               <option value="">Select...</option>
                               <option value="YES">YES</option>
                               <option value="NO">NO</option>
                             </select>
                           </div>
                           <div>
-                            <label className="block text-xs text-gray-400 mb-1">Pictures Taken of Evidence/Scene?</label>
-                            <select value={currentReportData.picturesTaken || ''} onChange={(e) => setCurrentReportData({...currentReportData, picturesTaken: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                            <label className="field-label">Pictures Taken of Evidence/Scene?</label>
+                            <select value={currentReportData.picturesTaken || ''} onChange={(e) => setCurrentReportData({...currentReportData, picturesTaken: e.target.value})} className="field">
                               <option value="">Select...</option>
                               <option value="YES">YES</option>
                               <option value="NO">NO</option>
@@ -7227,8 +7283,8 @@ const CADSystem = () => {
                           </div>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Include in Future Assistance?</label>
-                          <select value={currentReportData.includeInFutureAssistance || ''} onChange={(e) => setCurrentReportData({...currentReportData, includeInFutureAssistance: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Include in Future Assistance?</label>
+                          <select value={currentReportData.includeInFutureAssistance || ''} onChange={(e) => setCurrentReportData({...currentReportData, includeInFutureAssistance: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="YES">YES</option>
                             <option value="NO">NO</option>
@@ -7238,42 +7294,42 @@ const CADSystem = () => {
                     </div>
 
                     {/* Requestor Notes Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-cyan-400 mb-3 border-b border-gray-600 pb-2">Requestor Notes</h4>
-                      <textarea value={currentReportData.requestorNotes || ''} onChange={(e) => setCurrentReportData({...currentReportData, requestorNotes: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 h-32 text-sm mb-4" placeholder="ADD ANY NEEDED INFORMATION OR NOTES TO DETECTIVES" />
+                    <div className="panel-card">
+                      <h4 className="section-title text-cyan-400">Requestor Notes</h4>
+                      <textarea value={currentReportData.requestorNotes || ''} onChange={(e) => setCurrentReportData({...currentReportData, requestorNotes: e.target.value})} className="field h-32 mb-4" placeholder="ADD ANY NEEDED INFORMATION OR NOTES TO DETECTIVES" />
 
                       <div className="grid grid-cols-2 gap-4 mb-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Officer Signature</label>
-                          <input type="text" value={currentReportData.officerSignature || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerSignature: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Officer Signature</label>
+                          <input type="text" value={currentReportData.officerSignature || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerSignature: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Officer Badge#</label>
-                          <input type="text" value={currentReportData.officerBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerBadge: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Officer Badge#</label>
+                          <input type="text" value={currentReportData.officerBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerBadge: e.target.value})} className="field" />
                         </div>
                       </div>
 
                       <div>
-                        <label className="block text-xs text-gray-400 mb-1">Date of Submission</label>
-                        <input type="date" value={currentReportData.dateOfSubmission || ''} onChange={(e) => setCurrentReportData({...currentReportData, dateOfSubmission: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm mb-4" />
+                        <label className="field-label">Date of Submission</label>
+                        <input type="date" value={currentReportData.dateOfSubmission || ''} onChange={(e) => setCurrentReportData({...currentReportData, dateOfSubmission: e.target.value})} className="field mb-4" />
                       </div>
 
                       {/* Image Attachments */}
-                      <div className="border-t border-gray-600 pt-4">
+                      <div className="border-t border-white/[0.08] pt-4">
                         <h5 className="text-sm font-semibold text-yellow-400 mb-2">Attachments</h5>
                         {currentReportData.attachmentImages && currentReportData.attachmentImages.length > 0 && (
                           <div className="mb-4 space-y-3">
                             {currentReportData.attachmentImages.map((img, index) => (
-                              <div key={index} className="bg-gray-800 rounded p-3">
+                              <div key={index} className="well p-3">
                                 <div className="flex justify-between items-start mb-2">
                                   <span className="text-xs text-gray-400">Image {index + 1}</span>
-                                  <button onClick={() => setCurrentReportData({...currentReportData, attachmentImages: currentReportData.attachmentImages.filter((_, i) => i !== index)})} className="text-xs px-2 py-1 bg-red-600 hover:bg-red-500 rounded">Remove</button>
+                                  <button onClick={() => setCurrentReportData({...currentReportData, attachmentImages: currentReportData.attachmentImages.filter((_, i) => i !== index)})} className="btn btn-danger btn-sm">Remove</button>
                                 </div>
                                 <input type="text" value={img.description || ''} onChange={(e) => {
                                   const newImages = [...currentReportData.attachmentImages];
                                   newImages[index].description = e.target.value;
                                   setCurrentReportData({...currentReportData, attachmentImages: newImages});
-                                }} placeholder="Describe this image..." className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm text-xs" />
+                                }} placeholder="Describe this image..." className="field field-xs" />
                               </div>
                             ))}
                           </div>
@@ -7285,12 +7341,12 @@ const CADSystem = () => {
                             description: ''
                           }));
                           setCurrentReportData({...currentReportData, attachmentImages: [...(currentReportData.attachmentImages || []), ...newImages]});
-                        }} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm text-xs" />
+                        }} className="field field-xs" />
                       </div>
 
                       <div className="mt-4">
-                        <label className="block text-xs text-gray-400 mb-2">More Attachments Needed?</label>
-                        <select value={currentReportData.moreAttachmentsNeeded || ''} onChange={(e) => setCurrentReportData({...currentReportData, moreAttachmentsNeeded: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                        <label className="field-label">More Attachments Needed?</label>
+                        <select value={currentReportData.moreAttachmentsNeeded || ''} onChange={(e) => setCurrentReportData({...currentReportData, moreAttachmentsNeeded: e.target.value})} className="field">
                           <option value="">Select...</option>
                           <option value="YES">YES</option>
                           <option value="NO">NO</option>
@@ -7304,34 +7360,34 @@ const CADSystem = () => {
                     </div>
 
                     {/* Investigative/Detective Information Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-red-400 mb-3 border-b border-gray-600 pb-2">Investigative/Detective Information (ONLY COMPLETE IF DETECTIVE)</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-red-400">Investigative/Detective Information (ONLY COMPLETE IF DETECTIVE)</h4>
                       <div className="grid grid-cols-2 gap-4 mb-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Primary Detective Assigned</label>
-                          <input type="text" value={currentReportData.primaryDetective || ''} onChange={(e) => setCurrentReportData({...currentReportData, primaryDetective: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Primary Detective Assigned</label>
+                          <input type="text" value={currentReportData.primaryDetective || ''} onChange={(e) => setCurrentReportData({...currentReportData, primaryDetective: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Primary Detective Badge#</label>
-                          <input type="text" value={currentReportData.detectiveBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectiveBadge: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Primary Detective Badge#</label>
+                          <input type="text" value={currentReportData.detectiveBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectiveBadge: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Detective Agency</label>
-                          <select value={currentReportData.detectiveAgency || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectiveAgency: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Detective Agency</label>
+                          <select value={currentReportData.detectiveAgency || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectiveAgency: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="LSSO">LSSO</option>
                             <option value="LSPD">LSPD</option>
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Detective Reference Case (Discord Agency Case #)</label>
-                          <input type="text" value={currentReportData.detectiveReferenceCase || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectiveReferenceCase: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Detective Reference Case (Discord Agency Case #)</label>
+                          <input type="text" value={currentReportData.detectiveReferenceCase || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectiveReferenceCase: e.target.value})} className="field" />
                         </div>
                       </div>
 
                       <div className="mb-4">
-                        <label className="block text-xs text-gray-400 mb-1">Case Status</label>
-                        <select value={currentReportData.caseStatus || ''} onChange={(e) => setCurrentReportData({...currentReportData, caseStatus: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                        <label className="field-label">Case Status</label>
+                        <select value={currentReportData.caseStatus || ''} onChange={(e) => setCurrentReportData({...currentReportData, caseStatus: e.target.value})} className="field">
                           <option value="">Select...</option>
                           <option value="COMPLETED/CLOSED">COMPLETED/CLOSED</option>
                           <option value="IN PROGRESS">IN PROGRESS INVESTIGATION</option>
@@ -7340,26 +7396,26 @@ const CADSystem = () => {
                       </div>
 
                       <div>
-                        <label className="block text-xs text-gray-400 mb-1">New Reports Filed - Include New Case Numbers Below</label>
-                        <textarea value={currentReportData.newCaseNumbers || ''} onChange={(e) => setCurrentReportData({...currentReportData, newCaseNumbers: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 h-20 text-sm" placeholder="List new case numbers..." />
+                        <label className="field-label">New Reports Filed - Include New Case Numbers Below</label>
+                        <textarea value={currentReportData.newCaseNumbers || ''} onChange={(e) => setCurrentReportData({...currentReportData, newCaseNumbers: e.target.value})} className="field h-20" placeholder="List new case numbers..." />
                       </div>
                     </div>
 
                     {/* Detective Notes Area */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-indigo-400 mb-2 border-b border-gray-600 pb-2">Detective Notes Area</h4>
+                    <div className="panel-card">
+                      <h4 className="text-md font-semibold text-indigo-400 mb-2 border-b border-white/[0.08] pb-2">Detective Notes Area</h4>
                       <p className="text-xs text-gray-400 mb-3">INCLUDE YOUR BADGE # AND DATE AFTER YOUR ENTRY</p>
-                      <textarea value={currentReportData.detectiveNotes || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectiveNotes: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 h-32 text-sm mb-3" placeholder="DETECTIVE ONLY USE" />
+                      <textarea value={currentReportData.detectiveNotes || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectiveNotes: e.target.value})} className="field h-32 mb-3" placeholder="DETECTIVE ONLY USE" />
                       <p className="text-xs text-red-400 font-semibold">SUPERVISOR DO NOT SIGN UNLESS DETECTIVE CASE STATUS CLOSED</p>
                     </div>
 
                     {/* Administrative Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-pink-400 mb-3 border-b border-gray-600 pb-2">Administrative</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-pink-400">Administrative</h4>
                       <div className="space-y-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Are Detectives Actively Working Case?</label>
-                          <select value={currentReportData.detectivesActivelyWorking || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectivesActivelyWorking: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Are Detectives Actively Working Case?</label>
+                          <select value={currentReportData.detectivesActivelyWorking || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectivesActivelyWorking: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="YES">YES</option>
                             <option value="AWARE">NO - THEY HAVE BEEN MADE AWARE OF REQUEST</option>
@@ -7367,30 +7423,30 @@ const CADSystem = () => {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Last Known Date Case Worked</label>
-                          <input type="date" value={currentReportData.lastKnownDateWorked || ''} onChange={(e) => setCurrentReportData({...currentReportData, lastKnownDateWorked: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Last Known Date Case Worked</label>
+                          <input type="date" value={currentReportData.lastKnownDateWorked || ''} onChange={(e) => setCurrentReportData({...currentReportData, lastKnownDateWorked: e.target.value})} className="field" />
                         </div>
                       </div>
 
-                      <div className="mt-4 pt-4 border-t border-gray-600">
+                      <div className="mt-4 pt-4 border-t border-white/[0.08]">
                         <div className="grid grid-cols-2 gap-4 mb-4">
                           <div>
-                            <label className="block text-xs text-gray-400 mb-1">Supervisor Signature</label>
-                            <input type="text" value={currentReportData.supervisorSignature || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorSignature: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                            <label className="field-label">Supervisor Signature</label>
+                            <input type="text" value={currentReportData.supervisorSignature || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorSignature: e.target.value})} className="field" />
                           </div>
                           <div>
-                            <label className="block text-xs text-gray-400 mb-1">Supervisor Badge#</label>
-                            <input type="text" value={currentReportData.supervisorBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorBadge: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                            <label className="field-label">Supervisor Badge#</label>
+                            <input type="text" value={currentReportData.supervisorBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorBadge: e.target.value})} className="field" />
                           </div>
                           <div>
-                            <label className="block text-xs text-gray-400 mb-1">Date</label>
-                            <input type="date" value={currentReportData.supervisorDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorDate: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                            <label className="field-label">Date</label>
+                            <input type="date" value={currentReportData.supervisorDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorDate: e.target.value})} className="field" />
                           </div>
                         </div>
 
                         <div className="mb-4">
-                          <label className="block text-xs text-gray-400 mb-1">Final Status</label>
-                          <select value={currentReportData.finalStatus || ''} onChange={(e) => setCurrentReportData({...currentReportData, finalStatus: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Final Status</label>
+                          <select value={currentReportData.finalStatus || ''} onChange={(e) => setCurrentReportData({...currentReportData, finalStatus: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="SOLVED">CASE CLOSED - SOLVED</option>
                             <option value="LACK OF EVIDENCE">CASE CLOSED - LACK OF EVIDENCE</option>
@@ -7400,8 +7456,8 @@ const CADSystem = () => {
                         </div>
 
                         <div className="mb-4">
-                          <label className="block text-xs text-gray-400 mb-1">Did Case Go to Court?</label>
-                          <select value={currentReportData.caseWentToCourt || ''} onChange={(e) => setCurrentReportData({...currentReportData, caseWentToCourt: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Did Case Go to Court?</label>
+                          <select value={currentReportData.caseWentToCourt || ''} onChange={(e) => setCurrentReportData({...currentReportData, caseWentToCourt: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="YES">YES</option>
                             <option value="NO">NO</option>
@@ -7411,7 +7467,7 @@ const CADSystem = () => {
                       </div>
 
                       {/* Final Confirmation */}
-                      <div className="mt-6 pt-6 border-t-2 border-red-600 bg-red-900 bg-opacity-30 rounded p-4">
+                      <div className="mt-6 pt-6 border-t-2 border-red-600 bg-red-500/10 rounded-md p-4">
                         <p className="text-center text-red-400 font-bold text-lg mb-3">LAST CHANCE SUPERVISOR..........</p>
                         <p className="text-center text-red-400 font-bold mb-4">ARE YOU REALLY SURE YOU WANT TO CLOSE THIS CASE????? DO NOT SELECT ANYTHING HERE UNLESS YOU REALLY ARE SURE</p>
                         <select value={currentReportData.finalConfirmation || ''} onChange={(e) => setCurrentReportData({...currentReportData, finalConfirmation: e.target.value})} className="w-full bg-red-700 text-white rounded px-3 py-2 text-sm">
@@ -7424,28 +7480,28 @@ const CADSystem = () => {
                 ) : activeReportForm === 'TRESPASS WARNING' ? (
                   <>
                     {/* Agency Information Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Agency Information</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-blue-400">Agency Information</h4>
                       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Record ID#</label>
-                          <input type="text" value={currentReportData.recordId || ''} readOnly className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Record ID#</label>
+                          <input type="text" value={currentReportData.recordId || ''} readOnly className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date of Trespass Given</label>
-                          <input type="date" value={currentReportData.trespassDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, trespassDate: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Date of Trespass Given</label>
+                          <input type="date" value={currentReportData.trespassDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, trespassDate: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Officer Name</label>
-                          <input type="text" value={currentReportData.officer || ''} readOnly className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Officer Name</label>
+                          <input type="text" value={currentReportData.officer || ''} readOnly className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Officer Badge#</label>
-                          <input type="text" value={currentReportData.badgeNumber || ''} onChange={(e) => setCurrentReportData({...currentReportData, badgeNumber: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Officer Badge#</label>
+                          <input type="text" value={currentReportData.badgeNumber || ''} onChange={(e) => setCurrentReportData({...currentReportData, badgeNumber: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Officer Agency</label>
-                          <select value={currentReportData.officerAgency || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerAgency: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Officer Agency</label>
+                          <select value={currentReportData.officerAgency || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerAgency: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="LSSO">LSSO</option>
                             <option value="LSPD">LSPD</option>
@@ -7455,8 +7511,8 @@ const CADSystem = () => {
                     </div>
 
                     {/* Address Trespass Advisement Given Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-purple-400 mb-3 border-b border-gray-600 pb-2">Address Trespass Advisement Given</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-purple-400">Address Trespass Advisement Given</h4>
                       <div className="flex flex-wrap gap-6">
                         <label className="flex items-center space-x-2 cursor-pointer">
                           <input type="checkbox" checked={currentReportData.propertyTypeResidential || false} onChange={(e) => setCurrentReportData({...currentReportData, propertyTypeResidential: e.target.checked})} className="w-4 h-4" />
@@ -7482,31 +7538,31 @@ const CADSystem = () => {
 
                       <div className="grid grid-cols-2 gap-4 mt-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Street Address</label>
-                          <input type="text" value={currentReportData.streetAddress || ''} onChange={(e) => setCurrentReportData({...currentReportData, streetAddress: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Street Address</label>
+                          <input type="text" value={currentReportData.streetAddress || ''} onChange={(e) => setCurrentReportData({...currentReportData, streetAddress: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Postal</label>
-                          <input type="text" value={currentReportData.postal || ''} onChange={(e) => setCurrentReportData({...currentReportData, postal: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Postal</label>
+                          <input type="text" value={currentReportData.postal || ''} onChange={(e) => setCurrentReportData({...currentReportData, postal: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Business Name (If Applicable)</label>
-                          <input type="text" value={currentReportData.businessName || ''} onChange={(e) => setCurrentReportData({...currentReportData, businessName: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Business Name (If Applicable)</label>
+                          <input type="text" value={currentReportData.businessName || ''} onChange={(e) => setCurrentReportData({...currentReportData, businessName: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Property Description (General Building/Area Description)</label>
-                          <input type="text" value={currentReportData.propertyDescription || ''} onChange={(e) => setCurrentReportData({...currentReportData, propertyDescription: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Property Description (General Building/Area Description)</label>
+                          <input type="text" value={currentReportData.propertyDescription || ''} onChange={(e) => setCurrentReportData({...currentReportData, propertyDescription: e.target.value})} className="field" />
                         </div>
                       </div>
                     </div>
 
                     {/* Trespasser Information Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-orange-400 mb-3 border-b border-gray-600 pb-2">Trespasser Information</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-orange-400">Trespasser Information</h4>
 
                       {/* Search Functionality */}
                       <div className="mb-4">
-                        <label className="block text-xs text-gray-400 mb-2">Search for Person</label>
+                        <label className="field-label">Search for Person</label>
                         <div className="flex gap-2">
                           <input
                             type="text"
@@ -7522,11 +7578,11 @@ const CADSystem = () => {
                                 setCurrentReportData({...currentReportData, trespasserSearchQuery: query, trespasserSearchResults: results});
                               }
                             }}
-                            className="flex-1 bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field flex-1 min-w-0"
                           />
                         </div>
                         {currentReportData.trespasserSearchResults && currentReportData.trespasserSearchResults.length > 0 && (
-                          <div className="mt-2 bg-gray-800 rounded max-h-40 overflow-y-auto">
+                          <div className="mt-2 menu-list max-h-40 overflow-y-auto">
                             {currentReportData.trespasserSearchResults.map((person, idx) => (
                               <div
                                 key={idx}
@@ -7541,7 +7597,7 @@ const CADSystem = () => {
                                     trespasserSearchResults: []
                                   });
                                 }}
-                                className="p-2 hover:bg-gray-700 cursor-pointer border-b border-gray-700 last:border-0"
+                                className="menu-item"
                               >
                                 <div className="text-sm text-white">{person.name}</div>
                                 <div className="text-xs text-gray-400">DOB: {person.dob}</div>
@@ -7553,28 +7609,28 @@ const CADSystem = () => {
 
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Name</label>
-                          <input type="text" value={currentReportData.trespasserName || ''} onChange={(e) => setCurrentReportData({...currentReportData, trespasserName: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Name</label>
+                          <input type="text" value={currentReportData.trespasserName || ''} onChange={(e) => setCurrentReportData({...currentReportData, trespasserName: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">DOB</label>
-                          <input type="date" value={currentReportData.trespasserDOB || ''} onChange={(e) => setCurrentReportData({...currentReportData, trespasserDOB: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">DOB</label>
+                          <input type="date" value={currentReportData.trespasserDOB || ''} onChange={(e) => setCurrentReportData({...currentReportData, trespasserDOB: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Phone</label>
-                          <input type="text" value={currentReportData.trespasserPhone || ''} onChange={(e) => setCurrentReportData({...currentReportData, trespasserPhone: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Phone</label>
+                          <input type="text" value={currentReportData.trespasserPhone || ''} onChange={(e) => setCurrentReportData({...currentReportData, trespasserPhone: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Address</label>
-                          <input type="text" value={currentReportData.trespasserAddress || ''} onChange={(e) => setCurrentReportData({...currentReportData, trespasserAddress: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Address</label>
+                          <input type="text" value={currentReportData.trespasserAddress || ''} onChange={(e) => setCurrentReportData({...currentReportData, trespasserAddress: e.target.value})} className="field" />
                         </div>
                       </div>
                     </div>
 
                     {/* Acknowledgement Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-red-400 mb-3 border-b border-gray-600 pb-2">Acknowledgement</h4>
-                      <div className="bg-gray-800 rounded p-4 mb-4 text-sm text-gray-200 leading-relaxed">
+                    <div className="panel-card">
+                      <h4 className="section-title text-red-400">Acknowledgement</h4>
+                      <div className="well p-4 mb-4 text-sm text-gray-200 leading-relaxed">
                         <p className="mb-2">
                           YOU ARE BEING OFFICIALLY WARNED TO STAY OFF THE PROPERTY AT <span className="font-bold text-yellow-400">{currentReportData.streetAddress || '[ADDRESS NOT PROVIDED]'}</span>. THIS WARNING IS BEING GIVEN TO YOU ON <span className="font-bold text-yellow-400">{currentReportData.trespassDate ? new Date(currentReportData.trespassDate).toLocaleDateString() : '[DATE NOT PROVIDED]'}</span> AT <span className="font-bold text-yellow-400">{new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>.
                         </p>
@@ -7603,32 +7659,32 @@ const CADSystem = () => {
 
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date</label>
-                          <input type="date" value={currentReportData.acknowledgementDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, acknowledgementDate: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Date</label>
+                          <input type="date" value={currentReportData.acknowledgementDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, acknowledgementDate: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Time</label>
-                          <input type="time" value={currentReportData.acknowledgementTime || ''} onChange={(e) => setCurrentReportData({...currentReportData, acknowledgementTime: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Time</label>
+                          <input type="time" value={currentReportData.acknowledgementTime || ''} onChange={(e) => setCurrentReportData({...currentReportData, acknowledgementTime: e.target.value})} className="field" />
                         </div>
                       </div>
                     </div>
 
                     {/* Reason for Trespass Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-green-400 mb-3 border-b border-gray-600 pb-2">Reason for Trespass</h4>
-                      <textarea value={currentReportData.reasonForTrespass || ''} onChange={(e) => setCurrentReportData({...currentReportData, reasonForTrespass: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 h-32 text-sm" placeholder="Enter detailed narrative of reason for trespass warning..." />
+                    <div className="panel-card">
+                      <h4 className="section-title text-green-400">Reason for Trespass</h4>
+                      <textarea value={currentReportData.reasonForTrespass || ''} onChange={(e) => setCurrentReportData({...currentReportData, reasonForTrespass: e.target.value})} className="field h-32" placeholder="Enter detailed narrative of reason for trespass warning..." />
                     </div>
 
                     {/* Trespasser Photo Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-cyan-400 mb-3 border-b border-gray-600 pb-2">Trespasser Photo</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-cyan-400">Trespasser Photo</h4>
                       {currentReportData.trespasserPhoto && (
-                        <div className="mb-4 bg-gray-800 rounded p-3">
+                        <div className="well mb-4 p-3">
                           <div className="flex justify-between items-start mb-2">
                             <span className="text-xs text-gray-400">Photo Attached</span>
-                            <button onClick={() => setCurrentReportData({...currentReportData, trespasserPhoto: null})} className="text-xs px-2 py-1 bg-red-600 hover:bg-red-500 rounded">Remove</button>
+                            <button onClick={() => setCurrentReportData({...currentReportData, trespasserPhoto: null})} className="btn btn-danger btn-sm">Remove</button>
                           </div>
-                          <input type="text" value={currentReportData.trespasserPhoto?.description || ''} onChange={(e) => setCurrentReportData({...currentReportData, trespasserPhoto: {...currentReportData.trespasserPhoto, description: e.target.value}})} placeholder="Photo description..." className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <input type="text" value={currentReportData.trespasserPhoto?.description || ''} onChange={(e) => setCurrentReportData({...currentReportData, trespasserPhoto: {...currentReportData.trespasserPhoto, description: e.target.value}})} placeholder="Photo description..." className="field" />
                         </div>
                       )}
                       <input type="file" accept="image/*" onChange={(e) => {
@@ -7636,39 +7692,39 @@ const CADSystem = () => {
                         if (file) {
                           setCurrentReportData({...currentReportData, trespasserPhoto: { name: file.name, description: '' }});
                         }
-                      }} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                      }} className="field" />
                     </div>
 
                     {/* Administrative Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-pink-400 mb-3 border-b border-gray-600 pb-2">Administrative</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-pink-400">Administrative</h4>
                       <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <label className="block text-xs text-gray-400 mb-1">Officer Signature</label>
-                            <input type="text" value={currentReportData.officerSignature || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerSignature: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                            <label className="field-label">Officer Signature</label>
+                            <input type="text" value={currentReportData.officerSignature || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerSignature: e.target.value})} className="field" />
                           </div>
                           <div>
-                            <label className="block text-xs text-gray-400 mb-1">Any Associated Case Numbers</label>
-                            <input type="text" value={currentReportData.associatedCaseNumbers || ''} onChange={(e) => setCurrentReportData({...currentReportData, associatedCaseNumbers: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Attached below as well" />
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-xs text-gray-400 mb-1">Supervisor Signature</label>
-                            <input type="text" value={currentReportData.supervisorSignature || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorSignature: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
-                          </div>
-                          <div>
-                            <label className="block text-xs text-gray-400 mb-1">Date</label>
-                            <input type="date" value={currentReportData.adminDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, adminDate: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                            <label className="field-label">Any Associated Case Numbers</label>
+                            <input type="text" value={currentReportData.associatedCaseNumbers || ''} onChange={(e) => setCurrentReportData({...currentReportData, associatedCaseNumbers: e.target.value})} className="field" placeholder="Attached below as well" />
                           </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <label className="block text-xs text-gray-400 mb-1">Status</label>
-                            <select value={currentReportData.trespassStatus || ''} onChange={(e) => setCurrentReportData({...currentReportData, trespassStatus: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                            <label className="field-label">Supervisor Signature</label>
+                            <input type="text" value={currentReportData.supervisorSignature || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorSignature: e.target.value})} className="field" />
+                          </div>
+                          <div>
+                            <label className="field-label">Date</label>
+                            <input type="date" value={currentReportData.adminDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, adminDate: e.target.value})} className="field" />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="field-label">Status</label>
+                            <select value={currentReportData.trespassStatus || ''} onChange={(e) => setCurrentReportData({...currentReportData, trespassStatus: e.target.value})} className="field">
                               <option value="">Select...</option>
                               <option value="APPROVED">Approved</option>
                               <option value="PENDING">Pending</option>
@@ -7676,8 +7732,8 @@ const CADSystem = () => {
                             </select>
                           </div>
                           <div>
-                            <label className="block text-xs text-gray-400 mb-1">Trespass Is</label>
-                            <select value={currentReportData.trespassValidity || ''} onChange={(e) => setCurrentReportData({...currentReportData, trespassValidity: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                            <label className="field-label">Trespass Is</label>
+                            <select value={currentReportData.trespassValidity || ''} onChange={(e) => setCurrentReportData({...currentReportData, trespassValidity: e.target.value})} className="field">
                               <option value="">Select...</option>
                               <option value="VALID">VALID - IN USE</option>
                               <option value="CANCELLED">CANCELLED - NO LONGER VALID - TERMINATED</option>
@@ -7687,15 +7743,15 @@ const CADSystem = () => {
                       </div>
 
                       {/* Linked Records */}
-                      <div className="mt-4 pt-4 border-t border-gray-600">
+                      <div className="mt-4 pt-4 border-t border-white/[0.08]">
                         <h5 className="text-sm font-semibold text-blue-400 mb-2">Linked Records</h5>
-                        <div className="bg-gray-800 rounded p-3 min-h-20">
+                        <div className="well p-3 min-h-20">
                           {currentReportData.linkedRecords && currentReportData.linkedRecords.length > 0 ? (
                             <ul className="space-y-2">
                               {currentReportData.linkedRecords.map((record, index) => (
                                 <li key={index} className="text-sm text-blue-300 hover:text-blue-200 cursor-pointer flex justify-between items-center">
                                   <span>{record}</span>
-                                  <button onClick={() => setCurrentReportData({...currentReportData, linkedRecords: currentReportData.linkedRecords.filter((_, i) => i !== index)})} className="text-xs px-2 py-1 bg-red-600 hover:bg-red-500 rounded">Remove</button>
+                                  <button onClick={() => setCurrentReportData({...currentReportData, linkedRecords: currentReportData.linkedRecords.filter((_, i) => i !== index)})} className="btn btn-danger btn-sm">Remove</button>
                                 </li>
                               ))}
                             </ul>
@@ -7708,78 +7764,78 @@ const CADSystem = () => {
                             setCurrentReportData({...currentReportData, linkedRecords: [...(currentReportData.linkedRecords || []), e.currentTarget.value]});
                             e.currentTarget.value = '';
                           }
-                        }} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm mt-2" />
+                        }} className="field mt-2" />
                       </div>
                     </div>
                   </>
                 ) : activeReportForm === 'ARREST' ? (
                   <>
                     {/* Agency Information Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Agency Information</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-blue-400">Agency Information</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Callsign</label>
-                          <input type="text" value={currentReportData.callsign || ''} readOnly className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Callsign</label>
+                          <input type="text" value={currentReportData.callsign || ''} readOnly className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Department</label>
-                          <input type="text" value={currentReportData.department || ''} readOnly className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Department</label>
+                          <input type="text" value={currentReportData.department || ''} readOnly className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Officer Name</label>
-                          <input type="text" value={currentReportData.officer || ''} readOnly className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Officer Name</label>
+                          <input type="text" value={currentReportData.officer || ''} readOnly className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date</label>
-                          <input type="text" value={currentReportData.date || ''} readOnly className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Date</label>
+                          <input type="text" value={currentReportData.date || ''} readOnly className="field" />
                         </div>
                       </div>
                     </div>
 
                     {/* Report Reference Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-purple-400 mb-3 border-b border-gray-600 pb-2">Report Reference</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-purple-400">Report Reference</h4>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date of Call</label>
-                          <input type="date" value={currentReportData.dateOfCall || ''} onChange={(e) => setCurrentReportData({...currentReportData, dateOfCall: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Date of Call</label>
+                          <input type="date" value={currentReportData.dateOfCall || ''} onChange={(e) => setCurrentReportData({...currentReportData, dateOfCall: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Primary Department</label>
-                          <select value={currentReportData.primaryDepartment || ''} onChange={(e) => setCurrentReportData({...currentReportData, primaryDepartment: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Primary Department</label>
+                          <select value={currentReportData.primaryDepartment || ''} onChange={(e) => setCurrentReportData({...currentReportData, primaryDepartment: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="LSSO">LSSO</option>
                             <option value="LSSO CONTRACT AGENCY">LSSO CONTRACT AGENCY</option>
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Arresting Officer Badge#</label>
-                          <input type="text" value={currentReportData.arrestingOfficerBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, arrestingOfficerBadge: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Arresting Officer Badge#</label>
+                          <input type="text" value={currentReportData.arrestingOfficerBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, arrestingOfficerBadge: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Dispatch ID#</label>
-                          <input type="text" value={currentReportData.dispatchId || ''} onChange={(e) => setCurrentReportData({...currentReportData, dispatchId: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Dispatch ID#</label>
+                          <input type="text" value={currentReportData.dispatchId || ''} onChange={(e) => setCurrentReportData({...currentReportData, dispatchId: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Traffic Accident Ref #</label>
-                          <input type="text" value={currentReportData.trafficAccidentRef || ''} onChange={(e) => setCurrentReportData({...currentReportData, trafficAccidentRef: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Traffic Accident Ref #</label>
+                          <input type="text" value={currentReportData.trafficAccidentRef || ''} onChange={(e) => setCurrentReportData({...currentReportData, trafficAccidentRef: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Citation Ref #</label>
-                          <input type="text" value={currentReportData.citationRef || ''} onChange={(e) => setCurrentReportData({...currentReportData, citationRef: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Citation Ref #</label>
+                          <input type="text" value={currentReportData.citationRef || ''} onChange={(e) => setCurrentReportData({...currentReportData, citationRef: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Supplemental Report to be Filed?</label>
-                          <select value={currentReportData.supplementalReport || ''} onChange={(e) => setCurrentReportData({...currentReportData, supplementalReport: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Supplemental Report to be Filed?</label>
+                          <select value={currentReportData.supplementalReport || ''} onChange={(e) => setCurrentReportData({...currentReportData, supplementalReport: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="YES">YES</option>
                             <option value="NO">NO</option>
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Subject Transported by Other than Arresting Officer?</label>
-                          <select value={currentReportData.transportedByOther || ''} onChange={(e) => setCurrentReportData({...currentReportData, transportedByOther: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Subject Transported by Other than Arresting Officer?</label>
+                          <select value={currentReportData.transportedByOther || ''} onChange={(e) => setCurrentReportData({...currentReportData, transportedByOther: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="YES">YES</option>
                             <option value="NO">NO</option>
@@ -7788,35 +7844,35 @@ const CADSystem = () => {
                       </div>
 
                       <div className="mt-4">
-                        <label className="block text-xs text-gray-400 mb-1">Additional Reference Info (Not Required)</label>
-                        <textarea value={currentReportData.additionalRefInfo || ''} onChange={(e) => setCurrentReportData({...currentReportData, additionalRefInfo: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 h-20 text-sm" placeholder="Any additional reference information..." />
+                        <label className="field-label">Additional Reference Info (Not Required)</label>
+                        <textarea value={currentReportData.additionalRefInfo || ''} onChange={(e) => setCurrentReportData({...currentReportData, additionalRefInfo: e.target.value})} className="field h-20" placeholder="Any additional reference information..." />
                       </div>
 
                       {currentReportData.transportedByOther === 'YES' && (
                         <div className="mt-4 grid grid-cols-2 gap-4">
                           <div>
-                            <label className="block text-xs text-gray-400 mb-1">Badge # of Transporting Agent</label>
-                            <input type="text" value={currentReportData.transportingAgentBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, transportingAgentBadge: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                            <label className="field-label">Badge # of Transporting Agent</label>
+                            <input type="text" value={currentReportData.transportingAgentBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, transportingAgentBadge: e.target.value})} className="field" />
                           </div>
                           <div>
-                            <label className="block text-xs text-gray-400 mb-1">Name of Transporting Agent</label>
-                            <input type="text" value={currentReportData.transportingAgentName || ''} onChange={(e) => setCurrentReportData({...currentReportData, transportingAgentName: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                            <label className="field-label">Name of Transporting Agent</label>
+                            <input type="text" value={currentReportData.transportingAgentName || ''} onChange={(e) => setCurrentReportData({...currentReportData, transportingAgentName: e.target.value})} className="field" />
                           </div>
                         </div>
                       )}
 
                       <div className="mt-4 grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Was Subject Treated by EMS?</label>
-                          <select value={currentReportData.treatedByEMS || ''} onChange={(e) => setCurrentReportData({...currentReportData, treatedByEMS: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Was Subject Treated by EMS?</label>
+                          <select value={currentReportData.treatedByEMS || ''} onChange={(e) => setCurrentReportData({...currentReportData, treatedByEMS: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="YES">YES</option>
                             <option value="NO">NO</option>
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Did EMS Transport Subject to Hospital?</label>
-                          <select value={currentReportData.emsTransport || ''} onChange={(e) => setCurrentReportData({...currentReportData, emsTransport: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Did EMS Transport Subject to Hospital?</label>
+                          <select value={currentReportData.emsTransport || ''} onChange={(e) => setCurrentReportData({...currentReportData, emsTransport: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="YES">YES</option>
                             <option value="NO">NO</option>
@@ -7826,11 +7882,11 @@ const CADSystem = () => {
                     </div>
 
                     {/* Arrestee Information Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-orange-400 mb-3 border-b border-gray-600 pb-2">Arrestee Information</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-orange-400">Arrestee Information</h4>
 
                       <div className="mb-4">
-                        <label className="block text-xs text-gray-400 mb-2">Search for Person</label>
+                        <label className="field-label">Search for Person</label>
                         <input
                           type="text"
                           placeholder="Search by name..."
@@ -7843,10 +7899,10 @@ const CADSystem = () => {
                               setCurrentReportData({...currentReportData, arresteeSearchQuery: query, arresteeSearchResults: results});
                             }
                           }}
-                          className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                          className="field"
                         />
                         {currentReportData.arresteeSearchResults && currentReportData.arresteeSearchResults.length > 0 && (
-                          <div className="mt-2 bg-gray-800 rounded max-h-40 overflow-y-auto">
+                          <div className="mt-2 menu-list max-h-40 overflow-y-auto">
                             {currentReportData.arresteeSearchResults.map((person, idx) => (
                               <div key={idx} onClick={() => {
                                 setCurrentReportData({
@@ -7858,7 +7914,7 @@ const CADSystem = () => {
                                   arresteeSearchQuery: '',
                                   arresteeSearchResults: []
                                 });
-                              }} className="p-2 hover:bg-gray-700 cursor-pointer border-b border-gray-700 last:border-0">
+                              }} className="menu-item">
                                 <div className="text-sm text-white">{person.name}</div>
                                 <div className="text-xs text-gray-400">DOB: {person.dob}</div>
                               </div>
@@ -7869,30 +7925,30 @@ const CADSystem = () => {
 
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Name</label>
-                          <input type="text" value={currentReportData.arresteeName || ''} onChange={(e) => setCurrentReportData({...currentReportData, arresteeName: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Name</label>
+                          <input type="text" value={currentReportData.arresteeName || ''} onChange={(e) => setCurrentReportData({...currentReportData, arresteeName: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">DOB</label>
-                          <input type="date" value={currentReportData.arresteeDOB || ''} onChange={(e) => setCurrentReportData({...currentReportData, arresteeDOB: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">DOB</label>
+                          <input type="date" value={currentReportData.arresteeDOB || ''} onChange={(e) => setCurrentReportData({...currentReportData, arresteeDOB: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Phone</label>
-                          <input type="text" value={currentReportData.arresteePhone || ''} onChange={(e) => setCurrentReportData({...currentReportData, arresteePhone: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Phone</label>
+                          <input type="text" value={currentReportData.arresteePhone || ''} onChange={(e) => setCurrentReportData({...currentReportData, arresteePhone: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Address</label>
-                          <input type="text" value={currentReportData.arresteeAddress || ''} onChange={(e) => setCurrentReportData({...currentReportData, arresteeAddress: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Address</label>
+                          <input type="text" value={currentReportData.arresteeAddress || ''} onChange={(e) => setCurrentReportData({...currentReportData, arresteeAddress: e.target.value})} className="field" />
                         </div>
                       </div>
                     </div>
 
                     {/* Vehicles Associated Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-cyan-400 mb-3 border-b border-gray-600 pb-2">Vehicles Associated</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-cyan-400">Vehicles Associated</h4>
 
                       <div className="mb-4">
-                        <label className="block text-xs text-gray-400 mb-2">Search for Vehicle</label>
+                        <label className="field-label">Search for Vehicle</label>
                         <input
                           type="text"
                           placeholder="Search by plate..."
@@ -7906,10 +7962,10 @@ const CADSystem = () => {
                               setCurrentReportData({...currentReportData, vehicleSearchQuery: query, vehicleSearchResults: results});
                             }
                           }}
-                          className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                          className="field"
                         />
                         {currentReportData.vehicleSearchResults && currentReportData.vehicleSearchResults.length > 0 && (
-                          <div className="mt-2 bg-gray-800 rounded max-h-40 overflow-y-auto">
+                          <div className="mt-2 menu-list max-h-40 overflow-y-auto">
                             {currentReportData.vehicleSearchResults.map((vehicle, idx) => (
                               <div key={idx} onClick={() => {
                                 setCurrentReportData({
@@ -7921,7 +7977,7 @@ const CADSystem = () => {
                                   vehicleSearchQuery: '',
                                   vehicleSearchResults: []
                                 });
-                              }} className="p-2 hover:bg-gray-700 cursor-pointer border-b border-gray-700 last:border-0">
+                              }} className="menu-item">
                                 <div className="text-sm text-white">{vehicle.data.plate}</div>
                                 <div className="text-xs text-gray-400">{vehicle.data.make} {vehicle.data.model} - {vehicle.data.color}</div>
                               </div>
@@ -7932,28 +7988,28 @@ const CADSystem = () => {
 
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Plate</label>
-                          <input type="text" value={currentReportData.vehiclePlate || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehiclePlate: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Plate</label>
+                          <input type="text" value={currentReportData.vehiclePlate || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehiclePlate: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Make</label>
-                          <input type="text" value={currentReportData.vehicleMake || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicleMake: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Make</label>
+                          <input type="text" value={currentReportData.vehicleMake || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicleMake: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Model</label>
-                          <input type="text" value={currentReportData.vehicleModel || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicleModel: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Model</label>
+                          <input type="text" value={currentReportData.vehicleModel || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicleModel: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Color</label>
-                          <input type="text" value={currentReportData.vehicleColor || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicleColor: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Color</label>
+                          <input type="text" value={currentReportData.vehicleColor || ''} onChange={(e) => setCurrentReportData({...currentReportData, vehicleColor: e.target.value})} className="field" />
                         </div>
                       </div>
                     </div>
 
                     {/* Charges Filed Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
+                    <div className="panel-card">
                       <div className="flex justify-between items-center mb-3">
-                        <h4 className="text-md font-semibold text-red-400 border-b border-gray-600 pb-2">Charges Filed</h4>
+                        <h4 className="text-md font-semibold text-red-400 border-b border-white/[0.08] pb-2">Charges Filed</h4>
                         <button
                           type="button"
                           onClick={() => {
@@ -7972,7 +8028,7 @@ const CADSystem = () => {
                               charges: [...(currentReportData.charges || []), newCharge]
                             });
                           }}
-                          className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-500 flex items-center gap-1"
+                          className="btn btn-danger btn-sm"
                         >
                           <Plus size={16} /> Add Charge
                         </button>
@@ -7983,7 +8039,7 @@ const CADSystem = () => {
                       ) : (
                         <div className="space-y-3">
                           {currentReportData.charges.map((charge, index) => (
-                            <div key={charge.id} className="bg-gray-800 rounded-lg p-3">
+                            <div key={charge.id} className="panel p-3">
                               <div className="flex justify-between items-start mb-2">
                                 <span className="text-xs text-gray-400">Charge #{index + 1}</span>
                                 <button
@@ -8001,7 +8057,7 @@ const CADSystem = () => {
                               </div>
                               <div className="grid grid-cols-4 gap-2">
                                 <div className="col-span-2">
-                                  <label className="block text-xs text-gray-400 mb-1">Charge</label>
+                                  <label className="field-label">Charge</label>
                                   <ChargeAutocompleteInput
                                     value={charge.charge}
                                     onChange={(value) => {
@@ -8029,7 +8085,7 @@ const CADSystem = () => {
                                   />
                                 </div>
                                 <div>
-                                  <label className="block text-xs text-gray-400 mb-1">Type</label>
+                                  <label className="field-label">Type</label>
                                   <select
                                     value={charge.chargeType}
                                     onChange={(e) => {
@@ -8038,7 +8094,7 @@ const CADSystem = () => {
                                       );
                                       setCurrentReportData({...currentReportData, charges: updated});
                                     }}
-                                    className="w-full bg-gray-600 text-white rounded px-2 py-1 text-sm"
+                                    className="field field-sm"
                                   >
                                     <option value="INFRACTION">INFRACTION</option>
                                     <option value="MISDEMEANOR">MISDEMEANOR</option>
@@ -8046,7 +8102,7 @@ const CADSystem = () => {
                                   </select>
                                 </div>
                                 <div>
-                                  <label className="block text-xs text-gray-400 mb-1">Counts</label>
+                                  <label className="field-label">Counts</label>
                                   <input
                                     type="number"
                                     min="1"
@@ -8057,13 +8113,13 @@ const CADSystem = () => {
                                       );
                                       setCurrentReportData({...currentReportData, charges: updated});
                                     }}
-                                    className="w-full bg-gray-600 text-white rounded px-2 py-1 text-sm"
+                                    className="field field-sm"
                                   />
                                 </div>
                               </div>
                               <div className="grid grid-cols-3 gap-2 mt-2">
                                 <div>
-                                  <label className="block text-xs text-gray-400 mb-1">Title/Code</label>
+                                  <label className="field-label">Title/Code</label>
                                   <input
                                     type="text"
                                     value={charge.titleCode}
@@ -8073,12 +8129,12 @@ const CADSystem = () => {
                                       );
                                       setCurrentReportData({...currentReportData, charges: updated});
                                     }}
-                                    className="w-full bg-gray-600 text-white rounded px-2 py-1 text-sm"
+                                    className="field field-sm"
                                     placeholder="e.g., PC 242"
                                   />
                                 </div>
                                 <div>
-                                  <label className="block text-xs text-gray-400 mb-1">Bond Type</label>
+                                  <label className="field-label">Bond Type</label>
                                   <select
                                     value={charge.bondType}
                                     onChange={(e) => {
@@ -8087,7 +8143,7 @@ const CADSystem = () => {
                                       );
                                       setCurrentReportData({...currentReportData, charges: updated});
                                     }}
-                                    className="w-full bg-gray-600 text-white rounded px-2 py-1 text-sm"
+                                    className="field field-sm"
                                   >
                                     <option value="CASH">CASH</option>
                                     <option value="SURETY">SURETY</option>
@@ -8095,7 +8151,7 @@ const CADSystem = () => {
                                   </select>
                                 </div>
                                 <div>
-                                  <label className="block text-xs text-gray-400 mb-1">Bond Amount</label>
+                                  <label className="field-label">Bond Amount</label>
                                   <input
                                     type="number"
                                     min="0"
@@ -8106,13 +8162,13 @@ const CADSystem = () => {
                                       );
                                       setCurrentReportData({...currentReportData, charges: updated});
                                     }}
-                                    className="w-full bg-gray-600 text-white rounded px-2 py-1 text-sm"
+                                    className="field field-sm"
                                     placeholder="$"
                                   />
                                 </div>
                               </div>
                               <div className="mt-2">
-                                <label className="block text-xs text-gray-400 mb-1">Jail Time</label>
+                                <label className="field-label">Jail Time</label>
                                 <input
                                   type="text"
                                   value={charge.jailTime}
@@ -8122,7 +8178,7 @@ const CADSystem = () => {
                                     );
                                     setCurrentReportData({...currentReportData, charges: updated});
                                   }}
-                                  className="w-full bg-gray-600 text-white rounded px-2 py-1 text-sm"
+                                  className="field field-sm"
                                   placeholder="e.g., 90 days"
                                 />
                               </div>
@@ -8133,11 +8189,11 @@ const CADSystem = () => {
                     </div>
 
                     {/* Evidence or Property Log Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-yellow-400 mb-3 border-b border-gray-600 pb-2">Evidence or Property Log</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-yellow-400">Evidence or Property Log</h4>
                       <div className="mb-4">
-                        <label className="block text-xs text-gray-400 mb-1">Did You Book Evidence in Regards to This Report?</label>
-                        <select value={currentReportData.bookedEvidence || ''} onChange={(e) => setCurrentReportData({...currentReportData, bookedEvidence: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                        <label className="field-label">Did You Book Evidence in Regards to This Report?</label>
+                        <select value={currentReportData.bookedEvidence || ''} onChange={(e) => setCurrentReportData({...currentReportData, bookedEvidence: e.target.value})} className="field">
                           <option value="">Select...</option>
                           <option value="YES">Yes</option>
                           <option value="NO">No</option>
@@ -8147,20 +8203,20 @@ const CADSystem = () => {
                       {currentReportData.bookedEvidence === 'YES' && (
                         <>
                           <div className="mb-4">
-                            <label className="block text-xs text-gray-400 mb-1">Evidence Locker #</label>
-                            <input type="text" value={currentReportData.evidenceLockerNumber || ''} onChange={(e) => setCurrentReportData({...currentReportData, evidenceLockerNumber: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                            <label className="field-label">Evidence Locker #</label>
+                            <input type="text" value={currentReportData.evidenceLockerNumber || ''} onChange={(e) => setCurrentReportData({...currentReportData, evidenceLockerNumber: e.target.value})} className="field" />
                           </div>
 
                           <div className="space-y-4">
                             {['A', 'B', 'C', 'D'].map(letter => (
                               <div key={letter} className="grid grid-cols-3 gap-4">
                                 <div className="col-span-1">
-                                  <label className="block text-xs text-gray-400 mb-1">Item {letter} Quantity</label>
-                                  <input type="number" min="0" value={currentReportData[`item${letter}Quantity`] || ''} onChange={(e) => setCurrentReportData({...currentReportData, [`item${letter}Quantity`]: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                                  <label className="field-label">Item {letter} Quantity</label>
+                                  <input type="number" min="0" value={currentReportData[`item${letter}Quantity`] || ''} onChange={(e) => setCurrentReportData({...currentReportData, [`item${letter}Quantity`]: e.target.value})} className="field" />
                                 </div>
                                 <div className="col-span-2">
-                                  <label className="block text-xs text-gray-400 mb-1">Item {letter} Description</label>
-                                  <input type="text" value={currentReportData[`item${letter}Description`] || ''} onChange={(e) => setCurrentReportData({...currentReportData, [`item${letter}Description`]: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" placeholder="Description..." />
+                                  <label className="field-label">Item {letter} Description</label>
+                                  <input type="text" value={currentReportData[`item${letter}Description`] || ''} onChange={(e) => setCurrentReportData({...currentReportData, [`item${letter}Description`]: e.target.value})} className="field" placeholder="Description..." />
                                 </div>
                               </div>
                             ))}
@@ -8170,27 +8226,27 @@ const CADSystem = () => {
                     </div>
 
                     {/* Narrative Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-green-400 mb-3 border-b border-gray-600 pb-2">Narrative</h4>
-                      <textarea value={currentReportData.narrative || ''} onChange={(e) => setCurrentReportData({...currentReportData, narrative: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 h-40 text-sm" placeholder="Enter detailed narrative..." />
+                    <div className="panel-card">
+                      <h4 className="section-title text-green-400">Narrative</h4>
+                      <textarea value={currentReportData.narrative || ''} onChange={(e) => setCurrentReportData({...currentReportData, narrative: e.target.value})} className="field h-40" placeholder="Enter detailed narrative..." />
                     </div>
 
                     {/* Image Attachments Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-indigo-400 mb-3 border-b border-gray-600 pb-2">Attachments</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-indigo-400">Attachments</h4>
                       {currentReportData.arrestImages && currentReportData.arrestImages.length > 0 && (
                         <div className="mb-4 space-y-3">
                           {currentReportData.arrestImages.map((img, index) => (
-                            <div key={index} className="bg-gray-800 rounded p-3">
+                            <div key={index} className="well p-3">
                               <div className="flex justify-between items-start mb-2">
                                 <span className="text-xs text-gray-400">Image {index + 1}</span>
-                                <button onClick={() => setCurrentReportData({...currentReportData, arrestImages: currentReportData.arrestImages.filter((_, i) => i !== index)})} className="text-xs px-2 py-1 bg-red-600 hover:bg-red-500 rounded">Remove</button>
+                                <button onClick={() => setCurrentReportData({...currentReportData, arrestImages: currentReportData.arrestImages.filter((_, i) => i !== index)})} className="btn btn-danger btn-sm">Remove</button>
                               </div>
                               <input type="text" value={img.description || ''} onChange={(e) => {
                                 const newImages = [...currentReportData.arrestImages];
                                 newImages[index].description = e.target.value;
                                 setCurrentReportData({...currentReportData, arrestImages: newImages});
-                              }} placeholder="Describe this image..." className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                              }} placeholder="Describe this image..." className="field" />
                             </div>
                           ))}
                         </div>
@@ -8199,46 +8255,46 @@ const CADSystem = () => {
                         const files = Array.from(e.target.files || []);
                         const newImages = files.map(file => ({ name: file.name, description: '' }));
                         setCurrentReportData({...currentReportData, arrestImages: [...(currentReportData.arrestImages || []), ...newImages]});
-                      }} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                      }} className="field" />
                     </div>
 
                     {/* Administrative Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-pink-400 mb-3 border-b border-gray-600 pb-2">Administrative</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-pink-400">Administrative</h4>
                       <div className="grid grid-cols-2 gap-4 mb-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Booking Officer Signature</label>
-                          <input type="text" value={currentReportData.bookingOfficerSignature || ''} onChange={(e) => setCurrentReportData({...currentReportData, bookingOfficerSignature: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Booking Officer Signature</label>
+                          <input type="text" value={currentReportData.bookingOfficerSignature || ''} onChange={(e) => setCurrentReportData({...currentReportData, bookingOfficerSignature: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Booking Officer Badge #</label>
-                          <input type="text" value={currentReportData.bookingOfficerBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, bookingOfficerBadge: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Booking Officer Badge #</label>
+                          <input type="text" value={currentReportData.bookingOfficerBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, bookingOfficerBadge: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date</label>
-                          <input type="date" value={currentReportData.bookingDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, bookingDate: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Date</label>
+                          <input type="date" value={currentReportData.bookingDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, bookingDate: e.target.value})} className="field" />
                         </div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-4 mb-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Supervisor Signature</label>
-                          <input type="text" value={currentReportData.supervisorSignature || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorSignature: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Supervisor Signature</label>
+                          <input type="text" value={currentReportData.supervisorSignature || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorSignature: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Supervisor Badge #</label>
-                          <input type="text" value={currentReportData.supervisorBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorBadge: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Supervisor Badge #</label>
+                          <input type="text" value={currentReportData.supervisorBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorBadge: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date</label>
-                          <input type="date" value={currentReportData.supervisorDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorDate: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Date</label>
+                          <input type="date" value={currentReportData.supervisorDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorDate: e.target.value})} className="field" />
                         </div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Status</label>
-                          <select value={currentReportData.arrestStatus || ''} onChange={(e) => setCurrentReportData({...currentReportData, arrestStatus: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Status</label>
+                          <select value={currentReportData.arrestStatus || ''} onChange={(e) => setCurrentReportData({...currentReportData, arrestStatus: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="APPROVED">CLOSED/APPROVED</option>
                             <option value="FORWARD">FORWARD TO DETECTIVE DIVISION</option>
@@ -8247,8 +8303,8 @@ const CADSystem = () => {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Case Gone to Court?</label>
-                          <select value={currentReportData.goneToCourt || ''} onChange={(e) => setCurrentReportData({...currentReportData, goneToCourt: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Case Gone to Court?</label>
+                          <select value={currentReportData.goneToCourt || ''} onChange={(e) => setCurrentReportData({...currentReportData, goneToCourt: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="YES">YES</option>
                             <option value="NO">NO</option>
@@ -8258,15 +8314,15 @@ const CADSystem = () => {
                       </div>
 
                       {/* Linked Reports */}
-                      <div className="mt-4 pt-4 border-t border-gray-600">
+                      <div className="mt-4 pt-4 border-t border-white/[0.08]">
                         <h5 className="text-sm font-semibold text-blue-400 mb-2">Linked Reports</h5>
-                        <div className="bg-gray-800 rounded p-3 min-h-20">
+                        <div className="well p-3 min-h-20">
                           {currentReportData.arrestLinkedReports && currentReportData.arrestLinkedReports.length > 0 ? (
                             <ul className="space-y-2">
                               {currentReportData.arrestLinkedReports.map((report, index) => (
                                 <li key={index} className="text-sm text-blue-300 hover:text-blue-200 cursor-pointer flex justify-between items-center">
                                   <span>{report}</span>
-                                  <button onClick={() => setCurrentReportData({...currentReportData, arrestLinkedReports: currentReportData.arrestLinkedReports.filter((_, i) => i !== index)})} className="text-xs px-2 py-1 bg-red-600 hover:bg-red-500 rounded">Remove</button>
+                                  <button onClick={() => setCurrentReportData({...currentReportData, arrestLinkedReports: currentReportData.arrestLinkedReports.filter((_, i) => i !== index)})} className="btn btn-danger btn-sm">Remove</button>
                                 </li>
                               ))}
                             </ul>
@@ -8279,25 +8335,25 @@ const CADSystem = () => {
                             setCurrentReportData({...currentReportData, arrestLinkedReports: [...(currentReportData.arrestLinkedReports || []), e.currentTarget.value]});
                             e.currentTarget.value = '';
                           }
-                        }} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm mt-2" />
+                        }} className="field mt-2" />
                       </div>
                     </div>
 
                     {/* Detective Reference Only Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-purple-400 mb-3 border-b border-gray-600 pb-2">Detective Reference Only</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-purple-400">Detective Reference Only</h4>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Detective Assigned</label>
-                          <input type="text" value={currentReportData.detectiveAssigned || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectiveAssigned: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Detective Assigned</label>
+                          <input type="text" value={currentReportData.detectiveAssigned || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectiveAssigned: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Detective Badge #</label>
-                          <input type="text" value={currentReportData.detectiveBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectiveBadge: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Detective Badge #</label>
+                          <input type="text" value={currentReportData.detectiveBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectiveBadge: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Detective Agency</label>
-                          <select value={currentReportData.detectiveAgency || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectiveAgency: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Detective Agency</label>
+                          <select value={currentReportData.detectiveAgency || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectiveAgency: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="LSSO">LSSO</option>
                             <option value="LSPD">LSPD</option>
@@ -8305,12 +8361,12 @@ const CADSystem = () => {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Detective Reference Info (Case # etc)</label>
-                          <input type="text" value={currentReportData.detectiveReferenceInfo || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectiveReferenceInfo: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Detective Reference Info (Case # etc)</label>
+                          <input type="text" value={currentReportData.detectiveReferenceInfo || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectiveReferenceInfo: e.target.value})} className="field" />
                         </div>
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Detective Involvement</label>
-                          <select value={currentReportData.detectiveInvolvement || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectiveInvolvement: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Detective Involvement</label>
+                          <select value={currentReportData.detectiveInvolvement || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectiveInvolvement: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="MADE ARREST">MADE ARREST</option>
                             <option value="PRIOR">INVOLVED IN INVESTIGATION PRIOR TO ARREST</option>
@@ -8324,68 +8380,68 @@ const CADSystem = () => {
                   /* Fallback Generic Report Form for remaining types */
                   <>
                     {/* Agency Information Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Agency Information</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-blue-400">Agency Information</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Callsign</label>
-                          <input type="text" value={currentReportData.callsign || ''} readOnly className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Callsign</label>
+                          <input type="text" value={currentReportData.callsign || ''} readOnly className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Department</label>
-                          <input type="text" value={currentReportData.department || ''} readOnly className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Department</label>
+                          <input type="text" value={currentReportData.department || ''} readOnly className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Officer Name</label>
-                          <input type="text" value={currentReportData.officer || ''} readOnly className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Officer Name</label>
+                          <input type="text" value={currentReportData.officer || ''} readOnly className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date</label>
-                          <input type="text" value={currentReportData.date ? new Date(currentReportData.date).toLocaleDateString() : ''} readOnly className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Date</label>
+                          <input type="text" value={currentReportData.date ? new Date(currentReportData.date).toLocaleDateString() : ''} readOnly className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Record#</label>
-                          <input type="text" value={currentReportData.recordNumber || ''} readOnly className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Record#</label>
+                          <input type="text" value={currentReportData.recordNumber || ''} readOnly className="field" />
                         </div>
                       </div>
                     </div>
 
                     {/* Location Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Location</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-blue-400">Location</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Location/Address</label>
-                          <input type="text" value={currentReportData.location || ''} onChange={(e) => setCurrentReportData({...currentReportData, location: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Location/Address</label>
+                          <input type="text" value={currentReportData.location || ''} onChange={(e) => setCurrentReportData({...currentReportData, location: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Postal</label>
-                          <input type="text" value={currentReportData.postal || ''} onChange={(e) => setCurrentReportData({...currentReportData, postal: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Postal</label>
+                          <input type="text" value={currentReportData.postal || ''} onChange={(e) => setCurrentReportData({...currentReportData, postal: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date of Incident</label>
-                          <input type="date" value={currentReportData.incidentDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, incidentDate: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Date of Incident</label>
+                          <input type="date" value={currentReportData.incidentDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, incidentDate: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Time of Incident</label>
-                          <input type="time" value={currentReportData.incidentTime || ''} onChange={(e) => setCurrentReportData({...currentReportData, incidentTime: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Time of Incident</label>
+                          <input type="time" value={currentReportData.incidentTime || ''} onChange={(e) => setCurrentReportData({...currentReportData, incidentTime: e.target.value})} className="field" />
                         </div>
                       </div>
                     </div>
 
                     {/* Involved Party Information */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-purple-400 mb-3 border-b border-gray-600 pb-2">Involved Party Information</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-purple-400">Involved Party Information</h4>
                       <div className="mb-3">
-                        <label className="block text-xs text-gray-400 mb-1">Search by Name</label>
+                        <label className="field-label">Search by Name</label>
                         <div className="flex gap-2">
-                          <input type="text" value={partySearchName1} onChange={(e) => setPartySearchName1(e.target.value)} placeholder="Enter name..." className="flex-1 bg-gray-600 text-white rounded px-3 py-2 text-sm" />
-                          <button onClick={() => searchPersonByName(partySearchName1, 1)} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500 text-sm">Search</button>
+                          <input type="text" value={partySearchName1} onChange={(e) => setPartySearchName1(e.target.value)} placeholder="Enter name..." className="field flex-1 min-w-0" />
+                          <button onClick={() => searchPersonByName(partySearchName1, 1)} className="btn btn-primary">Search</button>
                         </div>
                         {partySearchResults1.length > 0 && (
-                          <div className="mt-2 bg-gray-800 rounded p-2 max-h-32 overflow-y-auto">
+                          <div className="mt-2 menu-list max-h-32 overflow-y-auto">
                             {partySearchResults1.map((p, i) => (
-                              <div key={i} onClick={() => selectParty(p, 1)} className="p-2 hover:bg-gray-700 cursor-pointer rounded text-sm">
+                              <div key={i} onClick={() => selectParty(p, 1)} className="menu-item">
                                 {p.firstName} {p.lastName} - DOB: {p.dob}
                               </div>
                             ))}
@@ -8394,43 +8450,43 @@ const CADSystem = () => {
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Name</label>
-                          <input type="text" value={currentReportData.party1?.name || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, name: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Name</label>
+                          <input type="text" value={currentReportData.party1?.name || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, name: e.target.value}})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">DOB</label>
-                          <input type="text" value={currentReportData.party1?.dob || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, dob: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">DOB</label>
+                          <input type="text" value={currentReportData.party1?.dob || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, dob: e.target.value}})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Phone</label>
-                          <input type="text" value={currentReportData.party1?.phone || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, phone: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Phone</label>
+                          <input type="text" value={currentReportData.party1?.phone || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, phone: e.target.value}})} className="field" />
                         </div>
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Address</label>
-                          <input type="text" value={currentReportData.party1?.address || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, address: e.target.value}})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Address</label>
+                          <input type="text" value={currentReportData.party1?.address || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, address: e.target.value}})} className="field" />
                         </div>
                       </div>
                     </div>
 
                     {/* Narrative Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Narrative</h4>
-                      <textarea value={currentReportData.narrative || ''} onChange={(e) => setCurrentReportData({...currentReportData, narrative: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 h-40 text-sm" placeholder="Enter detailed narrative..." />
+                    <div className="panel-card">
+                      <h4 className="section-title text-blue-400">Narrative</h4>
+                      <textarea value={currentReportData.narrative || ''} onChange={(e) => setCurrentReportData({...currentReportData, narrative: e.target.value})} className="field h-40" placeholder="Enter detailed narrative..." />
                     </div>
 
                     {/* Scene Images Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Attachments/Images</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-blue-400">Attachments/Images</h4>
                       <div className="mb-3">
-                        <input type="file" multiple accept="image/*" onChange={handleSceneImageUpload} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                        <input type="file" multiple accept="image/*" onChange={handleSceneImageUpload} className="field" />
                       </div>
                       {currentReportData.sceneImages?.length > 0 && (
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                           {currentReportData.sceneImages.map((img: any) => (
-                            <div key={img.id} className="relative bg-gray-800 rounded p-2">
+                            <div key={img.id} className="well relative p-2">
                               <img src={img.data} alt={img.name} className="w-full h-24 object-cover rounded" />
                               <button onClick={() => removeSceneImage(img.id)} className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 hover:bg-red-500"><X size={12} /></button>
-                              <input type="text" placeholder="Add note..." value={img.note || ''} onChange={(e) => updateImageNote(img.id, e.target.value)} className="w-full bg-gray-700 text-white rounded px-2 py-1 text-xs mt-1" />
+                              <input type="text" placeholder="Add note..." value={img.note || ''} onChange={(e) => updateImageNote(img.id, e.target.value)} className="field field-xs mt-1" />
                             </div>
                           ))}
                         </div>
@@ -8438,20 +8494,20 @@ const CADSystem = () => {
                     </div>
 
                     {/* Completed By Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Completed By</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-blue-400">Completed By</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Officer Name</label>
-                          <input type="text" value={currentReportData.completedByOfficerName || ''} onChange={(e) => setCurrentReportData({...currentReportData, completedByOfficerName: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Officer Name</label>
+                          <input type="text" value={currentReportData.completedByOfficerName || ''} onChange={(e) => setCurrentReportData({...currentReportData, completedByOfficerName: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Badge#</label>
-                          <input type="text" value={currentReportData.completedByBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, completedByBadge: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Badge#</label>
+                          <input type="text" value={currentReportData.completedByBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, completedByBadge: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Department</label>
-                          <select value={currentReportData.completedByDepartment || ''} onChange={(e) => setCurrentReportData({...currentReportData, completedByDepartment: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Department</label>
+                          <select value={currentReportData.completedByDepartment || ''} onChange={(e) => setCurrentReportData({...currentReportData, completedByDepartment: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="LSSO">LSSO</option>
                             <option value="LSSO_CONTRACT">LSSO Contract Agency</option>
@@ -8460,31 +8516,31 @@ const CADSystem = () => {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date</label>
-                          <input type="date" value={currentReportData.completedByDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, completedByDate: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Date</label>
+                          <input type="date" value={currentReportData.completedByDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, completedByDate: e.target.value})} className="field" />
                         </div>
                       </div>
                     </div>
 
                     {/* Supervisor Signature Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Supervisor Signature</h4>
+                    <div className="panel-card">
+                      <h4 className="section-title text-blue-400">Supervisor Signature</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Supervisor Name</label>
-                          <input type="text" value={currentReportData.supervisorName || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorName: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Supervisor Name</label>
+                          <input type="text" value={currentReportData.supervisorName || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorName: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Supervisor Badge #</label>
-                          <input type="text" value={currentReportData.supervisorBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorBadge: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Supervisor Badge #</label>
+                          <input type="text" value={currentReportData.supervisorBadge || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorBadge: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date Signed</label>
-                          <input type="date" value={currentReportData.supervisorSignDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorSignDate: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm" />
+                          <label className="field-label">Date Signed</label>
+                          <input type="date" value={currentReportData.supervisorSignDate || ''} onChange={(e) => setCurrentReportData({...currentReportData, supervisorSignDate: e.target.value})} className="field" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Report Status</label>
-                          <select value={currentReportData.reportStatus || ''} onChange={(e) => setCurrentReportData({...currentReportData, reportStatus: e.target.value})} className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <label className="field-label">Report Status</label>
+                          <select value={currentReportData.reportStatus || ''} onChange={(e) => setCurrentReportData({...currentReportData, reportStatus: e.target.value})} className="field">
                             <option value="">Select...</option>
                             <option value="APPROVED">Approved</option>
                             <option value="PENDING">Pending</option>
@@ -8495,34 +8551,34 @@ const CADSystem = () => {
                     </div>
 
                     {/* Linked Reports/Records Section */}
-                    <div className="bg-gray-700 rounded-lg p-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">Linked Reports/Records</h4>
-                      <button onClick={addLinkedReport} className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-500 text-sm mb-3">+ Add Link</button>
+                    <div className="panel-card">
+                      <h4 className="section-title text-blue-400">Linked Reports/Records</h4>
+                      <button onClick={addLinkedReport} className="btn btn-primary btn-sm mb-3">+ Add Link</button>
                       {currentReportData.linkedReports?.map((link: any, index: number) => (
                         <div key={index} className="flex gap-2 mb-2">
-                          <select value={link.type || ''} onChange={(e) => { const newLinks = [...currentReportData.linkedReports]; newLinks[index] = { ...newLinks[index], type: e.target.value }; setCurrentReportData({...currentReportData, linkedReports: newLinks}); }} className="bg-gray-600 text-white rounded px-3 py-2 text-sm">
+                          <select value={link.type || ''} onChange={(e) => { const newLinks = [...currentReportData.linkedReports]; newLinks[index] = { ...newLinks[index], type: e.target.value }; setCurrentReportData({...currentReportData, linkedReports: newLinks}); }} className="field">
                             <option value="">Type...</option>
                             <option value="ARREST">Arrest</option>
                             <option value="CITATION">Citation</option>
                             <option value="TOW">Tow Report</option>
                             <option value="SUPPLEMENTAL">Supplemental</option>
                           </select>
-                          <input type="text" placeholder="Report/Record #" value={link.number || ''} onChange={(e) => { const newLinks = [...currentReportData.linkedReports]; newLinks[index] = { ...newLinks[index], number: e.target.value }; setCurrentReportData({...currentReportData, linkedReports: newLinks}); }} className="flex-1 bg-gray-600 text-white rounded px-3 py-2 text-sm" />
-                          <button onClick={() => removeLinkedReport(index)} className="px-3 py-2 bg-red-600 text-white rounded hover:bg-red-500"><X size={16} /></button>
+                          <input type="text" placeholder="Report/Record #" value={link.number || ''} onChange={(e) => { const newLinks = [...currentReportData.linkedReports]; newLinks[index] = { ...newLinks[index], number: e.target.value }; setCurrentReportData({...currentReportData, linkedReports: newLinks}); }} className="field flex-1 min-w-0" />
+                          <button onClick={() => removeLinkedReport(index)} className="btn btn-danger"><X size={16} /></button>
                         </div>
                       ))}
                     </div>
                   </>
                 )}
 
-                <div className="flex gap-2 justify-end pt-4 border-t border-gray-700">
+                <div className="flex gap-2 justify-end pt-4 border-t border-white/[0.06]">
                   <button
                     onClick={() => {
                       setActiveReportForm(null);
                       setCurrentReportData({});
                       setEditingReportId(null);
                     }}
-                    className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-500"
+                    className="btn btn-secondary"
                   >
                     Cancel
                   </button>
@@ -8540,7 +8596,7 @@ const CADSystem = () => {
                       setCurrentReportData({...currentReportData, status: 'SUBMITTED'});
                       saveReport();
                     }}
-                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-500"
+                    className="btn btn-success"
                   >
                     {editingReportId ? 'Save' : 'Add Record'}
                   </button>
@@ -8552,9 +8608,9 @@ const CADSystem = () => {
 
         {/* Record Form Modal */}
         {activeRecordForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[60] p-4">
-            <div className="bg-gray-800 rounded-lg w-full max-w-3xl max-h-[85vh] overflow-y-auto">
-              <div className="bg-gray-900 px-6 py-4 border-b border-gray-700 flex justify-between items-center sticky top-0">
+          <div className="modal-backdrop z-[60]">
+            <div className="modal-surface w-full max-w-3xl max-h-[85vh] overflow-y-auto">
+              <div className="bg-gray-900 px-6 py-4 border-b border-white/[0.06] flex justify-between items-center sticky top-0">
                 <h3 className="text-lg font-bold text-orange-400">{editingRecordId ? '' : 'New '}{activeRecordForm}</h3>
                 <button
                   onClick={() => {
@@ -8562,30 +8618,30 @@ const CADSystem = () => {
                     setCurrentRecordData({});
                     setEditingRecordId(null);
                   }}
-                  className="text-gray-400 hover:text-white"
+                  className="icon-btn"
                 >
-                  <X size={24} />
+                  <X size={20} />
                 </button>
               </div>
               <div className="p-6 space-y-4">
                 {/* Common Fields */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm text-gray-300 mb-1">Officer Name</label>
+                    <label className="field-label">Officer Name</label>
                     <input
                       type="text"
                       value={currentRecordData.officer || ''}
                       onChange={(e) => setCurrentRecordData({...currentRecordData, officer: e.target.value})}
-                      className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                      className="field"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-300 mb-1">Badge Number</label>
+                    <label className="field-label">Badge Number</label>
                     <input
                       type="text"
                       value={currentRecordData.badge || ''}
                       onChange={(e) => setCurrentRecordData({...currentRecordData, badge: e.target.value})}
-                      className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                      className="field"
                     />
                   </div>
                 </div>
@@ -8594,170 +8650,170 @@ const CADSystem = () => {
                 {activeRecordForm === 'ARREST' && (
                   <>
                     {/* Agency Information Section */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">AGENCY INFORMATION</h4>
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-blue-400">AGENCY INFORMATION</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Callsign</label>
+                          <label className="field-label">Callsign</label>
                           <input
                             type="text"
                             value={currentRecordData.callsign || ''}
                             readOnly
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Department</label>
+                          <label className="field-label">Department</label>
                           <input
                             type="text"
                             value={currentRecordData.department || ''}
                             readOnly
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Officer Name</label>
+                          <label className="field-label">Officer Name</label>
                           <input
                             type="text"
                             value={currentRecordData.officer || ''}
                             readOnly
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Record#</label>
+                          <label className="field-label">Record#</label>
                           <input
                             type="text"
                             value={currentRecordData.recordNumber || ''}
                             readOnly
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                       </div>
                     </div>
 
                     {/* Report Reference Section */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                      <h4 className="text-md font-semibold text-green-400 mb-3 border-b border-gray-600 pb-2">REPORT REFERENCE</h4>
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-green-400">REPORT REFERENCE</h4>
                       <div className="grid grid-cols-3 gap-3">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date of Call</label>
+                          <label className="field-label">Date of Call</label>
                           <input
                             type="date"
                             value={currentRecordData.dateOfCall || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, dateOfCall: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Primary Department</label>
+                          <label className="field-label">Primary Department</label>
                           <select
                             value={currentRecordData.primaryDepartment || 'LSSO'}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, primaryDepartment: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           >
                             <option value="LSSO">LSSO</option>
                             <option value="LSSO CONTRACT AGENCY">LSSO CONTRACT AGENCY</option>
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Arresting Officer Badge #</label>
+                          <label className="field-label">Arresting Officer Badge #</label>
                           <input
                             type="text"
                             value={currentRecordData.arrestingOfficerBadge || loggedInOfficer?.badgeNumber || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, arrestingOfficerBadge: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Dispatch ID #</label>
+                          <label className="field-label">Dispatch ID #</label>
                           <input
                             type="text"
                             value={currentRecordData.dispatchId || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, dispatchId: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                             placeholder="Dispatch ID..."
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Traffic Accident Ref #</label>
+                          <label className="field-label">Traffic Accident Ref #</label>
                           <input
                             type="text"
                             value={currentRecordData.trafficAccidentRef || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, trafficAccidentRef: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                             placeholder="Reference number..."
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Citation Ref #</label>
+                          <label className="field-label">Citation Ref #</label>
                           <input
                             type="text"
                             value={currentRecordData.citationRef || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, citationRef: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                             placeholder="Citation reference..."
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Supplemental Report to be Filed?</label>
+                          <label className="field-label">Supplemental Report to be Filed?</label>
                           <select
                             value={currentRecordData.supplementalReportFiled || 'NO'}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, supplementalReportFiled: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           >
                             <option value="YES">YES</option>
                             <option value="NO">NO</option>
                           </select>
                         </div>
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Additional Reference Info (Not Required)</label>
+                          <label className="field-label">Additional Reference Info (Not Required)</label>
                           <input
                             type="text"
                             value={currentRecordData.additionalReferenceInfo || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, additionalReferenceInfo: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                             placeholder="Additional reference information..."
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Subject Transported by Other Officer?</label>
+                          <label className="field-label">Subject Transported by Other Officer?</label>
                           <select
                             value={currentRecordData.transportedByOther || 'NO'}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, transportedByOther: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           >
                             <option value="YES">YES</option>
                             <option value="NO">NO</option>
                           </select>
                         </div>
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Badge # and Name of Transporting Agent (If Applicable)</label>
+                          <label className="field-label">Badge # and Name of Transporting Agent (If Applicable)</label>
                           <input
                             type="text"
                             value={currentRecordData.transportingAgent || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, transportingAgent: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                             placeholder="Badge # and Name..."
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Subject Treated by EMS?</label>
+                          <label className="field-label">Subject Treated by EMS?</label>
                           <select
                             value={currentRecordData.treatedByEMS || 'NO'}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, treatedByEMS: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           >
                             <option value="YES">YES</option>
                             <option value="NO">NO</option>
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">EMS Transport Subject to Hospital?</label>
+                          <label className="field-label">EMS Transport Subject to Hospital?</label>
                           <select
                             value={currentRecordData.emsTransportToHospital || 'NO'}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, emsTransportToHospital: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           >
                             <option value="YES">YES</option>
                             <option value="NO">NO</option>
@@ -8767,27 +8823,27 @@ const CADSystem = () => {
                     </div>
 
                     {/* Arrestee Information Section */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                      <h4 className="text-md font-semibold text-red-400 mb-3 border-b border-gray-600 pb-2">ARRESTEE INFORMATION</h4>
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-red-400">ARRESTEE INFORMATION</h4>
                       <div className="mb-3">
-                        <label className="block text-xs text-gray-400 mb-1">Search by Name</label>
+                        <label className="field-label">Search by Name</label>
                         <div className="flex gap-2">
                           <input
                             type="text"
                             value={partySearchName1}
                             onChange={(e) => setPartySearchName1(e.target.value)}
                             placeholder="Enter name..."
-                            className="flex-1 bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field flex-1 min-w-0"
                           />
                           <button
                             onClick={() => searchPersonByName(partySearchName1, 1)}
-                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500 text-sm"
+                            className="btn btn-primary"
                           >
                             Search
                           </button>
                         </div>
                         {partySearchResults1.length > 0 && (
-                          <div className="mt-2 bg-gray-800 rounded p-2 max-h-32 overflow-y-auto">
+                          <div className="mt-2 menu-list max-h-32 overflow-y-auto">
                             {partySearchResults1.map((p, i) => (
                               <div
                                 key={i}
@@ -8802,7 +8858,7 @@ const CADSystem = () => {
                                   setPartySearchResults1([]);
                                   setPartySearchName1('');
                                 }}
-                                className="p-2 hover:bg-gray-700 cursor-pointer rounded text-sm"
+                                className="menu-item"
                               >
                                 {p.firstName} {p.lastName} - DOB: {p.dob}
                               </div>
@@ -8812,66 +8868,66 @@ const CADSystem = () => {
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Name</label>
+                          <label className="field-label">Name</label>
                           <input
                             type="text"
                             value={currentRecordData.arresteeName || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, arresteeName: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date of Birth</label>
+                          <label className="field-label">Date of Birth</label>
                           <input
                             type="date"
                             value={currentRecordData.arresteeDOB || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, arresteeDOB: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Phone</label>
+                          <label className="field-label">Phone</label>
                           <input
                             type="text"
                             value={currentRecordData.arresteePhone || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, arresteePhone: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Address</label>
+                          <label className="field-label">Address</label>
                           <input
                             type="text"
                             value={currentRecordData.arresteeAddress || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, arresteeAddress: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                       </div>
                     </div>
 
                     {/* Vehicles Associated Section */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                      <h4 className="text-md font-semibold text-purple-400 mb-3 border-b border-gray-600 pb-2">VEHICLES ASSOCIATED</h4>
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-purple-400">VEHICLES ASSOCIATED</h4>
                       <div className="mb-3">
-                        <label className="block text-xs text-gray-400 mb-1">Search by Plate</label>
+                        <label className="field-label">Search by Plate</label>
                         <div className="flex gap-2">
                           <input
                             type="text"
                             value={vehicleSearchPlate1}
                             onChange={(e) => setVehicleSearchPlate1(e.target.value)}
                             placeholder="Enter plate number..."
-                            className="flex-1 bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field flex-1 min-w-0"
                           />
                           <button
                             onClick={() => searchVehicleByPlate(vehicleSearchPlate1, 1)}
-                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500 text-sm"
+                            className="btn btn-primary"
                           >
                             Search
                           </button>
                         </div>
                         {vehicleSearchResults1.length > 0 && (
-                          <div className="mt-2 bg-gray-800 rounded p-2 max-h-32 overflow-y-auto">
+                          <div className="mt-2 menu-list max-h-32 overflow-y-auto">
                             {vehicleSearchResults1.map((v, i) => (
                               <div
                                 key={i}
@@ -8886,7 +8942,7 @@ const CADSystem = () => {
                                   setVehicleSearchResults1([]);
                                   setVehicleSearchPlate1('');
                                 }}
-                                className="p-2 hover:bg-gray-700 cursor-pointer rounded text-sm"
+                                className="menu-item"
                               >
                                 {v.plate} - {v.make} {v.model} ({v.color})
                               </div>
@@ -8896,46 +8952,46 @@ const CADSystem = () => {
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Plate Number</label>
+                          <label className="field-label">Plate Number</label>
                           <input
                             type="text"
                             value={currentRecordData.vehiclePlate || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, vehiclePlate: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Make</label>
+                          <label className="field-label">Make</label>
                           <input
                             type="text"
                             value={currentRecordData.vehicleMake || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, vehicleMake: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Model</label>
+                          <label className="field-label">Model</label>
                           <input
                             type="text"
                             value={currentRecordData.vehicleModel || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, vehicleModel: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Color</label>
+                          <label className="field-label">Color</label>
                           <input
                             type="text"
                             value={currentRecordData.vehicleColor || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, vehicleColor: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                       </div>
                     </div>
 
                     {/* Charges Filed Section */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
+                    <div className="panel-card mb-4">
                       <div className="flex justify-between items-center mb-3">
                         <h4 className="text-md font-semibold text-red-400">CHARGES FILED</h4>
                         <button
@@ -8953,7 +9009,7 @@ const CADSystem = () => {
                               charges: [...(currentRecordData.charges || []), newCharge]
                             });
                           }}
-                          className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-500 flex items-center gap-1"
+                          className="btn btn-danger btn-sm"
                         >
                           <Plus size={16} /> Add Charge
                         </button>
@@ -8963,7 +9019,7 @@ const CADSystem = () => {
                       ) : (
                         <div className="space-y-3">
                           {currentRecordData.charges.map((charge, index) => (
-                            <div key={charge.id} className="bg-gray-600 rounded-lg p-3">
+                            <div key={charge.id} className="subcard p-3">
                               <div className="flex justify-between items-start mb-2">
                                 <span className="text-xs text-gray-400">Charge #{index + 1}</span>
                                 <button
@@ -8981,7 +9037,7 @@ const CADSystem = () => {
                               </div>
                               <div className="grid grid-cols-4 gap-2">
                                 <div className="col-span-2">
-                                  <label className="block text-xs text-gray-400 mb-1">Charge</label>
+                                  <label className="field-label">Charge</label>
                                   <ChargeAutocompleteInput
                                     value={charge.charge}
                                     onChange={(value) => {
@@ -9009,7 +9065,7 @@ const CADSystem = () => {
                                   />
                                 </div>
                                 <div>
-                                  <label className="block text-xs text-gray-400 mb-1">Charge Type</label>
+                                  <label className="field-label">Charge Type</label>
                                   <select
                                     value={charge.chargeType}
                                     onChange={(e) => {
@@ -9018,7 +9074,7 @@ const CADSystem = () => {
                                       );
                                       setCurrentRecordData({...currentRecordData, charges: updated});
                                     }}
-                                    className="w-full bg-gray-700 text-white rounded px-2 py-1 text-sm"
+                                    className="field field-sm"
                                   >
                                     <option value="INFRACTION">INFRACTION</option>
                                     <option value="MISDEMEANOR">MISDEMEANOR</option>
@@ -9026,7 +9082,7 @@ const CADSystem = () => {
                                   </select>
                                 </div>
                                 <div>
-                                  <label className="block text-xs text-gray-400 mb-1">Counts</label>
+                                  <label className="field-label">Counts</label>
                                   <input
                                     type="number"
                                     min="1"
@@ -9037,11 +9093,11 @@ const CADSystem = () => {
                                       );
                                       setCurrentRecordData({...currentRecordData, charges: updated});
                                     }}
-                                    className="w-full bg-gray-700 text-white rounded px-2 py-1 text-sm"
+                                    className="field field-sm"
                                   />
                                 </div>
                                 <div>
-                                  <label className="block text-xs text-gray-400 mb-1">Title/Code</label>
+                                  <label className="field-label">Title/Code</label>
                                   <input
                                     type="text"
                                     value={charge.titleCode}
@@ -9051,7 +9107,7 @@ const CADSystem = () => {
                                       );
                                       setCurrentRecordData({...currentRecordData, charges: updated});
                                     }}
-                                    className="w-full bg-gray-700 text-white rounded px-2 py-1 text-sm"
+                                    className="field field-sm"
                                     placeholder="e.g., PC 242"
                                   />
                                 </div>
@@ -9063,103 +9119,103 @@ const CADSystem = () => {
                     </div>
 
                     {/* Evidence or Property Log Section */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                      <h4 className="text-md font-semibold text-yellow-400 mb-3 border-b border-gray-600 pb-2">EVIDENCE OR PROPERTY LOG</h4>
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-yellow-400">EVIDENCE OR PROPERTY LOG</h4>
                       <div className="grid grid-cols-1 gap-3">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Evidence Locker #</label>
+                          <label className="field-label">Evidence Locker #</label>
                           <input
                             type="text"
                             value={currentRecordData.evidenceLockerNumber || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, evidenceLockerNumber: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                             placeholder="Evidence locker number..."
                           />
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <label className="block text-xs text-gray-400 mb-1">Item A Quantity</label>
+                            <label className="field-label">Item A Quantity</label>
                             <input
                               type="text"
                               value={currentRecordData.itemAQuantity || ''}
                               onChange={(e) => setCurrentRecordData({...currentRecordData, itemAQuantity: e.target.value})}
-                              className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                              className="field"
                               placeholder="Quantity..."
                             />
                           </div>
                           <div>
-                            <label className="block text-xs text-gray-400 mb-1">Item A Description</label>
+                            <label className="field-label">Item A Description</label>
                             <input
                               type="text"
                               value={currentRecordData.itemADescription || ''}
                               onChange={(e) => setCurrentRecordData({...currentRecordData, itemADescription: e.target.value})}
-                              className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                              className="field"
                               placeholder="Description..."
                             />
                           </div>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <label className="block text-xs text-gray-400 mb-1">Item B Quantity</label>
+                            <label className="field-label">Item B Quantity</label>
                             <input
                               type="text"
                               value={currentRecordData.itemBQuantity || ''}
                               onChange={(e) => setCurrentRecordData({...currentRecordData, itemBQuantity: e.target.value})}
-                              className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                              className="field"
                               placeholder="Quantity..."
                             />
                           </div>
                           <div>
-                            <label className="block text-xs text-gray-400 mb-1">Item B Description</label>
+                            <label className="field-label">Item B Description</label>
                             <input
                               type="text"
                               value={currentRecordData.itemBDescription || ''}
                               onChange={(e) => setCurrentRecordData({...currentRecordData, itemBDescription: e.target.value})}
-                              className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                              className="field"
                               placeholder="Description..."
                             />
                           </div>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <label className="block text-xs text-gray-400 mb-1">Item C Quantity</label>
+                            <label className="field-label">Item C Quantity</label>
                             <input
                               type="text"
                               value={currentRecordData.itemCQuantity || ''}
                               onChange={(e) => setCurrentRecordData({...currentRecordData, itemCQuantity: e.target.value})}
-                              className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                              className="field"
                               placeholder="Quantity..."
                             />
                           </div>
                           <div>
-                            <label className="block text-xs text-gray-400 mb-1">Item C Description</label>
+                            <label className="field-label">Item C Description</label>
                             <input
                               type="text"
                               value={currentRecordData.itemCDescription || ''}
                               onChange={(e) => setCurrentRecordData({...currentRecordData, itemCDescription: e.target.value})}
-                              className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                              className="field"
                               placeholder="Description..."
                             />
                           </div>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <label className="block text-xs text-gray-400 mb-1">Item D Quantity</label>
+                            <label className="field-label">Item D Quantity</label>
                             <input
                               type="text"
                               value={currentRecordData.itemDQuantity || ''}
                               onChange={(e) => setCurrentRecordData({...currentRecordData, itemDQuantity: e.target.value})}
-                              className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                              className="field"
                               placeholder="Quantity..."
                             />
                           </div>
                           <div>
-                            <label className="block text-xs text-gray-400 mb-1">Item D Description</label>
+                            <label className="field-label">Item D Description</label>
                             <input
                               type="text"
                               value={currentRecordData.itemDDescription || ''}
                               onChange={(e) => setCurrentRecordData({...currentRecordData, itemDDescription: e.target.value})}
-                              className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                              className="field"
                               placeholder="Description..."
                             />
                           </div>
@@ -9168,25 +9224,25 @@ const CADSystem = () => {
                     </div>
 
                     {/* Narrative Section */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                      <h4 className="text-md font-semibold text-cyan-400 mb-3 border-b border-gray-600 pb-2">NARRATIVE</h4>
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-cyan-400">NARRATIVE</h4>
                       <div>
-                        <label className="block text-xs text-gray-400 mb-1">Narrative</label>
+                        <label className="field-label">Narrative</label>
                         <textarea
                           value={currentRecordData.narrative || ''}
                           onChange={(e) => setCurrentRecordData({...currentRecordData, narrative: e.target.value})}
-                          className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm h-32"
+                          className="field h-32"
                           placeholder="Detailed narrative of the arrest..."
                         />
                       </div>
                     </div>
 
                     {/* Image Attachments Section */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                      <h4 className="text-md font-semibold text-orange-400 mb-3 border-b border-gray-600 pb-2">IMAGE ATTACHMENTS</h4>
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-orange-400">IMAGE ATTACHMENTS</h4>
                       <div className="space-y-3">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Image File 1</label>
+                          <label className="field-label">Image File 1</label>
                           <input
                             type="file"
                             accept="image/*"
@@ -9200,7 +9256,7 @@ const CADSystem = () => {
                                 reader.readAsDataURL(file);
                               }
                             }}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm mb-2"
+                            className="field mb-2"
                           />
                           {currentRecordData.imageUrl1 && (
                             <div className="mb-2">
@@ -9214,17 +9270,17 @@ const CADSystem = () => {
                               </button>
                             </div>
                           )}
-                          <label className="block text-xs text-gray-400 mb-1">Image 1 Description</label>
+                          <label className="field-label">Image 1 Description</label>
                           <input
                             type="text"
                             value={currentRecordData.imageDesc1 || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, imageDesc1: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                             placeholder="Description..."
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Image File 2</label>
+                          <label className="field-label">Image File 2</label>
                           <input
                             type="file"
                             accept="image/*"
@@ -9238,7 +9294,7 @@ const CADSystem = () => {
                                 reader.readAsDataURL(file);
                               }
                             }}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm mb-2"
+                            className="field mb-2"
                           />
                           {currentRecordData.imageUrl2 && (
                             <div className="mb-2">
@@ -9252,17 +9308,17 @@ const CADSystem = () => {
                               </button>
                             </div>
                           )}
-                          <label className="block text-xs text-gray-400 mb-1">Image 2 Description</label>
+                          <label className="field-label">Image 2 Description</label>
                           <input
                             type="text"
                             value={currentRecordData.imageDesc2 || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, imageDesc2: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                             placeholder="Description..."
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Image File 3</label>
+                          <label className="field-label">Image File 3</label>
                           <input
                             type="file"
                             accept="image/*"
@@ -9276,7 +9332,7 @@ const CADSystem = () => {
                                 reader.readAsDataURL(file);
                               }
                             }}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm mb-2"
+                            className="field mb-2"
                           />
                           {currentRecordData.imageUrl3 && (
                             <div className="mb-2">
@@ -9290,12 +9346,12 @@ const CADSystem = () => {
                               </button>
                             </div>
                           )}
-                          <label className="block text-xs text-gray-400 mb-1">Image 3 Description</label>
+                          <label className="field-label">Image 3 Description</label>
                           <input
                             type="text"
                             value={currentRecordData.imageDesc3 || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, imageDesc3: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                             placeholder="Description..."
                           />
                         </div>
@@ -9303,7 +9359,7 @@ const CADSystem = () => {
                     </div>
 
                     {/* Linked Reports Section */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
+                    <div className="panel-card mb-4">
                       <div className="flex justify-between items-center mb-3">
                         <h4 className="text-md font-semibold text-indigo-400">LINKED REPORTS</h4>
                         <button
@@ -9325,9 +9381,9 @@ const CADSystem = () => {
                       ) : (
                         <div className="space-y-2">
                           {currentRecordData.linkedReports.map((report, index) => (
-                            <div key={report.id} className="bg-gray-600 rounded-lg p-3 flex gap-2 items-end">
+                            <div key={report.id} className="subcard p-3 flex gap-2 items-end">
                               <div className="flex-1">
-                                <label className="block text-xs text-gray-400 mb-1">Report Number</label>
+                                <label className="field-label">Report Number</label>
                                 <input
                                   type="text"
                                   value={report.reportNumber}
@@ -9337,12 +9393,12 @@ const CADSystem = () => {
                                     );
                                     setCurrentRecordData({...currentRecordData, linkedReports: updated});
                                   }}
-                                  className="w-full bg-gray-700 text-white rounded px-2 py-1 text-sm"
+                                  className="field field-sm"
                                   placeholder="Report #..."
                                 />
                               </div>
                               <div className="flex-1">
-                                <label className="block text-xs text-gray-400 mb-1">Report Type</label>
+                                <label className="field-label">Report Type</label>
                                 <input
                                   type="text"
                                   value={report.reportType}
@@ -9352,7 +9408,7 @@ const CADSystem = () => {
                                     );
                                     setCurrentRecordData({...currentRecordData, linkedReports: updated});
                                   }}
-                                  className="w-full bg-gray-700 text-white rounded px-2 py-1 text-sm"
+                                  className="field field-sm"
                                   placeholder="Type..."
                                 />
                               </div>
@@ -9375,73 +9431,73 @@ const CADSystem = () => {
                     </div>
 
                     {/* Administrative Section */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                      <h4 className="text-md font-semibold text-pink-400 mb-3 border-b border-gray-600 pb-2">ADMINISTRATIVE</h4>
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-pink-400">ADMINISTRATIVE</h4>
                       <div className="grid grid-cols-3 gap-3">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Booking Officer Signature</label>
+                          <label className="field-label">Booking Officer Signature</label>
                           <input
                             type="text"
                             value={currentRecordData.bookingOfficerSignature || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, bookingOfficerSignature: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                             placeholder="Officer signature..."
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Booking Officer Badge #</label>
+                          <label className="field-label">Booking Officer Badge #</label>
                           <input
                             type="text"
                             value={currentRecordData.bookingOfficerBadge || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, bookingOfficerBadge: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                             placeholder="Badge #..."
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date</label>
+                          <label className="field-label">Date</label>
                           <input
                             type="date"
                             value={currentRecordData.bookingDate || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, bookingDate: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Supervisor Signature</label>
+                          <label className="field-label">Supervisor Signature</label>
                           <input
                             type="text"
                             value={currentRecordData.supervisorSignature || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, supervisorSignature: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                             placeholder="Supervisor signature..."
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Supervisor Badge #</label>
+                          <label className="field-label">Supervisor Badge #</label>
                           <input
                             type="text"
                             value={currentRecordData.supervisorBadge || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, supervisorBadge: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                             placeholder="Badge #..."
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date</label>
+                          <label className="field-label">Date</label>
                           <input
                             type="date"
                             value={currentRecordData.supervisorDate || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, supervisorDate: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Status</label>
+                          <label className="field-label">Status</label>
                           <select
                             value={currentRecordData.adminStatus || 'CLOSED/APPROVED'}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, adminStatus: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           >
                             <option value="CLOSED/APPROVED">CLOSED/APPROVED</option>
                             <option value="FORWARD TO DETECTIVE DIVISION">FORWARD TO DETECTIVE DIVISION</option>
@@ -9450,11 +9506,11 @@ const CADSystem = () => {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Case Gone to Court?</label>
+                          <label className="field-label">Case Gone to Court?</label>
                           <select
                             value={currentRecordData.caseGoneToCourt || 'NO'}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, caseGoneToCourt: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           >
                             <option value="YES">YES</option>
                             <option value="NO">NO</option>
@@ -9465,35 +9521,35 @@ const CADSystem = () => {
                     </div>
 
                     {/* Detective Reference Only Section */}
-                    <div className="bg-red-900 border-2 border-red-500 rounded-lg p-4 mb-4">
+                    <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-4">
                       <h4 className="text-md font-semibold text-red-300 mb-3 border-b border-red-600 pb-2">DETECTIVE REFERENCE ONLY</h4>
                       <div className="grid grid-cols-3 gap-3">
                         <div>
-                          <label className="block text-xs text-gray-300 mb-1">Detective Assigned</label>
+                          <label className="field-label">Detective Assigned</label>
                           <input
                             type="text"
                             value={currentRecordData.detectiveAssigned || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, detectiveAssigned: e.target.value})}
-                            className="w-full bg-red-800 text-white rounded px-3 py-2 text-sm"
+                            className="field field-danger"
                             placeholder="Detective name..."
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-300 mb-1">Detective Badge #</label>
+                          <label className="field-label">Detective Badge #</label>
                           <input
                             type="text"
                             value={currentRecordData.detectiveBadge || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, detectiveBadge: e.target.value})}
-                            className="w-full bg-red-800 text-white rounded px-3 py-2 text-sm"
+                            className="field field-danger"
                             placeholder="Badge #..."
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-300 mb-1">Detective Agency</label>
+                          <label className="field-label">Detective Agency</label>
                           <select
                             value={currentRecordData.detectiveAgency || 'LSSO'}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, detectiveAgency: e.target.value})}
-                            className="w-full bg-red-800 text-white rounded px-3 py-2 text-sm"
+                            className="field field-danger"
                           >
                             <option value="LSSO">LSSO</option>
                             <option value="LSPD">LSPD</option>
@@ -9501,21 +9557,21 @@ const CADSystem = () => {
                           </select>
                         </div>
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-300 mb-1">Detective Reference Info (Case # etc)</label>
+                          <label className="field-label">Detective Reference Info (Case # etc)</label>
                           <input
                             type="text"
                             value={currentRecordData.detectiveReferenceInfo || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, detectiveReferenceInfo: e.target.value})}
-                            className="w-full bg-red-800 text-white rounded px-3 py-2 text-sm"
+                            className="field field-danger"
                             placeholder="Case #, reference info..."
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-300 mb-1">Detective Involvement</label>
+                          <label className="field-label">Detective Involvement</label>
                           <select
                             value={currentRecordData.detectiveInvolvement || 'INVOLVED AFTER ARREST'}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, detectiveInvolvement: e.target.value})}
-                            className="w-full bg-red-800 text-white rounded px-3 py-2 text-sm"
+                            className="field field-danger"
                           >
                             <option value="MADE ARREST">MADE ARREST</option>
                             <option value="INVOLVED IN INVESTIGATION PRIOR TO ARREST">INVOLVED IN INVESTIGATION PRIOR TO ARREST</option>
@@ -9531,27 +9587,27 @@ const CADSystem = () => {
                 {activeRecordForm === 'BOLO' && (
                   <>
                     {/* Vehicle Information Section */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                      <h4 className="text-md font-semibold text-yellow-400 mb-3 border-b border-gray-600 pb-2">VEHICLE INFORMATION</h4>
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-yellow-400">VEHICLE INFORMATION</h4>
                       <div className="mb-3">
-                        <label className="block text-xs text-gray-400 mb-1">Search by Plate</label>
+                        <label className="field-label">Search by Plate</label>
                         <div className="flex gap-2">
                           <input
                             type="text"
                             value={vehicleSearchPlate1}
                             onChange={(e) => setVehicleSearchPlate1(e.target.value)}
                             placeholder="Enter plate number..."
-                            className="flex-1 bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field flex-1 min-w-0"
                           />
                           <button
                             onClick={() => searchVehicleByPlate(vehicleSearchPlate1, 1)}
-                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500 text-sm"
+                            className="btn btn-primary"
                           >
                             Search
                           </button>
                         </div>
                         {vehicleSearchResults1.length > 0 && (
-                          <div className="mt-2 bg-gray-800 rounded p-2 max-h-32 overflow-y-auto">
+                          <div className="mt-2 menu-list max-h-32 overflow-y-auto">
                             {vehicleSearchResults1.map((v, i) => (
                               <div
                                 key={i}
@@ -9566,7 +9622,7 @@ const CADSystem = () => {
                                   setVehicleSearchResults1([]);
                                   setVehicleSearchPlate1('');
                                 }}
-                                className="p-2 hover:bg-gray-700 cursor-pointer rounded text-sm"
+                                className="menu-item"
                               >
                                 {v.plate} - {v.make} {v.model} ({v.color})
                               </div>
@@ -9576,66 +9632,66 @@ const CADSystem = () => {
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Plate Number</label>
+                          <label className="field-label">Plate Number</label>
                           <input
                             type="text"
                             value={currentRecordData.vehiclePlate || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, vehiclePlate: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Make</label>
+                          <label className="field-label">Make</label>
                           <input
                             type="text"
                             value={currentRecordData.vehicleMake || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, vehicleMake: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Model</label>
+                          <label className="field-label">Model</label>
                           <input
                             type="text"
                             value={currentRecordData.vehicleModel || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, vehicleModel: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Color</label>
+                          <label className="field-label">Color</label>
                           <input
                             type="text"
                             value={currentRecordData.vehicleColor || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, vehicleColor: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                       </div>
                     </div>
 
                     {/* Subject Information Section */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                      <h4 className="text-md font-semibold text-yellow-400 mb-3 border-b border-gray-600 pb-2">SUBJECT INFORMATION</h4>
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-yellow-400">SUBJECT INFORMATION</h4>
                       <div className="mb-3">
-                        <label className="block text-xs text-gray-400 mb-1">Search by Name</label>
+                        <label className="field-label">Search by Name</label>
                         <div className="flex gap-2">
                           <input
                             type="text"
                             value={partySearchName1}
                             onChange={(e) => setPartySearchName1(e.target.value)}
                             placeholder="Enter name..."
-                            className="flex-1 bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field flex-1 min-w-0"
                           />
                           <button
                             onClick={() => searchPersonByName(partySearchName1, 1)}
-                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500 text-sm"
+                            className="btn btn-primary"
                           >
                             Search
                           </button>
                         </div>
                         {partySearchResults1.length > 0 && (
-                          <div className="mt-2 bg-gray-800 rounded p-2 max-h-32 overflow-y-auto">
+                          <div className="mt-2 menu-list max-h-32 overflow-y-auto">
                             {partySearchResults1.map((p, i) => (
                               <div
                                 key={i}
@@ -9650,7 +9706,7 @@ const CADSystem = () => {
                                   setPartySearchResults1([]);
                                   setPartySearchName1('');
                                 }}
-                                className="p-2 hover:bg-gray-700 cursor-pointer rounded text-sm"
+                                className="menu-item"
                               >
                                 {p.firstName} {p.lastName} - DOB: {p.dob}
                               </div>
@@ -9660,47 +9716,47 @@ const CADSystem = () => {
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Name</label>
+                          <label className="field-label">Name</label>
                           <input
                             type="text"
                             value={currentRecordData.subjectName || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, subjectName: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date of Birth</label>
+                          <label className="field-label">Date of Birth</label>
                           <input
                             type="date"
                             value={currentRecordData.subjectDOB || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, subjectDOB: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Phone</label>
+                          <label className="field-label">Phone</label>
                           <input
                             type="text"
                             value={currentRecordData.subjectPhone || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, subjectPhone: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Address</label>
+                          <label className="field-label">Address</label>
                           <input
                             type="text"
                             value={currentRecordData.subjectAddress || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, subjectAddress: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                       </div>
                     </div>
 
                     {/* Reason Section */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                      <h4 className="text-md font-semibold text-orange-400 mb-3 border-b border-gray-600 pb-2">REASON</h4>
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-orange-400">REASON</h4>
                       <div className="grid grid-cols-2 gap-2">
                         <label className="flex items-center gap-2 text-sm text-gray-300">
                           <input
@@ -9778,8 +9834,8 @@ const CADSystem = () => {
                     </div>
 
                     {/* Officer Safety Section */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                      <h4 className="text-md font-semibold text-red-400 mb-3 border-b border-gray-600 pb-2">OFFICER SAFETY</h4>
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-red-400">OFFICER SAFETY</h4>
                       <div className="grid grid-cols-2 gap-2">
                         <label className="flex items-center gap-2 text-sm text-gray-300">
                           <input
@@ -9830,41 +9886,41 @@ const CADSystem = () => {
                     </div>
 
                     {/* Last Known Location Section */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                      <h4 className="text-md font-semibold text-purple-400 mb-3 border-b border-gray-600 pb-2">LAST KNOWN LOCATION</h4>
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-purple-400">LAST KNOWN LOCATION</h4>
                       <div>
-                        <label className="block text-xs text-gray-400 mb-1">Area Seen</label>
+                        <label className="field-label">Area Seen</label>
                         <input
                           type="text"
                           value={currentRecordData.lastKnownLocation || ''}
                           onChange={(e) => setCurrentRecordData({...currentRecordData, lastKnownLocation: e.target.value})}
-                          className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                          className="field"
                           placeholder="Enter last known location or area seen..."
                         />
                       </div>
                     </div>
 
                     {/* Brief Information Section */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                      <h4 className="text-md font-semibold text-cyan-400 mb-3 border-b border-gray-600 pb-2">BRIEF INFORMATION</h4>
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-cyan-400">BRIEF INFORMATION</h4>
                       <textarea
                         value={currentRecordData.briefInformation || ''}
                         onChange={(e) => setCurrentRecordData({...currentRecordData, briefInformation: e.target.value})}
-                        className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm h-32"
+                        className="field h-32"
                         placeholder="ADD DETAILS AS NEEDED"
                       />
                     </div>
 
                     {/* Issuing Agency Information Section */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                      <h4 className="text-md font-semibold text-green-400 mb-3 border-b border-gray-600 pb-2">ISSUING AGENCY INFORMATION</h4>
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-green-400">ISSUING AGENCY INFORMATION</h4>
                       <div className="grid grid-cols-3 gap-3">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Issuing Agency</label>
+                          <label className="field-label">Issuing Agency</label>
                           <select
                             value={currentRecordData.issuingAgency || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, issuingAgency: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           >
                             <option value="">Select Agency</option>
                             <option value="LSSO PATROL">LSSO PATROL</option>
@@ -9876,36 +9932,36 @@ const CADSystem = () => {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date Issued</label>
+                          <label className="field-label">Date Issued</label>
                           <input
                             type="date"
                             value={currentRecordData.dateIssued || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, dateIssued: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Time Issued</label>
+                          <label className="field-label">Time Issued</label>
                           <input
                             type="time"
                             value={currentRecordData.timeIssued || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, timeIssued: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                       </div>
                     </div>
 
                     {/* Report Filed Information Section */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">REPORT FILED INFORMATION</h4>
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-blue-400">REPORT FILED INFORMATION</h4>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Report Filed?</label>
+                          <label className="field-label">Report Filed?</label>
                           <select
                             value={currentRecordData.reportFiled || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, reportFiled: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           >
                             <option value="">Select Option</option>
                             <option value="YES">YES</option>
@@ -9914,45 +9970,45 @@ const CADSystem = () => {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Record/Report Case # Reference/Info</label>
+                          <label className="field-label">Record/Report Case # Reference/Info</label>
                           <input
                             type="text"
                             value={currentRecordData.reportCaseReference || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, reportCaseReference: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                       </div>
                     </div>
 
                     {/* Contact Information (If Found) Section */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                      <h4 className="text-md font-semibold text-pink-400 mb-3 border-b border-gray-600 pb-2">CONTACT INFORMATION (IF FOUND)</h4>
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-pink-400">CONTACT INFORMATION (IF FOUND)</h4>
                       <div className="grid grid-cols-2 gap-3 mb-3">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Officer Name</label>
+                          <label className="field-label">Officer Name</label>
                           <input
                             type="text"
                             value={currentRecordData.contactOfficerName || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, contactOfficerName: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Officer Badge #</label>
+                          <label className="field-label">Officer Badge #</label>
                           <input
                             type="text"
                             value={currentRecordData.contactOfficerBadge || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, contactOfficerBadge: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Agency</label>
+                          <label className="field-label">Agency</label>
                           <select
                             value={currentRecordData.contactAgency || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, contactAgency: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           >
                             <option value="">Select Agency</option>
                             <option value="LSSO">LSSO</option>
@@ -9964,27 +10020,27 @@ const CADSystem = () => {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Officer Phone Number</label>
+                          <label className="field-label">Officer Phone Number</label>
                           <input
                             type="text"
                             value={currentRecordData.contactOfficerPhone || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, contactOfficerPhone: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-400 mb-1">Additional Contact Info</label>
+                        <label className="field-label">Additional Contact Info</label>
                         <textarea
                           value={currentRecordData.contactAdditionalInfo || ''}
                           onChange={(e) => setCurrentRecordData({...currentRecordData, contactAdditionalInfo: e.target.value})}
-                          className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm h-20"
+                          className="field h-20"
                         />
                       </div>
                     </div>
 
                     {/* Possible Charges Section */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
+                    <div className="panel-card mb-4">
                       <div className="flex justify-between items-center mb-3">
                         <h4 className="text-md font-semibold text-red-400">POSSIBLE CHARGES</h4>
                         <button
@@ -10005,7 +10061,7 @@ const CADSystem = () => {
                               charges: [...(currentRecordData.charges || []), newCharge]
                             });
                           }}
-                          className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-500 flex items-center gap-1"
+                          className="btn btn-danger btn-sm"
                         >
                           <Plus size={16} /> Add Charge
                         </button>
@@ -10015,7 +10071,7 @@ const CADSystem = () => {
                       ) : (
                         <div className="space-y-3">
                           {currentRecordData.charges.map((charge, index) => (
-                            <div key={charge.id} className="bg-gray-600 rounded-lg p-3">
+                            <div key={charge.id} className="subcard p-3">
                               <div className="flex justify-between items-start mb-2">
                                 <span className="text-xs text-gray-400">Charge #{index + 1}</span>
                                 <button
@@ -10033,7 +10089,7 @@ const CADSystem = () => {
                               </div>
                               <div className="grid grid-cols-4 gap-2">
                                 <div className="col-span-2">
-                                  <label className="block text-xs text-gray-400 mb-1">Charge</label>
+                                  <label className="field-label">Charge</label>
                                   <ChargeAutocompleteInput
                                     value={charge.charge}
                                     onChange={(value) => {
@@ -10061,7 +10117,7 @@ const CADSystem = () => {
                                   />
                                 </div>
                                 <div>
-                                  <label className="block text-xs text-gray-400 mb-1">Type</label>
+                                  <label className="field-label">Type</label>
                                   <select
                                     value={charge.chargeType}
                                     onChange={(e) => {
@@ -10070,7 +10126,7 @@ const CADSystem = () => {
                                       );
                                       setCurrentRecordData({...currentRecordData, charges: updated});
                                     }}
-                                    className="w-full bg-gray-700 text-white rounded px-2 py-1 text-sm"
+                                    className="field field-sm"
                                   >
                                     <option value="INFRACTION">INFRACTION</option>
                                     <option value="MISDEMEANOR">MISDEMEANOR</option>
@@ -10078,7 +10134,7 @@ const CADSystem = () => {
                                   </select>
                                 </div>
                                 <div>
-                                  <label className="block text-xs text-gray-400 mb-1">Title/Code</label>
+                                  <label className="field-label">Title/Code</label>
                                   <input
                                     type="text"
                                     value={charge.titleCode}
@@ -10088,7 +10144,7 @@ const CADSystem = () => {
                                       );
                                       setCurrentRecordData({...currentRecordData, charges: updated});
                                     }}
-                                    className="w-full bg-gray-700 text-white rounded px-2 py-1 text-sm"
+                                    className="field field-sm"
                                     placeholder="e.g., PC 242"
                                   />
                                 </div>
@@ -10100,7 +10156,7 @@ const CADSystem = () => {
                     </div>
 
                     {/* Linked Reports/Records Section */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
+                    <div className="panel-card mb-4">
                       <div className="flex justify-between items-center mb-3">
                         <h4 className="text-md font-semibold text-purple-400">LINKED REPORTS/RECORDS</h4>
                         <button
@@ -10134,7 +10190,7 @@ const CADSystem = () => {
                                     setCurrentRecordData({...currentRecordData, linkedRecords: updated});
                                   }}
                                   placeholder="Record #"
-                                  className="bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                                  className="field"
                                 />
                                 <input
                                   type="text"
@@ -10146,7 +10202,7 @@ const CADSystem = () => {
                                     setCurrentRecordData({...currentRecordData, linkedRecords: updated});
                                   }}
                                   placeholder="Description"
-                                  className="bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                                  className="field"
                                 />
                               </div>
                               <button
@@ -10168,52 +10224,52 @@ const CADSystem = () => {
                     </div>
 
                     {/* Agency Information Section */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">AGENCY INFORMATION</h4>
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-blue-400">AGENCY INFORMATION</h4>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Callsign</label>
+                          <label className="field-label">Callsign</label>
                           <input
                             type="text"
                             value={loggedInOfficer?.callsign || ''}
                             readOnly
-                            className="w-full bg-gray-600 text-gray-400 rounded px-3 py-2 text-sm"
+                            className="field text-gray-400"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Department</label>
+                          <label className="field-label">Department</label>
                           <input
                             type="text"
                             value={loggedInOfficer?.department || ''}
                             readOnly
-                            className="w-full bg-gray-600 text-gray-400 rounded px-3 py-2 text-sm"
+                            className="field text-gray-400"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Officer Name</label>
+                          <label className="field-label">Officer Name</label>
                           <input
                             type="text"
                             value={loggedInOfficer?.name || ''}
                             readOnly
-                            className="w-full bg-gray-600 text-gray-400 rounded px-3 py-2 text-sm"
+                            className="field text-gray-400"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date</label>
+                          <label className="field-label">Date</label>
                           <input
                             type="text"
                             value={new Date().toLocaleDateString()}
                             readOnly
-                            className="w-full bg-gray-600 text-gray-400 rounded px-3 py-2 text-sm"
+                            className="field text-gray-400"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Record #</label>
+                          <label className="field-label">Record #</label>
                           <input
                             type="text"
                             value={currentRecordData.recordId || `BOLO-${nextReportRecordId}`}
                             readOnly
-                            className="w-full bg-gray-600 text-gray-400 rounded px-3 py-2 text-sm"
+                            className="field text-gray-400"
                           />
                         </div>
                       </div>
@@ -10225,14 +10281,14 @@ const CADSystem = () => {
                 {activeRecordForm === 'WARRANT' && (
                   <>
                     {/* Type of Warrant Section */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                      <h4 className="text-md font-semibold text-red-400 mb-3 border-b border-gray-600 pb-2">TYPE OF WARRANT</h4>
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-red-400">TYPE OF WARRANT</h4>
                       <div>
-                        <label className="block text-xs text-gray-400 mb-1">Warrant Type</label>
+                        <label className="field-label">Warrant Type</label>
                         <select
                           value={currentRecordData.warrantType || ''}
                           onChange={(e) => setCurrentRecordData({...currentRecordData, warrantType: e.target.value})}
-                          className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                          className="field"
                         >
                           <option value="">Select Type...</option>
                           <option value="FELONY WARRANT">FELONY WARRANT</option>
@@ -10246,75 +10302,75 @@ const CADSystem = () => {
                     </div>
 
                     {/* Status Section */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                      <h4 className="text-md font-semibold text-green-400 mb-3 border-b border-gray-600 pb-2">STATUS</h4>
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-green-400">STATUS</h4>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Status</label>
+                          <label className="field-label">Status</label>
                           <select
                             value={currentRecordData.warrantStatus || 'ACTIVE'}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, warrantStatus: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           >
                             <option value="ACTIVE">ACTIVE</option>
                             <option value="CLOSED">CLOSED</option>
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Time of Execution</label>
+                          <label className="field-label">Time of Execution</label>
                           <select
                             value={currentRecordData.timeOfExecution || 'DAY AND NIGHT'}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, timeOfExecution: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           >
                             <option value="DAY ONLY">DAY ONLY</option>
                             <option value="DAY AND NIGHT">DAY AND NIGHT</option>
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Authorizing Supervisor/Judicial Signature</label>
+                          <label className="field-label">Authorizing Supervisor/Judicial Signature</label>
                           <input
                             type="text"
                             value={currentRecordData.authorizingSignature || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, authorizingSignature: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                             placeholder="Signature..."
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date</label>
+                          <label className="field-label">Date</label>
                           <input
                             type="date"
                             value={currentRecordData.authorizingDate || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, authorizingDate: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                       </div>
                     </div>
 
                     {/* Warrant Subject Section */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                      <h4 className="text-md font-semibold text-yellow-400 mb-3 border-b border-gray-600 pb-2">WARRANT SUBJECT</h4>
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-yellow-400">WARRANT SUBJECT</h4>
                       <div className="mb-3">
-                        <label className="block text-xs text-gray-400 mb-1">Search by Name</label>
+                        <label className="field-label">Search by Name</label>
                         <div className="flex gap-2">
                           <input
                             type="text"
                             value={partySearchName1}
                             onChange={(e) => setPartySearchName1(e.target.value)}
                             placeholder="Enter name..."
-                            className="flex-1 bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field flex-1 min-w-0"
                           />
                           <button
                             onClick={() => searchPersonByName(partySearchName1, 1)}
-                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500 text-sm"
+                            className="btn btn-primary"
                           >
                             Search
                           </button>
                         </div>
                         {partySearchResults1.length > 0 && (
-                          <div className="mt-2 bg-gray-800 rounded p-2 max-h-32 overflow-y-auto">
+                          <div className="mt-2 menu-list max-h-32 overflow-y-auto">
                             {partySearchResults1.map((p, i) => (
                               <div
                                 key={i}
@@ -10329,7 +10385,7 @@ const CADSystem = () => {
                                   setPartySearchResults1([]);
                                   setPartySearchName1('');
                                 }}
-                                className="p-2 hover:bg-gray-700 cursor-pointer rounded text-sm"
+                                className="menu-item"
                               >
                                 {p.firstName} {p.lastName} - DOB: {p.dob}
                               </div>
@@ -10339,74 +10395,74 @@ const CADSystem = () => {
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Name</label>
+                          <label className="field-label">Name</label>
                           <input
                             type="text"
                             value={currentRecordData.subjectName || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, subjectName: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date of Birth</label>
+                          <label className="field-label">Date of Birth</label>
                           <input
                             type="date"
                             value={currentRecordData.subjectDOB || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, subjectDOB: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Phone</label>
+                          <label className="field-label">Phone</label>
                           <input
                             type="text"
                             value={currentRecordData.subjectPhone || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, subjectPhone: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Address</label>
+                          <label className="field-label">Address</label>
                           <input
                             type="text"
                             value={currentRecordData.subjectAddress || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, subjectAddress: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                       </div>
                     </div>
 
                     {/* Location Authorized (If Search Warrant) Section */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                      <h4 className="text-md font-semibold text-purple-400 mb-3 border-b border-gray-600 pb-2">LOCATION AUTHORIZED (IF SEARCH WARRANT)</h4>
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-purple-400">LOCATION AUTHORIZED (IF SEARCH WARRANT)</h4>
                       <div className="grid grid-cols-2 gap-3">
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Street Number and Name</label>
+                          <label className="field-label">Street Number and Name</label>
                           <input
                             type="text"
                             value={currentRecordData.locationStreet || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, locationStreet: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                             placeholder="Street address..."
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Postal</label>
+                          <label className="field-label">Postal</label>
                           <input
                             type="text"
                             value={currentRecordData.locationPostal || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, locationPostal: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                             placeholder="Postal code..."
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Type of Building</label>
+                          <label className="field-label">Type of Building</label>
                           <select
                             value={currentRecordData.buildingType || 'UNKNOWN'}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, buildingType: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           >
                             <option value="RESIDENTIAL">RESIDENTIAL</option>
                             <option value="BUSINESS">BUSINESS</option>
@@ -10414,11 +10470,11 @@ const CADSystem = () => {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Knock and Notice Required?</label>
+                          <label className="field-label">Knock and Notice Required?</label>
                           <select
                             value={currentRecordData.knockAndNotice || 'YES'}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, knockAndNotice: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           >
                             <option value="YES">YES</option>
                             <option value="NO">NO</option>
@@ -10428,7 +10484,7 @@ const CADSystem = () => {
                     </div>
 
                     {/* Charges Section */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
+                    <div className="panel-card mb-4">
                       <div className="flex justify-between items-center mb-3">
                         <h4 className="text-md font-semibold text-red-400">CHARGES</h4>
                         <button
@@ -10449,7 +10505,7 @@ const CADSystem = () => {
                               charges: [...(currentRecordData.charges || []), newCharge]
                             });
                           }}
-                          className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-500 flex items-center gap-1"
+                          className="btn btn-danger btn-sm"
                         >
                           <Plus size={16} /> Add Charge
                         </button>
@@ -10459,7 +10515,7 @@ const CADSystem = () => {
                       ) : (
                         <div className="space-y-3">
                           {currentRecordData.charges.map((charge, index) => (
-                            <div key={charge.id} className="bg-gray-600 rounded-lg p-3">
+                            <div key={charge.id} className="subcard p-3">
                               <div className="flex justify-between items-start mb-2">
                                 <span className="text-xs text-gray-400">Charge #{index + 1}</span>
                                 <button
@@ -10477,7 +10533,7 @@ const CADSystem = () => {
                               </div>
                               <div className="grid grid-cols-4 gap-2">
                                 <div className="col-span-2">
-                                  <label className="block text-xs text-gray-400 mb-1">Charge</label>
+                                  <label className="field-label">Charge</label>
                                   <ChargeAutocompleteInput
                                     value={charge.charge}
                                     onChange={(value) => {
@@ -10505,7 +10561,7 @@ const CADSystem = () => {
                                   />
                                 </div>
                                 <div>
-                                  <label className="block text-xs text-gray-400 mb-1">Charge Type</label>
+                                  <label className="field-label">Charge Type</label>
                                   <select
                                     value={charge.chargeType}
                                     onChange={(e) => {
@@ -10514,7 +10570,7 @@ const CADSystem = () => {
                                       );
                                       setCurrentRecordData({...currentRecordData, charges: updated});
                                     }}
-                                    className="w-full bg-gray-700 text-white rounded px-2 py-1 text-sm"
+                                    className="field field-sm"
                                   >
                                     <option value="FELONY">FELONY</option>
                                     <option value="MISDEMEANOR">MISDEMEANOR</option>
@@ -10524,7 +10580,7 @@ const CADSystem = () => {
                                   </select>
                                 </div>
                                 <div>
-                                  <label className="block text-xs text-gray-400 mb-1">Counts</label>
+                                  <label className="field-label">Counts</label>
                                   <input
                                     type="number"
                                     min="1"
@@ -10535,11 +10591,11 @@ const CADSystem = () => {
                                       );
                                       setCurrentRecordData({...currentRecordData, charges: updated});
                                     }}
-                                    className="w-full bg-gray-700 text-white rounded px-2 py-1 text-sm"
+                                    className="field field-sm"
                                   />
                                 </div>
                                 <div>
-                                  <label className="block text-xs text-gray-400 mb-1">Title/Code</label>
+                                  <label className="field-label">Title/Code</label>
                                   <input
                                     type="text"
                                     value={charge.titleCode}
@@ -10549,7 +10605,7 @@ const CADSystem = () => {
                                       );
                                       setCurrentRecordData({...currentRecordData, charges: updated});
                                     }}
-                                    className="w-full bg-gray-700 text-white rounded px-2 py-1 text-sm"
+                                    className="field field-sm"
                                     placeholder="e.g., PC 242"
                                   />
                                 </div>
@@ -10561,71 +10617,71 @@ const CADSystem = () => {
                     </div>
 
                     {/* Warrant Narrative Section */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                      <h4 className="text-md font-semibold text-cyan-400 mb-3 border-b border-gray-600 pb-2">WARRANT NARRATIVE</h4>
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-cyan-400">WARRANT NARRATIVE</h4>
                       <div>
-                        <label className="block text-xs text-gray-400 mb-1">Narrative</label>
+                        <label className="field-label">Narrative</label>
                         <textarea
                           value={currentRecordData.narrative || ''}
                           onChange={(e) => setCurrentRecordData({...currentRecordData, narrative: e.target.value})}
-                          className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm h-32"
+                          className="field h-32"
                           placeholder="Detailed narrative for the warrant..."
                         />
                       </div>
                     </div>
 
                     {/* Issuing Agency and Contact Information Section */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                      <h4 className="text-md font-semibold text-orange-400 mb-3 border-b border-gray-600 pb-2">ISSUING AGENCY AND CONTACT INFORMATION</h4>
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-orange-400">ISSUING AGENCY AND CONTACT INFORMATION</h4>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Agency</label>
+                          <label className="field-label">Agency</label>
                           <select
                             value={currentRecordData.issuingAgency || 'LSSO'}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, issuingAgency: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           >
                             <option value="LSSO">LSSO</option>
                             <option value="DISTRICT ATTORNEY">DISTRICT ATTORNEY</option>
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Primary Officer / D.A. Name in Case</label>
+                          <label className="field-label">Primary Officer / D.A. Name in Case</label>
                           <input
                             type="text"
                             value={currentRecordData.primaryOfficerName || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, primaryOfficerName: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                             placeholder="Name..."
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Officer/D.A. Contact Phone Number</label>
+                          <label className="field-label">Officer/D.A. Contact Phone Number</label>
                           <input
                             type="text"
                             value={currentRecordData.contactPhone || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, contactPhone: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                             placeholder="Phone number..."
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Main Record ID/Report Reference #</label>
+                          <label className="field-label">Main Record ID/Report Reference #</label>
                           <input
                             type="text"
                             value={currentRecordData.mainRecordId || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, mainRecordId: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                             placeholder="Record/Report #..."
                           />
                         </div>
                         <div className="col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Additional Info (If Required)</label>
+                          <label className="field-label">Additional Info (If Required)</label>
                           <input
                             type="text"
                             value={currentRecordData.additionalContactInfo || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, additionalContactInfo: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                             placeholder="Additional information..."
                           />
                         </div>
@@ -10633,50 +10689,50 @@ const CADSystem = () => {
                     </div>
 
                     {/* Agency Information Section */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">AGENCY INFORMATION</h4>
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-blue-400">AGENCY INFORMATION</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Callsign</label>
+                          <label className="field-label">Callsign</label>
                           <input
                             type="text"
                             value={currentRecordData.callsign || ''}
                             readOnly
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Department</label>
+                          <label className="field-label">Department</label>
                           <input
                             type="text"
                             value={currentRecordData.department || ''}
                             readOnly
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Officer Name</label>
+                          <label className="field-label">Officer Name</label>
                           <input
                             type="text"
                             value={currentRecordData.officer || ''}
                             readOnly
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Record#</label>
+                          <label className="field-label">Record#</label>
                           <input
                             type="text"
                             value={currentRecordData.recordNumber || ''}
                             readOnly
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                       </div>
                     </div>
 
                     {/* Administrative Flags (Supervisor/Judicial Use Only) Section */}
-                    <div className="bg-red-900 border-2 border-red-500 rounded-lg p-4 mb-4">
+                    <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-4">
                       <h4 className="text-md font-semibold text-red-300 mb-3 border-b border-red-600 pb-2">ADMINISTRATIVE FLAGS (SUPERVISOR/JUDICIAL USE ONLY)</h4>
                       <div className="flex justify-between items-center mb-3">
                         <span className="text-sm text-gray-300">Linked Cases/Citations</span>
@@ -10689,7 +10745,7 @@ const CADSystem = () => {
                               linkedCases: [...(currentRecordData.linkedCases || []), newLinkedCase]
                             });
                           }}
-                          className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-500 flex items-center gap-1"
+                          className="btn btn-danger btn-sm"
                         >
                           <Plus size={16} /> Add Linked Case
                         </button>
@@ -10701,7 +10757,7 @@ const CADSystem = () => {
                           {currentRecordData.linkedCases.map((linkedCase, index) => (
                             <div key={linkedCase.id} className="bg-red-800 rounded-lg p-3 flex gap-2 items-end">
                               <div className="flex-1">
-                                <label className="block text-xs text-gray-300 mb-1">Case/Citation Number</label>
+                                <label className="field-label">Case/Citation Number</label>
                                 <input
                                   type="text"
                                   value={linkedCase.caseNumber}
@@ -10711,12 +10767,12 @@ const CADSystem = () => {
                                     );
                                     setCurrentRecordData({...currentRecordData, linkedCases: updated});
                                   }}
-                                  className="w-full bg-red-900 text-white rounded px-2 py-1 text-sm"
+                                  className="field field-sm field-danger"
                                   placeholder="Case/Citation #..."
                                 />
                               </div>
                               <div className="flex-1">
-                                <label className="block text-xs text-gray-300 mb-1">Type</label>
+                                <label className="field-label">Type</label>
                                 <input
                                   type="text"
                                   value={linkedCase.caseType}
@@ -10726,7 +10782,7 @@ const CADSystem = () => {
                                     );
                                     setCurrentRecordData({...currentRecordData, linkedCases: updated});
                                   }}
-                                  className="w-full bg-red-900 text-white rounded px-2 py-1 text-sm"
+                                  className="field field-sm field-danger"
                                   placeholder="Type..."
                                 />
                               </div>
@@ -10754,76 +10810,76 @@ const CADSystem = () => {
                 {activeRecordForm === 'CITATION' && (
                   <>
                     {/* AGENCY INFORMATION */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">AGENCY INFORMATION</h4>
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-blue-400">AGENCY INFORMATION</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Callsign</label>
+                          <label className="field-label">Callsign</label>
                           <input
                             type="text"
                             value={currentRecordData.callsign || ''}
                             readOnly
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm cursor-not-allowed"
+                            className="field cursor-not-allowed"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Department</label>
+                          <label className="field-label">Department</label>
                           <input
                             type="text"
                             value={currentRecordData.department || ''}
                             readOnly
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm cursor-not-allowed"
+                            className="field cursor-not-allowed"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Officer Name</label>
+                          <label className="field-label">Officer Name</label>
                           <input
                             type="text"
                             value={currentRecordData.officer || ''}
                             readOnly
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm cursor-not-allowed"
+                            className="field cursor-not-allowed"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Record#</label>
+                          <label className="field-label">Record#</label>
                           <input
                             type="text"
                             value={currentRecordData.recordNumber || ''}
                             readOnly
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm cursor-not-allowed"
+                            className="field cursor-not-allowed"
                           />
                         </div>
                       </div>
                     </div>
 
                     {/* GENERAL INFORMATION */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                      <h4 className="text-md font-semibold text-green-400 mb-3 border-b border-gray-600 pb-2">GENERAL INFORMATION</h4>
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-green-400">GENERAL INFORMATION</h4>
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date of Violation</label>
+                          <label className="field-label">Date of Violation</label>
                           <input
                             type="date"
                             value={currentRecordData.dateOfViolation || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, dateOfViolation: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Time of Violation</label>
+                          <label className="field-label">Time of Violation</label>
                           <input
                             type="time"
                             value={currentRecordData.timeOfViolation || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, timeOfViolation: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Day of Week</label>
+                          <label className="field-label">Day of Week</label>
                           <select
                             value={currentRecordData.dayOfWeek || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, dayOfWeek: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           >
                             <option value="">Select Day...</option>
                             <option value="SUNDAY">SUNDAY</option>
@@ -10836,22 +10892,22 @@ const CADSystem = () => {
                           </select>
                         </div>
                         <div className="md:col-span-2">
-                          <label className="block text-xs text-gray-400 mb-1">Location of Violation(s)</label>
+                          <label className="field-label">Location of Violation(s)</label>
                           <input
                             type="text"
                             value={currentRecordData.locationOfViolation || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, locationOfViolation: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                             placeholder="Street address or location"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Postal</label>
+                          <label className="field-label">Postal</label>
                           <input
                             type="text"
                             value={currentRecordData.postal || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, postal: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                             placeholder="Postal code"
                           />
                         </div>
@@ -10859,10 +10915,10 @@ const CADSystem = () => {
                     </div>
 
                     {/* SUBJECT INFORMATION */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                      <h4 className="text-md font-semibold text-purple-400 mb-3 border-b border-gray-600 pb-2">SUBJECT INFORMATION</h4>
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-purple-400">SUBJECT INFORMATION</h4>
                       <div className="mb-3">
-                        <label className="block text-xs text-gray-400 mb-1">Search Civilian by Name</label>
+                        <label className="field-label">Search Civilian by Name</label>
                         <div className="relative">
                           <input
                             type="text"
@@ -10879,11 +10935,11 @@ const CADSystem = () => {
                                 setCurrentRecordData({...currentRecordData, civilianSearchTerm: term, civilianSearchResults: []});
                               }
                             }}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                             placeholder="Type name to search..."
                           />
                           {currentRecordData.civilianSearchResults && currentRecordData.civilianSearchResults.length > 0 && (
-                            <div className="absolute z-50 w-full mt-1 bg-gray-800 border border-gray-600 rounded max-h-48 overflow-y-auto">
+                            <div className="absolute z-50 w-full mt-1 max-h-48 overflow-y-auto menu-list">
                               {currentRecordData.civilianSearchResults.map((civilian: any, idx: number) => (
                                 <div
                                   key={idx}
@@ -10898,7 +10954,7 @@ const CADSystem = () => {
                                       civilianSearchResults: []
                                     });
                                   }}
-                                  className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm text-white border-b border-gray-700"
+                                  className="menu-item"
                                 >
                                   <div className="font-semibold">{civilian.firstName} {civilian.lastName}</div>
                                   <div className="text-xs text-gray-400">DOB: {civilian.dateOfBirth || 'N/A'} | Phone: {civilian.phone || 'N/A'}</div>
@@ -10910,49 +10966,49 @@ const CADSystem = () => {
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Name</label>
+                          <label className="field-label">Name</label>
                           <input
                             type="text"
                             value={currentRecordData.subjectName || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, subjectName: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date of Birth</label>
+                          <label className="field-label">Date of Birth</label>
                           <input
                             type="date"
                             value={currentRecordData.subjectDOB || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, subjectDOB: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Phone</label>
+                          <label className="field-label">Phone</label>
                           <input
                             type="text"
                             value={currentRecordData.subjectPhone || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, subjectPhone: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Address</label>
+                          <label className="field-label">Address</label>
                           <input
                             type="text"
                             value={currentRecordData.subjectAddress || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, subjectAddress: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                       </div>
                     </div>
 
                     {/* VEHICLE INFORMATION */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                      <h4 className="text-md font-semibold text-yellow-400 mb-3 border-b border-gray-600 pb-2">VEHICLE INFORMATION</h4>
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-yellow-400">VEHICLE INFORMATION</h4>
                       <div className="mb-3">
-                        <label className="block text-xs text-gray-400 mb-1">Search Vehicle by Plate</label>
+                        <label className="field-label">Search Vehicle by Plate</label>
                         <div className="relative">
                           <input
                             type="text"
@@ -10976,11 +11032,11 @@ const CADSystem = () => {
                                 setCurrentRecordData({...currentRecordData, vehicleSearchTerm: term, vehicleSearchResults: []});
                               }
                             }}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                             placeholder="Type plate to search..."
                           />
                           {currentRecordData.vehicleSearchResults && currentRecordData.vehicleSearchResults.length > 0 && (
-                            <div className="absolute z-50 w-full mt-1 bg-gray-800 border border-gray-600 rounded max-h-48 overflow-y-auto">
+                            <div className="absolute z-50 w-full mt-1 max-h-48 overflow-y-auto menu-list">
                               {currentRecordData.vehicleSearchResults.map((vehicle: any, idx: number) => (
                                 <div
                                   key={idx}
@@ -10996,7 +11052,7 @@ const CADSystem = () => {
                                       vehicleSearchResults: []
                                     });
                                   }}
-                                  className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm text-white border-b border-gray-700"
+                                  className="menu-item"
                                 >
                                   <div className="font-semibold">{vehicle.plate} - {vehicle.make} {vehicle.model}</div>
                                   <div className="text-xs text-gray-400">Owner: {vehicle.ownerName} | Color: {vehicle.color || 'N/A'}</div>
@@ -11008,56 +11064,56 @@ const CADSystem = () => {
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Plate</label>
+                          <label className="field-label">Plate</label>
                           <input
                             type="text"
                             value={currentRecordData.vehiclePlate || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, vehiclePlate: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Make</label>
+                          <label className="field-label">Make</label>
                           <input
                             type="text"
                             value={currentRecordData.vehicleMake || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, vehicleMake: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Model</label>
+                          <label className="field-label">Model</label>
                           <input
                             type="text"
                             value={currentRecordData.vehicleModel || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, vehicleModel: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Color</label>
+                          <label className="field-label">Color</label>
                           <input
                             type="text"
                             value={currentRecordData.vehicleColor || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, vehicleColor: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Year</label>
+                          <label className="field-label">Year</label>
                           <input
                             type="text"
                             value={currentRecordData.vehicleYear || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, vehicleYear: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                       </div>
                     </div>
 
                     {/* CHARGES */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                      <h4 className="text-md font-semibold text-red-400 mb-3 border-b border-gray-600 pb-2">CHARGES</h4>
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-red-400">CHARGES</h4>
                       <div className="flex justify-between items-center mb-3">
                         <span className="text-sm text-gray-300">Citation Charges</span>
                         <button
@@ -11068,7 +11124,7 @@ const CADSystem = () => {
                               charges: [...charges, { id: Date.now(), charge: '', chargeType: '', counts: 1, titleCode: '', bondType: '', bondAmount: 0, jailTime: '' }]
                             });
                           }}
-                          className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-500 flex items-center gap-1"
+                          className="btn btn-danger btn-sm"
                         >
                           <Plus size={16} /> Add Charge
                         </button>
@@ -11076,7 +11132,7 @@ const CADSystem = () => {
                       {currentRecordData.charges && currentRecordData.charges.length > 0 ? (
                         <div className="space-y-4">
                           {currentRecordData.charges.map((charge: any, index: number) => (
-                            <div key={charge.id} className="bg-gray-600 rounded-lg p-3 border border-gray-500">
+                            <div key={charge.id} className="subcard p-3">
                               <div className="flex justify-between items-center mb-2">
                                 <span className="text-sm font-semibold text-blue-400">Charge #{index + 1}</span>
                                 <button
@@ -11091,7 +11147,7 @@ const CADSystem = () => {
                               </div>
                               <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                  <label className="block text-xs text-gray-400 mb-1">Charge</label>
+                                  <label className="field-label">Charge</label>
                                   <ChargeAutocompleteInput
                                     value={charge.charge}
                                     onChange={(value) => {
@@ -11119,7 +11175,7 @@ const CADSystem = () => {
                                   />
                                 </div>
                                 <div>
-                                  <label className="block text-xs text-gray-400 mb-1">Charge Type</label>
+                                  <label className="field-label">Charge Type</label>
                                   <select
                                     value={charge.chargeType}
                                     onChange={(e) => {
@@ -11128,7 +11184,7 @@ const CADSystem = () => {
                                       );
                                       setCurrentRecordData({...currentRecordData, charges: updated});
                                     }}
-                                    className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                                    className="field"
                                   >
                                     <option value="">Select Type...</option>
                                     <option value="FELONY">FELONY</option>
@@ -11139,7 +11195,7 @@ const CADSystem = () => {
                                   </select>
                                 </div>
                                 <div>
-                                  <label className="block text-xs text-gray-400 mb-1">Counts</label>
+                                  <label className="field-label">Counts</label>
                                   <input
                                     type="number"
                                     value={charge.counts}
@@ -11149,12 +11205,12 @@ const CADSystem = () => {
                                       );
                                       setCurrentRecordData({...currentRecordData, charges: updated});
                                     }}
-                                    className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                                    className="field"
                                     min="1"
                                   />
                                 </div>
                                 <div>
-                                  <label className="block text-xs text-gray-400 mb-1">Title/Code</label>
+                                  <label className="field-label">Title/Code</label>
                                   <input
                                     type="text"
                                     value={charge.titleCode}
@@ -11164,12 +11220,12 @@ const CADSystem = () => {
                                       );
                                       setCurrentRecordData({...currentRecordData, charges: updated});
                                     }}
-                                    className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                                    className="field"
                                     placeholder="PC 187"
                                   />
                                 </div>
                                 <div>
-                                  <label className="block text-xs text-gray-400 mb-1">Bond Type</label>
+                                  <label className="field-label">Bond Type</label>
                                   <select
                                     value={charge.bondType}
                                     onChange={(e) => {
@@ -11178,7 +11234,7 @@ const CADSystem = () => {
                                       );
                                       setCurrentRecordData({...currentRecordData, charges: updated});
                                     }}
-                                    className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                                    className="field"
                                   >
                                     <option value="">Select Bond Type...</option>
                                     <option value="CITATION RELEASE">CITATION RELEASE</option>
@@ -11193,7 +11249,7 @@ const CADSystem = () => {
                                   </select>
                                 </div>
                                 <div>
-                                  <label className="block text-xs text-gray-400 mb-1">Bond/Fine Amount ($)</label>
+                                  <label className="field-label">Bond/Fine Amount ($)</label>
                                   <input
                                     type="number"
                                     value={charge.bondAmount}
@@ -11203,12 +11259,12 @@ const CADSystem = () => {
                                       );
                                       setCurrentRecordData({...currentRecordData, charges: updated});
                                     }}
-                                    className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                                    className="field"
                                     placeholder="0.00"
                                   />
                                 </div>
                                 <div className="col-span-2">
-                                  <label className="block text-xs text-gray-400 mb-1">Jail Time</label>
+                                  <label className="field-label">Jail Time</label>
                                   <input
                                     type="text"
                                     value={charge.jailTime}
@@ -11218,7 +11274,7 @@ const CADSystem = () => {
                                       );
                                       setCurrentRecordData({...currentRecordData, charges: updated});
                                     }}
-                                    className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                                    className="field"
                                     placeholder="e.g., 6 months, N/A"
                                   />
                                 </div>
@@ -11232,35 +11288,35 @@ const CADSystem = () => {
                     </div>
 
                     {/* SPEED INFORMATION (IF APPLICABLE) */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                      <h4 className="text-md font-semibold text-orange-400 mb-3 border-b border-gray-600 pb-2">SPEED INFORMATION (IF APPLICABLE)</h4>
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-orange-400">SPEED INFORMATION (IF APPLICABLE)</h4>
                       <div className="grid grid-cols-3 gap-3">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Speed Approx</label>
+                          <label className="field-label">Speed Approx</label>
                           <input
                             type="text"
                             value={currentRecordData.speedApprox || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, speedApprox: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                             placeholder="e.g., 75 MPH"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Speed Limit</label>
+                          <label className="field-label">Speed Limit</label>
                           <input
                             type="text"
                             value={currentRecordData.speedLimit || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, speedLimit: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                             placeholder="e.g., 55 MPH"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Method of Acquisition</label>
+                          <label className="field-label">Method of Acquisition</label>
                           <select
                             value={currentRecordData.speedMethod || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, speedMethod: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           >
                             <option value="">Select Method...</option>
                             <option value="RADAR">RADAR</option>
@@ -11272,95 +11328,95 @@ const CADSystem = () => {
                     </div>
 
                     {/* SIGNATURE OF SUBJECT */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                      <h4 className="text-md font-semibold text-cyan-400 mb-3 border-b border-gray-600 pb-2">SIGNATURE OF SUBJECT</h4>
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-cyan-400">SIGNATURE OF SUBJECT</h4>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Signature</label>
+                          <label className="field-label">Signature</label>
                           <input
                             type="text"
                             value={currentRecordData.subjectSignature || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, subjectSignature: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                             placeholder="Subject signature"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date</label>
+                          <label className="field-label">Date</label>
                           <input
                             type="date"
                             value={currentRecordData.subjectSignatureDate || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, subjectSignatureDate: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                       </div>
                     </div>
 
                     {/* ADMINISTRATIVE */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                      <h4 className="text-md font-semibold text-indigo-400 mb-3 border-b border-gray-600 pb-2">ADMINISTRATIVE</h4>
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-indigo-400">ADMINISTRATIVE</h4>
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Arresting/Citing Officer Signature</label>
+                          <label className="field-label">Arresting/Citing Officer Signature</label>
                           <input
                             type="text"
                             value={currentRecordData.officerSignature || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, officerSignature: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Badge #</label>
+                          <label className="field-label">Badge #</label>
                           <input
                             type="text"
                             value={currentRecordData.officerBadge || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, officerBadge: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date</label>
+                          <label className="field-label">Date</label>
                           <input
                             type="date"
                             value={currentRecordData.officerSignatureDate || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, officerSignatureDate: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Supervisor Signature</label>
+                          <label className="field-label">Supervisor Signature</label>
                           <input
                             type="text"
                             value={currentRecordData.supervisorSignature || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, supervisorSignature: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Badge #</label>
+                          <label className="field-label">Badge #</label>
                           <input
                             type="text"
                             value={currentRecordData.supervisorBadge || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, supervisorBadge: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Date</label>
+                          <label className="field-label">Date</label>
                           <input
                             type="date"
                             value={currentRecordData.supervisorSignatureDate || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, supervisorSignatureDate: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Status</label>
+                          <label className="field-label">Status</label>
                           <select
                             value={currentRecordData.adminStatus || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, adminStatus: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           >
                             <option value="">Select Status...</option>
                             <option value="CLOSED/APPROVED">CLOSED/APPROVED</option>
@@ -11369,45 +11425,45 @@ const CADSystem = () => {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Court Date</label>
+                          <label className="field-label">Court Date</label>
                           <input
                             type="date"
                             value={currentRecordData.courtDate || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, courtDate: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           />
                         </div>
                       </div>
                     </div>
 
                     {/* CORRECTABLE SIGN-OFF (DEPARTMENT ADMIN ONLY) */}
-                    <div className="bg-yellow-900 border-2 border-yellow-500 rounded-lg p-4 mb-4">
+                    <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 mb-4">
                       <h4 className="text-md font-semibold text-yellow-300 mb-3 border-b border-yellow-600 pb-2">CORRECTABLE SIGN-OFF (DEPARTMENT ADMIN ONLY)</h4>
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                         <div>
-                          <label className="block text-xs text-yellow-200 mb-1">Date of Inspection</label>
+                          <label className="field-label text-yellow-200/90">Date of Inspection</label>
                           <input
                             type="date"
                             value={currentRecordData.inspectionDate || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, inspectionDate: e.target.value})}
-                            className="w-full bg-yellow-800 text-white rounded px-3 py-2 text-sm border border-yellow-600"
+                            className="field field-warn"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-yellow-200 mb-1">Time of Inspection</label>
+                          <label className="field-label text-yellow-200/90">Time of Inspection</label>
                           <input
                             type="time"
                             value={currentRecordData.inspectionTime || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, inspectionTime: e.target.value})}
-                            className="w-full bg-yellow-800 text-white rounded px-3 py-2 text-sm border border-yellow-600"
+                            className="field field-warn"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-yellow-200 mb-1">Department Inspection Completed By</label>
+                          <label className="field-label text-yellow-200/90">Department Inspection Completed By</label>
                           <select
                             value={currentRecordData.inspectionDepartment || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, inspectionDepartment: e.target.value})}
-                            className="w-full bg-yellow-800 text-white rounded px-3 py-2 text-sm border border-yellow-600"
+                            className="field field-warn"
                           >
                             <option value="">Select Department...</option>
                             <option value="LSSO">LSSO</option>
@@ -11416,20 +11472,20 @@ const CADSystem = () => {
                           </select>
                         </div>
                         <div className="md:col-span-2">
-                          <label className="block text-xs text-yellow-200 mb-1">Location of Inspection</label>
+                          <label className="field-label text-yellow-200/90">Location of Inspection</label>
                           <input
                             type="text"
                             value={currentRecordData.inspectionLocation || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, inspectionLocation: e.target.value})}
-                            className="w-full bg-yellow-800 text-white rounded px-3 py-2 text-sm border border-yellow-600"
+                            className="field field-warn"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-yellow-200 mb-1">Issue Has Been Fully Corrected</label>
+                          <label className="field-label text-yellow-200/90">Issue Has Been Fully Corrected</label>
                           <select
                             value={currentRecordData.issueCorrected || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, issueCorrected: e.target.value})}
-                            className="w-full bg-yellow-800 text-white rounded px-3 py-2 text-sm border border-yellow-600"
+                            className="field field-warn"
                           >
                             <option value="">Select...</option>
                             <option value="YES">YES</option>
@@ -11437,11 +11493,11 @@ const CADSystem = () => {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-yellow-200 mb-1">Was Fine Money Returned</label>
+                          <label className="field-label text-yellow-200/90">Was Fine Money Returned</label>
                           <select
                             value={currentRecordData.fineReturned || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, fineReturned: e.target.value})}
-                            className="w-full bg-yellow-800 text-white rounded px-3 py-2 text-sm border border-yellow-600"
+                            className="field field-warn"
                           >
                             <option value="">Select...</option>
                             <option value="YES">YES</option>
@@ -11449,55 +11505,55 @@ const CADSystem = () => {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-yellow-200 mb-1">Total Amount Returned</label>
+                          <label className="field-label text-yellow-200/90">Total Amount Returned</label>
                           <input
                             type="number"
                             value={currentRecordData.amountReturned || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, amountReturned: e.target.value})}
-                            className="w-full bg-yellow-800 text-white rounded px-3 py-2 text-sm border border-yellow-600"
+                            className="field field-warn"
                             placeholder="$0.00"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-yellow-200 mb-1">Administrator Signature</label>
+                          <label className="field-label text-yellow-200/90">Administrator Signature</label>
                           <input
                             type="text"
                             value={currentRecordData.adminSignature || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, adminSignature: e.target.value})}
-                            className="w-full bg-yellow-800 text-white rounded px-3 py-2 text-sm border border-yellow-600"
+                            className="field field-warn"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-yellow-200 mb-1">Administrator Badge #</label>
+                          <label className="field-label text-yellow-200/90">Administrator Badge #</label>
                           <input
                             type="text"
                             value={currentRecordData.adminBadge || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, adminBadge: e.target.value})}
-                            className="w-full bg-yellow-800 text-white rounded px-3 py-2 text-sm border border-yellow-600"
+                            className="field field-warn"
                           />
                         </div>
                       </div>
                     </div>
 
                     {/* OFFICER NOTES/NARRATIVE AREA (NOT REQUIRED) */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                      <h4 className="text-md font-semibold text-gray-300 mb-3 border-b border-gray-600 pb-2">OFFICER NOTES/NARRATIVE AREA (NOT REQUIRED)</h4>
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-gray-300">OFFICER NOTES/NARRATIVE AREA (NOT REQUIRED)</h4>
                       <div>
-                        <label className="block text-xs text-gray-400 mb-1">Narrative</label>
+                        <label className="field-label">Narrative</label>
                         <textarea
                           value={currentRecordData.narrative || ''}
                           onChange={(e) => setCurrentRecordData({...currentRecordData, narrative: e.target.value})}
-                          className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm h-32"
+                          className="field h-32"
                           placeholder="Optional officer notes..."
                         />
                       </div>
                     </div>
 
                     {/* CITATION COPY */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                      <h4 className="text-md font-semibold text-blue-400 mb-3 border-b border-gray-600 pb-2">CITATION COPY</h4>
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-blue-400">CITATION COPY</h4>
                       <div>
-                        <label className="block text-xs text-gray-400 mb-1">Upload Citation Copy Image</label>
+                        <label className="field-label">Upload Citation Copy Image</label>
                         <input
                           type="file"
                           accept="image/*"
@@ -11511,7 +11567,7 @@ const CADSystem = () => {
                               reader.readAsDataURL(file);
                             }
                           }}
-                          className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm mb-2"
+                          className="field mb-2"
                         />
                         {currentRecordData.citationCopyImage && (
                           <div className="mb-2">
@@ -11528,15 +11584,15 @@ const CADSystem = () => {
                     </div>
 
                     {/* EVIDENCE (CLERICAL PURPOSES) */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                      <h4 className="text-md font-semibold text-purple-400 mb-3 border-b border-gray-600 pb-2">EVIDENCE (CLERICAL PURPOSES)</h4>
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-purple-400">EVIDENCE (CLERICAL PURPOSES)</h4>
                       <div className="space-y-3">
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Did You Book Evidence in Regards to This Citation?</label>
+                          <label className="field-label">Did You Book Evidence in Regards to This Citation?</label>
                           <select
                             value={currentRecordData.evidenceBooked || ''}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, evidenceBooked: e.target.value})}
-                            className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                            className="field"
                           >
                             <option value="">Select...</option>
                             <option value="YES">YES</option>
@@ -11546,20 +11602,20 @@ const CADSystem = () => {
                         {currentRecordData.evidenceBooked === 'YES' && (
                           <>
                             <div>
-                              <label className="block text-xs text-gray-400 mb-1">If YES - What Evidence Locker # Was Evidence Booked Into</label>
+                              <label className="field-label">If YES - What Evidence Locker # Was Evidence Booked Into</label>
                               <input
                                 type="text"
                                 value={currentRecordData.evidenceLockerNumber || ''}
                                 onChange={(e) => setCurrentRecordData({...currentRecordData, evidenceLockerNumber: e.target.value})}
-                                className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm"
+                                className="field"
                               />
                             </div>
                             <div>
-                              <label className="block text-xs text-gray-400 mb-1">List Item(s) Description Booked</label>
+                              <label className="field-label">List Item(s) Description Booked</label>
                               <textarea
                                 value={currentRecordData.evidenceItemsBooked || ''}
                                 onChange={(e) => setCurrentRecordData({...currentRecordData, evidenceItemsBooked: e.target.value})}
-                                className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm h-24"
+                                className="field h-24"
                                 placeholder="List all evidence items booked..."
                               />
                             </div>
@@ -11569,10 +11625,10 @@ const CADSystem = () => {
                     </div>
 
                     {/* PHOTO EVIDENCE */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                      <h4 className="text-md font-semibold text-green-400 mb-3 border-b border-gray-600 pb-2">PHOTO EVIDENCE</h4>
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-green-400">PHOTO EVIDENCE</h4>
                       <div>
-                        <label className="block text-xs text-gray-400 mb-1">Upload Photo Evidence</label>
+                        <label className="field-label">Upload Photo Evidence</label>
                         <input
                           type="file"
                           accept="image/*"
@@ -11586,7 +11642,7 @@ const CADSystem = () => {
                               reader.readAsDataURL(file);
                             }
                           }}
-                          className="w-full bg-gray-600 text-white rounded px-3 py-2 text-sm mb-2"
+                          className="field mb-2"
                         />
                         {currentRecordData.photoEvidenceImage && (
                           <div className="mb-2">
@@ -11603,7 +11659,7 @@ const CADSystem = () => {
                     </div>
 
                     {/* COURT RECORDS (FOR COURT STAFF USE ONLY) */}
-                    <div className="bg-indigo-900 border-2 border-indigo-500 rounded-lg p-4 mb-4">
+                    <div className="bg-indigo-500/10 border border-indigo-500/30 rounded-lg p-4 mb-4">
                       <h4 className="text-md font-semibold text-indigo-300 mb-3 border-b border-indigo-600 pb-2">COURT RECORDS (FOR COURT STAFF USE ONLY)</h4>
                       <div className="space-y-3">
                         <div>
@@ -11632,8 +11688,8 @@ const CADSystem = () => {
                     </div>
 
                     {/* LINKED RECORDS */}
-                    <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                      <h4 className="text-md font-semibold text-cyan-400 mb-3 border-b border-gray-600 pb-2">LINKED RECORDS</h4>
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-cyan-400">LINKED RECORDS</h4>
                       <div className="flex justify-between items-center mb-3">
                         <span className="text-sm text-gray-300">Linked Cases/Citations/Reports</span>
                         <button
@@ -11652,7 +11708,7 @@ const CADSystem = () => {
                       {currentRecordData.linkedRecords && currentRecordData.linkedRecords.length > 0 ? (
                         <div className="space-y-2">
                           {currentRecordData.linkedRecords.map((record: any, index: number) => (
-                            <div key={record.id} className="flex gap-2 items-center bg-gray-600 rounded px-3 py-2">
+                            <div key={record.id} className="subcard flex gap-2 items-center px-3 py-2">
                               <input
                                 type="text"
                                 value={record.recordNumber}
@@ -11662,7 +11718,7 @@ const CADSystem = () => {
                                   );
                                   setCurrentRecordData({...currentRecordData, linkedRecords: updated});
                                 }}
-                                className="flex-1 bg-gray-700 text-white rounded px-3 py-2 text-sm"
+                                className="field flex-1 min-w-0"
                                 placeholder="Record Number"
                               />
                               <input
@@ -11674,7 +11730,7 @@ const CADSystem = () => {
                                   );
                                   setCurrentRecordData({...currentRecordData, linkedRecords: updated});
                                 }}
-                                className="flex-1 bg-gray-700 text-white rounded px-3 py-2 text-sm"
+                                className="field flex-1 min-w-0"
                                 placeholder="Type (ARREST, WARRANT, etc.)"
                               />
                               <button
@@ -11696,14 +11752,14 @@ const CADSystem = () => {
                   </>
                 )}
 
-                <div className="flex gap-2 justify-end pt-4 border-t border-gray-700">
+                <div className="flex gap-2 justify-end pt-4 border-t border-white/[0.06]">
                   <button
                     onClick={() => {
                       setActiveRecordForm(null);
                       setCurrentRecordData({});
                       setEditingRecordId(null);
                     }}
-                    className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-500"
+                    className="btn btn-secondary"
                   >
                     Cancel
                   </button>
@@ -11772,11 +11828,11 @@ const CADSystem = () => {
 
   // Lookup Panel JSX
   const lookupPanelJSX = (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800 rounded-lg w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="modal-backdrop z-50">
+      <div className="modal-surface w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="bg-gray-900 px-6 py-4 border-b border-gray-700 flex justify-between items-center">
-          <h2 className="text-xl font-bold text-blue-400 flex items-center gap-2">
+        <div className="modal-header">
+          <h2 className="text-lg font-semibold text-white flex items-center gap-2.5 [&>svg]:text-blue-400">
             <Search size={24} />
             Person & Vehicle Lookup
           </h2>
@@ -11789,9 +11845,9 @@ const CADSystem = () => {
               setLookupVehicleQuery('');
               setLookupVehicleResults([]);
             }}
-            className="text-gray-400 hover:text-white"
+            className="icon-btn"
           >
-            <X size={24} />
+            <X size={20} />
           </button>
         </div>
 
@@ -11800,7 +11856,7 @@ const CADSystem = () => {
           {/* Search Section */}
           <div className="grid grid-cols-2 gap-6 mb-6">
             {/* Person Search */}
-            <div className="bg-gray-700 rounded-lg p-4">
+            <div className="panel-card">
               <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
                 <User size={18} />
                 Search by Name
@@ -11811,17 +11867,17 @@ const CADSystem = () => {
                   value={lookupSearchQuery}
                   onChange={(e) => handleLookupPersonSearch(e.target.value)}
                   placeholder="Enter name to search..."
-                  className="w-full bg-gray-800 text-white rounded px-3 py-2 pr-10"
+                  className="field pr-10"
                 />
                 <Search size={18} className="absolute right-3 top-2.5 text-gray-400" />
               </div>
               {lookupSearchResults.length > 0 && (
-                <div className="mt-2 bg-gray-800 rounded max-h-48 overflow-y-auto">
+                <div className="mt-2 menu-list max-h-48 overflow-y-auto">
                   {lookupSearchResults.map((person: any) => (
                     <button
                       key={person.id}
                       onClick={() => selectLookupPerson(person)}
-                      className="w-full text-left px-3 py-2 hover:bg-gray-600 text-white border-b border-gray-700 last:border-0"
+                      className="w-full text-left menu-item"
                     >
                       <div className="font-semibold">{person.firstName} {person.lastName}</div>
                       <div className="text-sm text-gray-400">DOB: {person.dob}</div>
@@ -11832,7 +11888,7 @@ const CADSystem = () => {
             </div>
 
             {/* Vehicle Search */}
-            <div className="bg-gray-700 rounded-lg p-4">
+            <div className="panel-card">
               <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
                 <Car size={18} />
                 Search by Plate
@@ -11843,17 +11899,17 @@ const CADSystem = () => {
                   value={lookupVehicleQuery}
                   onChange={(e) => handleLookupVehicleSearch(e.target.value)}
                   placeholder="Enter plate number..."
-                  className="w-full bg-gray-800 text-white rounded px-3 py-2 pr-10"
+                  className="field pr-10"
                 />
                 <Search size={18} className="absolute right-3 top-2.5 text-gray-400" />
               </div>
               {lookupVehicleResults.length > 0 && (
-                <div className="mt-2 bg-gray-800 rounded max-h-48 overflow-y-auto">
+                <div className="mt-2 menu-list max-h-48 overflow-y-auto">
                   {lookupVehicleResults.map((vehicle: any, idx: number) => (
                     <button
                       key={idx}
                       onClick={() => selectLookupVehicle(vehicle)}
-                      className="w-full text-left px-3 py-2 hover:bg-gray-600 text-white border-b border-gray-700 last:border-0"
+                      className="w-full text-left menu-item"
                     >
                       <div className="font-semibold">{vehicle.plateNumber}</div>
                       <div className="text-sm text-gray-400">
@@ -11871,14 +11927,14 @@ const CADSystem = () => {
           {selectedLookupPerson && (
             <div className="space-y-4">
               {/* Person Info Card */}
-              <div className="bg-gray-700 rounded-lg p-4">
+              <div className="panel-card">
                 <div className="flex justify-between items-start mb-4">
                   <h3 className="text-xl font-bold text-white">
                     {selectedLookupPerson.firstName} {selectedLookupPerson.lastName}
                   </h3>
                   <button
                     onClick={() => setSelectedLookupPerson(null)}
-                    className="text-gray-400 hover:text-white"
+                    className="icon-btn"
                   >
                     <X size={20} />
                   </button>
@@ -11909,7 +11965,7 @@ const CADSystem = () => {
               </div>
 
               {/* DMV Records */}
-              <div className="bg-gray-700 rounded-lg p-4">
+              <div className="panel-card">
                 <h3 className="text-lg font-bold text-blue-400 mb-4 flex items-center gap-2">
                   <FileText size={20} />
                   DMV Records ({selectedLookupPerson.dmvRecords?.length || 0})
@@ -12000,7 +12056,7 @@ const CADSystem = () => {
                           )}
 
                           {record.type === 'OUT OF STATE WARRANT' && record.data && (
-                            <div className="bg-red-900 bg-opacity-50 rounded p-2 mt-2">
+                            <div className="bg-red-500/10 rounded-md p-2 mt-2">
                               <div><span className="text-gray-300">State:</span> <span className="text-white">{record.data.state}</span></div>
                               <div><span className="text-gray-300">Charges:</span> <span className="text-white">{record.data.charges}</span></div>
                               <div><span className="text-gray-300">Extraditable:</span> <span className="text-white">{record.data.extraditable ? 'YES' : 'NO'}</span></div>
@@ -12008,7 +12064,7 @@ const CADSystem = () => {
                           )}
 
                           {(record.type === 'PROBATION' || record.type === 'PAROLE') && record.data && (
-                            <div className="bg-orange-900 bg-opacity-50 rounded p-2 mt-2">
+                            <div className="bg-orange-500/10 rounded-md p-2 mt-2">
                               <div><span className="text-gray-300">Start Date:</span> <span className="text-white">{record.data.startDate}</span></div>
                               <div><span className="text-gray-300">End Date:</span> <span className="text-white">{record.data.endDate}</span></div>
                               <div><span className="text-gray-300">Officer:</span> <span className="text-white">{record.data.officer}</span></div>
@@ -12017,7 +12073,7 @@ const CADSystem = () => {
                           )}
 
                           {record.type === 'MEDICAL HAZARD' && record.data && (
-                            <div className="bg-yellow-900 bg-opacity-50 rounded p-2 mt-2">
+                            <div className="bg-yellow-500/10 rounded-md p-2 mt-2">
                               <div><span className="text-gray-300">Type:</span> <span className="text-white">{record.data.hazardType}</span></div>
                               {record.data.notes && <div><span className="text-gray-300">Notes:</span> <span className="text-white">{record.data.notes}</span></div>}
                             </div>
@@ -12044,7 +12100,7 @@ const CADSystem = () => {
                     ))}
                   </div>
                 ) : (
-                  <div className="bg-gray-800 rounded p-4 text-center text-gray-400">
+                  <div className="well p-4 text-center text-gray-400">
                     No DMV records found for this person
                   </div>
                 )}
@@ -12054,7 +12110,7 @@ const CADSystem = () => {
               {officerRecords.filter(r =>
                 r.suspectName?.toLowerCase().includes(`${selectedLookupPerson.firstName} ${selectedLookupPerson.lastName}`.toLowerCase())
               ).length > 0 && (
-                <div className="bg-gray-700 rounded-lg p-4">
+                <div className="panel-card">
                   <h3 className="text-lg font-bold text-orange-400 mb-4 flex items-center gap-2">
                     <AlertTriangle size={20} />
                     Police Records
@@ -12088,7 +12144,7 @@ const CADSystem = () => {
 
           {/* No selection message */}
           {!selectedLookupPerson && lookupSearchResults.length === 0 && lookupVehicleResults.length === 0 && (
-            <div className="bg-gray-700 rounded-lg p-8 text-center">
+            <div className="rounded-lg border border-white/[0.06] bg-white/[0.025] p-8 text-center">
               <Search size={48} className="mx-auto mb-4 text-gray-600" />
               <p className="text-gray-400">Search for a person by name or vehicle by plate number</p>
               <p className="text-gray-500 text-sm mt-2">Results will display DMV records, licenses, and any police records</p>
@@ -12105,7 +12161,7 @@ const CADSystem = () => {
     if (!myUnit) {
       return (
         <div className="flex items-center justify-center h-full">
-          <div className="text-center max-w-2xl bg-gray-800 rounded-lg p-8 border-2 border-yellow-500">
+          <div className="panel text-center max-w-2xl p-8 !border-yellow-500/40">
             <AlertCircle size={64} className="mx-auto mb-4 text-yellow-500" />
             <h2 className="text-2xl font-bold text-white mb-4">Unit Not Found</h2>
             <p className="text-gray-400 mb-6">
@@ -12117,7 +12173,7 @@ const CADSystem = () => {
                 setSelectedUnit(null);
                 setSelectedRole(null);
               }}
-              className="px-6 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-500 transition"
+              className="btn btn-danger"
             >
               Sign Out
             </button>
@@ -12138,29 +12194,32 @@ const CADSystem = () => {
 
     return (
       <div className="space-y-6">
-        <div className="bg-gray-800 rounded-lg p-6 border-2 border-blue-500">
-          <h2 className="text-2xl font-bold text-white mb-4">Active Call</h2>
+        <div className="panel p-6 !border-blue-500/25">
+          <h2 className="mb-5 flex items-center gap-2.5 text-lg font-semibold text-white">
+            <span className={`h-2 w-2 rounded-full ${activeCall ? 'bg-blue-400 animate-pulse' : 'bg-gray-600'}`} />
+            Active Call
+          </h2>
           
           {activeCall ? (
             <div className="space-y-4">
-              <div className="flex items-center gap-3 flex-wrap pb-4 border-b border-gray-700">
+              <div className="flex items-center gap-3 flex-wrap pb-4 border-b border-white/[0.06]">
                 <span className="font-mono text-2xl font-bold text-white">{activeCall.id}</span>
-                <span className={`${getPriorityColor(activeCall.priority)} text-white px-3 py-1 rounded-full text-sm font-bold`}>
+                <span className={`${getPriorityColor(activeCall.priority)} text-white px-2.5 py-0.5 rounded-full text-xs font-semibold tracking-wide`}>
                   PRIORITY {activeCall.priority}
                 </span>
                 {activeCall.primaryUnit === myUnit.id && (
-                  <span className="bg-yellow-600 text-white px-3 py-1 rounded-full text-sm font-bold">PRIMARY UNIT</span>
+                  <span className="bg-yellow-600 text-white px-2.5 py-0.5 rounded-full text-xs font-semibold tracking-wide">PRIMARY UNIT</span>
                 )}
-                <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-bold">{activeCall.callTitle}</span>
+                <span className="bg-blue-600 text-white px-2.5 py-0.5 rounded-full text-xs font-semibold tracking-wide">{activeCall.callTitle}</span>
               </div>
 
-              <div className="bg-gray-700 rounded-lg p-4">
-                <div className="text-sm text-gray-400 mb-1">Call Type</div>
+              <div className="panel-card">
+                <div className="eyebrow mb-1.5">Call Type</div>
                 <div className="text-xl font-bold text-white">{activeCall.code}</div>
               </div>
 
-              <div className="bg-gray-700 rounded-lg p-4">
-                <div className="text-sm text-gray-400 mb-2">Location</div>
+              <div className="panel-card">
+                <div className="eyebrow mb-2">Location</div>
                 <div className="flex items-start gap-2">
                   <MapPin size={20} className="text-blue-400 mt-1 flex-shrink-0" />
                   <div>
@@ -12172,8 +12231,8 @@ const CADSystem = () => {
                 </div>
               </div>
 
-              <div className="bg-gray-700 rounded-lg p-4">
-                <div className="text-sm text-gray-400 mb-1">Time Dispatched</div>
+              <div className="panel-card">
+                <div className="eyebrow mb-1.5">Time Dispatched</div>
                 <div className="flex items-center gap-2">
                   <Clock size={18} className="text-blue-400" />
                   <div className="text-white font-semibold">{formatPSTDateTime(activeCall.timestamp)}</div>
@@ -12181,8 +12240,8 @@ const CADSystem = () => {
               </div>
 
               {(activeCall.caller || activeCall.phone) && (
-                <div className="bg-gray-700 rounded-lg p-4">
-                  <div className="text-sm text-gray-400 mb-2">Caller Information</div>
+                <div className="panel-card">
+                  <div className="eyebrow mb-2">Caller Information</div>
                   <div className="space-y-1">
                     {activeCall.caller && (
                       <div className="flex items-center gap-2">
@@ -12200,18 +12259,18 @@ const CADSystem = () => {
                 </div>
               )}
 
-              <div className="bg-gray-700 rounded-lg p-4">
-                <div className="text-sm text-gray-400 mb-2">Call Description</div>
+              <div className="panel-card">
+                <div className="eyebrow mb-2">Call Description</div>
                 <div className="text-white">{activeCall.description || 'No description provided'}</div>
               </div>
 
               {/* Other Assigned Units */}
               {units.filter(u => activeCall.assignedUnits.includes(u.id) && u.id !== myUnit.id).length > 0 && (
-                <div className="bg-gray-700 rounded-lg p-4">
-                  <div className="text-sm text-gray-400 mb-2">Other Units on Call</div>
+                <div className="panel-card">
+                  <div className="eyebrow mb-2">Other Units on Call</div>
                   <div className="flex flex-wrap gap-2">
                     {units.filter(u => activeCall.assignedUnits.includes(u.id) && u.id !== myUnit.id).map(u => (
-                      <span key={u.id} className="bg-gray-800 text-white px-3 py-1 rounded text-sm">
+                      <span key={u.id} className="chip font-mono">
                         {u.callsign}
                         {activeCall.primaryUnit === u.id && (
                           <span className="ml-2 text-yellow-400 text-xs">(PRIMARY)</span>
@@ -12223,15 +12282,15 @@ const CADSystem = () => {
               )}
 
               {/* Call Notes Section */}
-              <div className="bg-gray-700 rounded-lg p-4">
-                <div className="text-sm text-gray-400 mb-2 flex items-center gap-2">
+              <div className="panel-card">
+                <div className="eyebrow mb-2 flex items-center gap-2">
                   <FileText size={16} />
                   Notes ({activeCall.callNotes?.length || 0})
                 </div>
                 {activeCall.callNotes && activeCall.callNotes.length > 0 ? (
                   <div className="space-y-2 max-h-48 overflow-y-auto mb-3">
                     {activeCall.callNotes.map((note, idx) => (
-                      <div key={idx} className="bg-gray-800 rounded p-2">
+                      <div key={idx} className="rounded-md border border-white/[0.05] bg-gray-950/40 p-2.5">
                         <div className="text-xs text-gray-400 mb-1">
                           {formatPSTDateTime(note.timestamp)}
                         </div>
@@ -12247,7 +12306,7 @@ const CADSystem = () => {
                   <input
                     type="text"
                     placeholder="Add a note..."
-                    className="flex-1 bg-gray-800 text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="field flex-1 min-w-0"
                     onKeyPress={(e) => {
                       const target = e.target as HTMLInputElement;
                       if (e.key === 'Enter' && target.value.trim()) {
@@ -12265,7 +12324,7 @@ const CADSystem = () => {
                         input.value = '';
                       }
                     }}
-                    className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-500"
+                    className="btn btn-primary"
                   >
                     Add
                   </button>
@@ -12283,8 +12342,8 @@ const CADSystem = () => {
           )}
         </div>
 
-        <div className="bg-gray-800 rounded-lg p-6">
-          <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+        <div className="panel p-6">
+          <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
             <FileText size={24} />
             Call History ({allHistory.length})
           </h3>
@@ -12309,11 +12368,11 @@ const CADSystem = () => {
                   <div
                     key={`${callId}-${idx}`}
                     onClick={() => canOpen && setSelectedCall(fullCall)}
-                    className={`bg-gray-700 rounded-lg p-4 border-l-4 transition ${
-                      canOpen ? 'cursor-pointer hover:bg-gray-600' : ''
+                    className={`rounded-lg border border-white/[0.06] bg-white/[0.025] p-4 border-l-4 transition ${
+                      canOpen ? 'cursor-pointer hover:bg-white/[0.05]' : ''
                     } ${
                       status === 'CLOSED' ? 'border-green-600' :
-                      status === 'UNASSIGNED' ? 'border-orange-600' : 'border-gray-600'
+                      status === 'UNASSIGNED' ? 'border-orange-600' : 'border-white/[0.08]'
                     }`}
                   >
                     <div className="flex justify-between mb-2">
@@ -12353,7 +12412,7 @@ const CADSystem = () => {
               })}
             </div>
           ) : (
-            <div className="bg-gray-700 rounded-lg p-8 text-center">
+            <div className="rounded-lg border border-dashed border-white/[0.1] p-8 text-center">
               <FileText size={48} className="mx-auto mb-4 text-gray-600" />
               <p className="text-gray-400">No call history available</p>
             </div>
@@ -12372,14 +12431,14 @@ const CADSystem = () => {
     const availUnit = units.find(u => u.status === 'available' && !u.assignedCall);
 
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-gray-800 rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      <div className="modal-backdrop z-50">
+        <div className="modal-surface p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold text-white">Create New Call</h2>
-            <button onClick={() => setShowNewCall(false)} className="text-gray-400 hover:text-white"><X size={24} /></button>
+            <h2 className="text-lg font-semibold text-white">Create New Call</h2>
+            <button onClick={() => setShowNewCall(false)} className="icon-btn"><X size={20} /></button>
           </div>
           
-          <div className="bg-blue-900 border border-blue-500 rounded p-3 mb-4 text-sm text-blue-200">
+          <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 mb-4 text-sm text-blue-200">
             Call ID: <span className="font-mono font-bold">{String(callIdCounter).padStart(6, '0')}</span>
             {availUnit && <> - Auto-assigned to <span className="font-bold">{availUnit.callsign}</span></>}
           </div>
@@ -12387,13 +12446,13 @@ const CADSystem = () => {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm text-gray-300 mb-1">Call Origin</label>
+                <label className="field-label">Call Origin</label>
                 <select 
                   value={data.callOrigin} 
                   onChange={(e) => setData({...data, callOrigin: e.target.value})} 
                   onMouseDown={(e) => e.stopPropagation()}
                   onClick={(e) => e.stopPropagation()}
-                  className="w-full bg-gray-700 text-white rounded px-3 py-2 cursor-pointer"
+                  className="field"
                 >
                   <option value="CALLER">CALLER</option>
                   <option value="RADIO DISPATCH">RADIO DISPATCH</option>
@@ -12401,13 +12460,13 @@ const CADSystem = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-sm text-gray-300 mb-1">Priority</label>
+                <label className="field-label">Priority</label>
                 <select 
                   value={data.priority} 
                   onChange={(e) => setData({...data, priority: e.target.value})} 
                   onMouseDown={(e) => e.stopPropagation()}
                   onClick={(e) => e.stopPropagation()}
-                  className="w-full bg-gray-700 text-white rounded px-3 py-2 cursor-pointer"
+                  className="field"
                 >
                   <option value="1">Priority 1 (High)</option>
                   <option value="2">Priority 2 (Medium)</option>
@@ -12418,26 +12477,26 @@ const CADSystem = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm text-gray-300 mb-1">Type</label>
+                <label className="field-label">Type</label>
                 <select 
                   value={data.callTitle} 
                   onChange={(e) => setData({...data, callTitle: e.target.value})} 
                   onMouseDown={(e) => e.stopPropagation()}
                   onClick={(e) => e.stopPropagation()}
-                  className="w-full bg-gray-700 text-white rounded px-3 py-2 cursor-pointer"
+                  className="field"
                 >
                   <option value="LE">LE</option>
                   <option value="FD">FD</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm text-gray-300 mb-1">Code</label>
+                <label className="field-label">Code</label>
                 <select 
                   value={data.code} 
                   onChange={(e) => setData({...data, code: e.target.value})} 
                   onMouseDown={(e) => e.stopPropagation()}
                   onClick={(e) => e.stopPropagation()}
-                  className="w-full bg-gray-700 text-white rounded px-3 py-2 cursor-pointer"
+                  className="field"
                 >
                   {CALL_CODES.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
@@ -12446,34 +12505,34 @@ const CADSystem = () => {
 
             <div className="grid grid-cols-3 gap-4">
               <div className="col-span-2">
-                <label className="block text-sm text-gray-300 mb-1">Address</label>
-                <input type="text" value={data.address} onChange={(e) => setData({...data, address: e.target.value})} className="w-full bg-gray-700 text-white rounded px-3 py-2" required />
+                <label className="field-label">Address</label>
+                <input type="text" value={data.address} onChange={(e) => setData({...data, address: e.target.value})} className="field" required />
               </div>
               <div>
-                <label className="block text-sm text-gray-300 mb-1">Postal</label>
-                <input type="text" value={data.postal} onChange={(e) => setData({...data, postal: e.target.value})} className="w-full bg-gray-700 text-white rounded px-3 py-2" />
+                <label className="field-label">Postal</label>
+                <input type="text" value={data.postal} onChange={(e) => setData({...data, postal: e.target.value})} className="field" />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm text-gray-300 mb-1">Caller</label>
-                <input type="text" value={data.caller} onChange={(e) => setData({...data, caller: e.target.value})} className="w-full bg-gray-700 text-white rounded px-3 py-2" />
+                <label className="field-label">Caller</label>
+                <input type="text" value={data.caller} onChange={(e) => setData({...data, caller: e.target.value})} className="field" />
               </div>
               <div>
-                <label className="block text-sm text-gray-300 mb-1">Phone</label>
-                <input type="tel" value={data.phone} onChange={(e) => setData({...data, phone: e.target.value})} className="w-full bg-gray-700 text-white rounded px-3 py-2" />
+                <label className="field-label">Phone</label>
+                <input type="tel" value={data.phone} onChange={(e) => setData({...data, phone: e.target.value})} className="field" />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm text-gray-300 mb-1">Description</label>
-              <textarea value={data.description} onChange={(e) => setData({...data, description: e.target.value})} className="w-full bg-gray-700 text-white rounded px-3 py-2 h-24" />
+              <label className="field-label">Description</label>
+              <textarea value={data.description} onChange={(e) => setData({...data, description: e.target.value})} className="field h-24" />
             </div>
 
             <div className="flex gap-2 justify-end">
-              <button onClick={() => setShowNewCall(false)} className="px-4 py-2 bg-gray-600 text-white rounded">Cancel</button>
-              <button onClick={() => createCall(data)} className="px-4 py-2 bg-blue-600 text-white rounded">Create</button>
+              <button onClick={() => setShowNewCall(false)} className="btn btn-secondary">Cancel</button>
+              <button onClick={() => createCall(data)} className="btn btn-primary">Create</button>
             </div>
           </div>
         </div>
@@ -12507,40 +12566,40 @@ const CADSystem = () => {
     };
 
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-gray-800 rounded-lg p-6 w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+      <div className="modal-backdrop z-50">
+        <div className="modal-surface p-6 w-full max-w-5xl max-h-[90vh] overflow-y-auto">
           <div className="flex justify-between mb-4">
-            <div className="flex gap-2 flex-wrap">
-              <h2 className="text-xl font-bold text-white">{call.id}</h2>
-              <span className={`${getPriorityColor(call.priority)} text-white px-2 py-1 rounded text-sm`}>P{call.priority}</span>
-              <span className="bg-blue-600 text-white px-2 py-1 rounded text-sm">{call.status}</span>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="font-mono text-lg font-semibold text-white">#{call.id}</h2>
+              <span className={`${getPriorityColor(call.priority)} text-white px-2 py-0.5 rounded-md text-xs font-semibold`}>P{call.priority}</span>
+              <span className="rounded-md border border-accent-500/30 bg-accent-500/15 px-2 py-0.5 text-xs font-semibold tracking-wide text-accent-300">{call.status}</span>
             </div>
-            <button onClick={() => setSelectedCall(null)} className="text-gray-400"><X size={24} /></button>
+            <button onClick={() => setSelectedCall(null)} className="icon-btn"><X size={20} /></button>
           </div>
 
           <div className="grid lg:grid-cols-2 gap-4">
             <div className="space-y-4">
-              <div className="bg-gray-700 rounded p-4">
-                <h3 className="font-semibold text-white mb-2">Info</h3>
+              <div className="panel-card">
+                <h3 className="eyebrow mb-3">Info</h3>
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between"><span className="text-gray-400">Code:</span><span className="text-white">{call.code}</span></div>
                   <div className="flex justify-between"><span className="text-gray-400">Time:</span><span className="text-white">{formatPSTDateTime(call.timestamp)}</span></div>
                 </div>
               </div>
 
-              <div className="bg-gray-700 rounded p-4">
-                <h3 className="font-semibold text-white mb-2">Location</h3>
+              <div className="panel-card">
+                <h3 className="eyebrow mb-3">Location</h3>
                 <div className="text-white text-sm">{call.address}</div>
                 {call.postal && <div className="text-gray-400 text-sm">Postal: {call.postal}</div>}
               </div>
             </div>
 
             <div className="space-y-4">
-              <div className="bg-gray-700 rounded p-4">
-                <h3 className="font-semibold text-white mb-2">Assigned ({assigned.length})</h3>
+              <div className="panel-card">
+                <h3 className="eyebrow mb-3">Assigned ({assigned.length})</h3>
                 <div className="space-y-2 max-h-40 overflow-y-auto">
                   {assigned.map(u => (
-                    <div key={u.id} className="bg-gray-800 rounded p-2 flex justify-between items-center">
+                    <div key={u.id} className="rounded-md border border-white/[0.05] bg-gray-950/40 p-2 flex justify-between items-center">
                       <div className="flex items-center gap-2">
                         <span className="text-white text-sm font-semibold">{u.callsign}</span>
                         {call.primaryUnit === u.id && (
@@ -12550,11 +12609,11 @@ const CADSystem = () => {
                       {selectedRole === 'dispatch' && call.status !== 'CLOSED' && (
                         <div className="flex gap-1">
                           {call.primaryUnit !== u.id && (
-                            <button onClick={() => setPrimary(call.id, u.id)} className="px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-500">Primary</button>
+                            <button onClick={() => setPrimary(call.id, u.id)} className="btn btn-primary btn-sm">Primary</button>
                           )}
                           <button
                             onClick={() => unassignUnit(call.id, u.id)}
-                            className="px-2 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-500"
+                            className="btn btn-danger btn-sm"
                           >
                             Unassign
                           </button>
@@ -12566,13 +12625,13 @@ const CADSystem = () => {
               </div>
 
               {selectedRole === 'dispatch' && (
-                <div className="bg-gray-700 rounded p-4">
-                  <h3 className="font-semibold text-white mb-2">Available</h3>
+                <div className="panel-card">
+                  <h3 className="eyebrow mb-3">Available</h3>
                   <div className="space-y-2 max-h-40 overflow-y-auto">
                     {units.filter(u => !call.assignedUnits.includes(u.id)).map(u => (
-                      <div key={u.id} className="bg-gray-800 rounded p-2 flex justify-between">
+                      <div key={u.id} className="rounded-md border border-white/[0.05] bg-gray-950/40 p-2 flex justify-between items-center">
                         <div className="text-white text-sm">{u.callsign}</div>
-                        <button onClick={() => assignUnit(call.id, u.id)} className="px-2 py-1 bg-blue-600 text-white rounded text-xs">Assign</button>
+                        <button onClick={() => assignUnit(call.id, u.id)} className="btn btn-primary btn-sm">Assign</button>
                       </div>
                     ))}
                   </div>
@@ -12581,14 +12640,14 @@ const CADSystem = () => {
             </div>
           </div>
 
-          <div className="mt-4 bg-gray-700 rounded-lg p-4">
-            <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
+          <div className="mt-4 panel-card">
+            <h3 className="eyebrow mb-3 flex items-center gap-2">
               <FileText size={18} />
               Call Notes
             </h3>
             <div className="space-y-2 mb-3 max-h-64 overflow-y-auto">
               {call.callNotes?.map((n, i) => (
-                <div key={i} className="bg-gray-800 rounded p-3">
+                <div key={i} className="rounded-md border border-white/[0.05] bg-gray-950/40 p-3">
                   <div className="text-xs text-gray-400 mb-1">{formatPSTDateTime(n.timestamp)}</div>
                   <div className="text-white text-sm whitespace-pre-wrap">{n.text}</div>
                 </div>
@@ -12600,36 +12659,36 @@ const CADSystem = () => {
                 onChange={(e) => setNote(e.target.value)} 
                 onKeyPress={(e) => e.key === 'Enter' && handleAddNote()}
                 placeholder="Add a note..." 
-                className="flex-1 bg-gray-800 text-white rounded px-3 py-2 text-sm" 
+                className="field flex-1 min-w-0" 
               />
-              <button onClick={handleAddNote} className="px-4 py-2 bg-blue-600 text-white rounded text-sm">Add</button>
-              <button onClick={() => setShowPasteModal(true)} className="px-4 py-2 bg-green-600 text-white rounded text-sm">Paste</button>
+              <button onClick={handleAddNote} className="btn btn-primary">Add</button>
+              <button onClick={() => setShowPasteModal(true)} className="btn btn-success">Paste</button>
             </div>
           </div>
 
           {call.status !== 'CLOSED' && selectedRole === 'dispatch' && (
-            <button onClick={() => closeCall(call.id)} className="w-full mt-4 px-4 py-2 bg-green-600 text-white rounded">
+            <button onClick={() => closeCall(call.id)} className="btn btn-success w-full mt-4">
               Close Call
             </button>
           )}
         </div>
 
         {showPasteModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[60]">
-            <div className="bg-gray-800 rounded-lg p-6 w-full max-w-2xl mx-4">
+          <div className="modal-backdrop z-[60]">
+            <div className="modal-surface p-6 w-full max-w-2xl mx-4">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-white">Paste Document</h3>
-                <button onClick={() => setShowPasteModal(false)} className="text-gray-400"><X size={24} /></button>
+                <h3 className="text-lg font-semibold text-white">Paste Document</h3>
+                <button onClick={() => setShowPasteModal(false)} className="icon-btn"><X size={20} /></button>
               </div>
               <textarea
                 value={pasteContent}
                 onChange={(e) => setPasteContent(e.target.value)}
                 placeholder="Paste information here..."
-                className="w-full bg-gray-700 text-white rounded px-3 py-2 h-64 text-sm font-mono"
+                className="field h-64 font-mono"
               />
               <div className="flex gap-2 justify-end mt-4">
-                <button onClick={() => setShowPasteModal(false)} className="px-4 py-2 bg-gray-600 text-white rounded">Cancel</button>
-                <button onClick={handlePaste} className="px-4 py-2 bg-green-600 text-white rounded">Save</button>
+                <button onClick={() => setShowPasteModal(false)} className="btn btn-secondary">Cancel</button>
+                <button onClick={handlePaste} className="btn btn-success">Save</button>
               </div>
             </div>
           </div>
@@ -12647,28 +12706,28 @@ const CADSystem = () => {
     };
 
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md">
+      <div className="modal-backdrop z-50">
+        <div className="modal-surface p-6 w-full max-w-md">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold text-white">Dispatcher COM #</h2>
-            <button onClick={() => setShowComModal(false)} className="text-gray-400"><X size={24} /></button>
+            <h2 className="text-lg font-semibold text-white">Dispatcher COM #</h2>
+            <button onClick={() => setShowComModal(false)} className="icon-btn"><X size={20} /></button>
           </div>
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm text-gray-300 mb-2">Enter COM Number</label>
+              <label className="field-label">Enter COM Number</label>
               <input
                 type="text"
                 value={tempComNumber}
                 onChange={(e) => setTempComNumber(e.target.value)}
-                className="w-full bg-gray-700 text-white rounded px-3 py-2 border border-gray-600"
+                className="field"
                 placeholder="e.g., COM-1, 911, etc."
               />
             </div>
 
             <div className="flex gap-2 justify-end">
-              <button onClick={() => setShowComModal(false)} className="px-4 py-2 bg-gray-600 text-white rounded">Cancel</button>
-              <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white rounded">Save</button>
+              <button onClick={() => setShowComModal(false)} className="btn btn-secondary">Cancel</button>
+              <button onClick={handleSave} className="btn btn-primary">Save</button>
             </div>
           </div>
         </div>
@@ -12695,38 +12754,38 @@ const CADSystem = () => {
     };
 
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-gray-800 rounded-lg p-6 w-full max-w-2xl">
+      <div className="modal-backdrop z-50">
+        <div className="modal-surface p-6 w-full max-w-2xl">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold text-white">Unit Information</h2>
-            <button onClick={() => setShowUnitInfo(false)} className="text-gray-400"><X size={24} /></button>
+            <h2 className="text-lg font-semibold text-white">Unit Information</h2>
+            <button onClick={() => setShowUnitInfo(false)} className="icon-btn"><X size={20} /></button>
           </div>
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm text-gray-300 mb-1">Callsign</label>
-              <input type="text" value={info.callsign} onChange={(e) => setInfo({...info, callsign: e.target.value})} className="w-full bg-gray-700 text-white rounded px-3 py-2" />
+              <label className="field-label">Callsign</label>
+              <input type="text" value={info.callsign} onChange={(e) => setInfo({...info, callsign: e.target.value})} className="field" />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm text-gray-300 mb-1">Officer Name</label>
-                <input type="text" value={info.officer} onChange={(e) => setInfo({...info, officer: e.target.value})} className="w-full bg-gray-700 text-white rounded px-3 py-2" />
+                <label className="field-label">Officer Name</label>
+                <input type="text" value={info.officer} onChange={(e) => setInfo({...info, officer: e.target.value})} className="field" />
               </div>
               <div>
-                <label className="block text-sm text-gray-300 mb-1">Rank</label>
-                <input type="text" value={info.rank} onChange={(e) => setInfo({...info, rank: e.target.value})} className="w-full bg-gray-700 text-white rounded px-3 py-2" />
+                <label className="field-label">Rank</label>
+                <input type="text" value={info.rank} onChange={(e) => setInfo({...info, rank: e.target.value})} className="field" />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm text-gray-300 mb-1">Department</label>
+              <label className="field-label">Department</label>
               <select
                 value={info.department}
                 onChange={(e) => setInfo({...info, department: e.target.value})}
                 onMouseDown={(e) => e.stopPropagation()}
                 onClick={(e) => e.stopPropagation()}
-                className="w-full bg-gray-700 text-white rounded px-3 py-2 cursor-pointer"
+                className="field"
               >
                 <option value="">Select Department</option>
                 {DEPARTMENTS.map(dept => <option key={dept} value={dept}>{dept}</option>)}
@@ -12734,13 +12793,13 @@ const CADSystem = () => {
             </div>
 
             <div>
-              <label className="block text-sm text-gray-300 mb-1">Location</label>
-              <input type="text" value={info.location} onChange={(e) => setInfo({...info, location: e.target.value})} className="w-full bg-gray-700 text-white rounded px-3 py-2" />
+              <label className="field-label">Location</label>
+              <input type="text" value={info.location} onChange={(e) => setInfo({...info, location: e.target.value})} className="field" />
             </div>
 
             <div className="flex gap-2 justify-end">
-              <button onClick={() => setShowUnitInfo(false)} className="px-4 py-2 bg-gray-600 text-white rounded">Cancel</button>
-              <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white rounded">Save</button>
+              <button onClick={() => setShowUnitInfo(false)} className="btn btn-secondary">Cancel</button>
+              <button onClick={handleSave} className="btn btn-primary">Save</button>
             </div>
           </div>
         </div>
@@ -12748,257 +12807,294 @@ const CADSystem = () => {
     );
   };
 
+  const ROLE_THEME = {
+    dispatch: { label: 'Dispatch', dot: 'bg-emerald-400', pill: 'border-emerald-500/25 bg-emerald-500/10 text-emerald-300', line: 'via-emerald-500/50' },
+    police: { label: 'Sheriff', dot: 'bg-blue-400', pill: 'border-blue-500/25 bg-blue-500/10 text-blue-300', line: 'via-blue-500/50' },
+    fire: { label: 'Fire / EMS', dot: 'bg-red-400', pill: 'border-red-500/25 bg-red-500/10 text-red-300', line: 'via-red-500/50' },
+    tow: { label: 'Tow', dot: 'bg-orange-400', pill: 'border-orange-500/25 bg-orange-500/10 text-orange-300', line: 'via-orange-500/50' },
+  };
+  const roleTheme = ROLE_THEME[selectedRole] || ROLE_THEME.dispatch;
+  const myUnitRecord = selectedUnit ? units.find(u => u.id === selectedUnit) : null;
+
+  const renderStatusButton = (status, label, code, onClick?) => {
+    const isActive = myUnitRecord?.status === status;
+    return (
+      <button
+        key={status + label}
+        onClick={onClick}
+        className={`status-btn ${isActive ? '!border-accent-500/50 !bg-accent-500/15 !text-white' : ''}`}
+      >
+        <span className={`h-2 w-2 rounded-full ${getStatusColor(status)} ${isActive ? '' : 'opacity-60'}`} />
+        {label}
+        {code && <span className="code">{code}</span>}
+      </button>
+    );
+  };
+
+  const renderUnitIdentity = (callsign, name, accentClass, onClick?) => {
+    const content = (
+      <>
+        <span className={`inline-flex h-9 w-9 items-center justify-center rounded-lg ${accentClass}`}>
+          <User size={16} />
+        </span>
+        <span className="text-left leading-tight">
+          <span className="block font-mono text-sm font-semibold text-white">{callsign}</span>
+          <span className="block text-xs text-gray-400">{name}</span>
+        </span>
+      </>
+    );
+    return onClick ? (
+      <button
+        onClick={onClick}
+        className="flex items-center gap-3 rounded-xl border border-white/[0.07] bg-white/[0.03] py-1.5 pl-1.5 pr-4 hover:border-white/[0.14] hover:bg-white/[0.06]"
+        title="Edit unit information"
+      >
+        {content}
+      </button>
+    ) : (
+      <div className="flex items-center gap-3 rounded-xl border border-white/[0.07] bg-white/[0.03] py-1.5 pl-1.5 pr-4">
+        {content}
+      </div>
+    );
+  };
+
+  const activeCallList = calls.filter(c => c.status !== 'CLOSED');
+  const priorityStripe = (p) => (p === '1' ? 'before:bg-red-500' : p === '2' ? 'before:bg-yellow-500' : p === '3' ? 'before:bg-blue-500' : 'before:bg-gray-500');
+
   return (
-    <div className="min-h-screen bg-gray-900 text-white flex flex-col">
-      <header className="bg-gradient-to-r from-green-900 to-green-800 border-b-4 border-green-500 p-4">
-        <div className="text-center mb-3">
-          <h1 className="text-3xl font-bold text-yellow-400">Silver Lining Roleplay</h1>
-          <p className="text-xl text-white">Los Santos Sheriff Office</p>
+    <div className="min-h-screen text-white flex flex-col">
+      <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-gray-900/80 backdrop-blur-md">
+        <div className={`absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent ${roleTheme.line} to-transparent`} />
+
+        {/* Top bar */}
+        <div className="px-4 md:px-6 h-16 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4 min-w-0">
+            <BrandLockup size={30} />
+            <span className={`hidden sm:inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${roleTheme.pill}`}>
+              <span className={`h-1.5 w-1.5 rounded-full ${roleTheme.dot}`} />
+              {roleTheme.label}
+            </span>
+          </div>
+
+          <nav className="seg">
+            {selectedRole === 'dispatch' && (
+              <>
+                <button onClick={() => setActiveTab('dispatch')} className={`seg-item ${activeTab === 'dispatch' ? 'seg-item-active' : ''}`}>
+                  <Radio size={15} /> Dispatch
+                </button>
+                <button onClick={() => setActiveTab('units')} className={`seg-item ${activeTab === 'units' ? 'seg-item-active' : ''}`}>
+                  <Shield size={15} /> Units
+                </button>
+                <button onClick={() => setActiveTab('tow')} className={`seg-item ${activeTab === 'tow' ? 'seg-item-active' : ''}`}>
+                  <Truck size={15} /> Tow
+                </button>
+                <button onClick={() => setActiveTab('fire-ems')} className={`seg-item ${activeTab === 'fire-ems' ? 'seg-item-active' : ''}`}>
+                  <Flame size={15} /> Fire/EMS
+                </button>
+              </>
+            )}
+            {(selectedRole === 'police' || selectedRole === 'fire' || selectedRole === 'tow') && (
+              <button className="seg-item seg-item-active">
+                {selectedRole === 'police' ? <Shield size={15} /> : selectedRole === 'fire' ? <Flame size={15} /> : <Truck size={15} />}
+                My Unit
+              </button>
+            )}
+          </nav>
+
+          <div className="flex items-center gap-2">
+            {selectedRole === 'dispatch' && selectedUnit && (
+              <button
+                onClick={() => setShowComModal(true)}
+                className="flex items-center gap-2 rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 py-1.5 text-sm font-semibold text-emerald-300 hover:bg-emerald-500/15"
+                title="Set dispatcher COM #"
+              >
+                <Radio size={15} />
+                <span className="font-mono">{units.find(u => u.id === selectedUnit)?.callsign || 'Unit'}</span>
+              </button>
+            )}
+          </div>
         </div>
-        
 
-
+        {/* Unit status strip */}
         {selectedRole === 'police' && selectedUnit && loggedInOfficer && (
-          <div className="flex flex-wrap justify-center gap-2 mb-3">
-            <button
-              onClick={() => setShowUnitInfo(true)}
-              className="px-4 py-2 bg-yellow-600 text-white rounded font-bold hover:bg-yellow-500 transition flex items-center gap-2 border-r-2 border-gray-600 mr-2"
-            >
-              <div className="text-left">
-                <div className="text-sm font-bold">{units.find(u => u.id === selectedUnit)?.callsign}</div>
-                <div className="text-xs">
-                  <User size={12} className="inline mr-1" />
-                  {loggedInOfficer.displayName}
-                </div>
-              </div>
-            </button>
-            <button
-              onClick={() => updateUnitStatus(selectedUnit, 'busy')}
-              className="px-4 py-2 rounded font-semibold transition bg-gray-700 text-white hover:bg-gray-600"
-            >
-              Busy 10-6
-            </button>
-            <button
-              onClick={() => updateUnitStatus(selectedUnit, 'unavailable')}
-              className="px-4 py-2 rounded font-semibold transition bg-gray-700 text-white hover:bg-gray-600"
-            >
-              Unavailable 10-7
-            </button>
-            <button
-              onClick={() => updateUnitStatus(selectedUnit, 'available')}
-              className="px-4 py-2 rounded font-semibold transition bg-gray-700 text-white hover:bg-gray-600"
-            >
-              Available 10-8
-            </button>
-            <button
-              onClick={() => updateUnitStatus(selectedUnit, 'enroute')}
-              className="px-4 py-2 rounded font-semibold transition bg-gray-700 text-white hover:bg-gray-600"
-            >
-              Enroute 10-76
-            </button>
-            <button
-              onClick={() => updateUnitStatus(selectedUnit, 'onscene')}
-              className="px-4 py-2 rounded font-semibold transition bg-gray-700 text-white hover:bg-gray-600"
-            >
-              On-Scene 10-23
-            </button>
+          <div className="border-t border-white/[0.05] bg-gray-950/30 px-4 md:px-6 py-2.5 flex flex-wrap items-center gap-2">
+            {renderUnitIdentity(
+              units.find(u => u.id === selectedUnit)?.callsign,
+              loggedInOfficer.displayName,
+              'bg-blue-500/15 text-blue-300 ring-1 ring-blue-500/25',
+              () => setShowUnitInfo(true)
+            )}
+            <div className="mx-1 hidden h-8 w-px bg-white/[0.08] md:block" />
+            {renderStatusButton('busy', 'Busy', '10-6', () => updateUnitStatus(selectedUnit, 'busy'))}
+            {renderStatusButton('unavailable', 'Unavailable', '10-7', () => updateUnitStatus(selectedUnit, 'unavailable'))}
+            {renderStatusButton('available', 'Available', '10-8', () => updateUnitStatus(selectedUnit, 'available'))}
+            {renderStatusButton('enroute', 'Enroute', '10-76', () => updateUnitStatus(selectedUnit, 'enroute'))}
+            {renderStatusButton('onscene', 'On-Scene', '10-23', () => updateUnitStatus(selectedUnit, 'onscene'))}
             <button
               onClick={() => updateUnitStatus(selectedUnit, 'panic')}
-              className="px-4 py-2 rounded font-semibold transition bg-red-600 text-white hover:bg-red-700 animate-pulse"
+              className={`ml-auto inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold tracking-wide text-white shadow-[0_0_0_1px_rgb(239_68_68/0.5),0_8px_24px_-8px_rgb(239_68_68/0.6)] ${
+                myUnitRecord?.status === 'panic' ? 'bg-red-600 animate-pulse' : 'bg-red-600/90 hover:bg-red-500'
+              }`}
             >
-              <AlertTriangle size={18} className="inline mr-1" />
+              <AlertTriangle size={16} />
               PANIC
             </button>
           </div>
         )}
 
         {selectedRole === 'fire' && selectedUnit && loggedInOfficer && (
-          <div className="flex flex-wrap justify-center gap-2 mb-3">
-            <button
-              className="px-4 py-2 bg-red-600 text-white rounded font-bold flex items-center gap-2 border-r-2 border-gray-600 mr-2"
-            >
-              <div className="text-left">
-                <div className="text-sm font-bold">{loggedInOfficer.unitId}</div>
-                <div className="text-xs">
-                  <User size={12} className="inline mr-1" />
-                  {loggedInOfficer.displayName}
-                </div>
-              </div>
-            </button>
-            <button
-              onClick={() => updateUnitStatus(selectedUnit, 'available')}
-              className="px-4 py-2 rounded font-semibold transition bg-gray-700 text-white hover:bg-gray-600"
-            >
-              Available
-            </button>
-            <button
-              onClick={() => updateUnitStatus(selectedUnit, 'enroute')}
-              className="px-4 py-2 rounded font-semibold transition bg-gray-700 text-white hover:bg-gray-600"
-            >
-              Enroute
-            </button>
-            <button
-              onClick={() => updateUnitStatus(selectedUnit, 'onscene')}
-              className="px-4 py-2 rounded font-semibold transition bg-gray-700 text-white hover:bg-gray-600"
-            >
-              On-Scene
-            </button>
-            <button
-              onClick={() => updateUnitStatus(selectedUnit, 'busy')}
-              className="px-4 py-2 rounded font-semibold transition bg-gray-700 text-white hover:bg-gray-600"
-            >
-              At Hospital
-            </button>
+          <div className="border-t border-white/[0.05] bg-gray-950/30 px-4 md:px-6 py-2.5 flex flex-wrap items-center gap-2">
+            {renderUnitIdentity(loggedInOfficer.unitId, loggedInOfficer.displayName, 'bg-red-500/15 text-red-300 ring-1 ring-red-500/25')}
+            <div className="mx-1 hidden h-8 w-px bg-white/[0.08] md:block" />
+            {renderStatusButton('available', 'Available', '', () => updateUnitStatus(selectedUnit, 'available'))}
+            {renderStatusButton('enroute', 'Enroute', '', () => updateUnitStatus(selectedUnit, 'enroute'))}
+            {renderStatusButton('onscene', 'On-Scene', '', () => updateUnitStatus(selectedUnit, 'onscene'))}
+            {renderStatusButton('busy', 'At Hospital', '', () => updateUnitStatus(selectedUnit, 'busy'))}
           </div>
         )}
 
         {selectedRole === 'tow' && loggedInOfficer && (
-          <div className="flex flex-wrap justify-center gap-2 mb-3">
-            <button
-              className="px-4 py-2 bg-orange-600 text-white rounded font-bold flex items-center gap-2 border-r-2 border-gray-600 mr-2"
-            >
-              <div className="text-left">
-                <div className="text-sm font-bold">{loggedInOfficer.unitId}</div>
-                <div className="text-xs">
-                  <User size={12} className="inline mr-1" />
-                  {loggedInOfficer.displayName}
-                </div>
-              </div>
-            </button>
-            <button
-              className="px-4 py-2 rounded font-semibold transition bg-gray-700 text-white hover:bg-gray-600"
-            >
-              Available
-            </button>
-            <button
-              className="px-4 py-2 rounded font-semibold transition bg-gray-700 text-white hover:bg-gray-600"
-            >
-              Enroute
-            </button>
-            <button
-              className="px-4 py-2 rounded font-semibold transition bg-gray-700 text-white hover:bg-gray-600"
-            >
-              On-Scene
-            </button>
-            <button
-              className="px-4 py-2 rounded font-semibold transition bg-gray-700 text-white hover:bg-gray-600"
-            >
-              Towing
-            </button>
+          <div className="border-t border-white/[0.05] bg-gray-950/30 px-4 md:px-6 py-2.5 flex flex-wrap items-center gap-2">
+            {renderUnitIdentity(loggedInOfficer.unitId, loggedInOfficer.displayName, 'bg-orange-500/15 text-orange-300 ring-1 ring-orange-500/25')}
+            <div className="mx-1 hidden h-8 w-px bg-white/[0.08] md:block" />
+            <button className="status-btn"><span className="h-2 w-2 rounded-full bg-green-500 opacity-60" />Available</button>
+            <button className="status-btn"><span className="h-2 w-2 rounded-full bg-blue-500 opacity-60" />Enroute</button>
+            <button className="status-btn"><span className="h-2 w-2 rounded-full bg-purple-500 opacity-60" />On-Scene</button>
+            <button className="status-btn"><span className="h-2 w-2 rounded-full bg-orange-500 opacity-60" />Towing</button>
           </div>
         )}
-
-        <div className="flex justify-between items-center">
-          <div className="flex gap-2">
-            {selectedRole === 'dispatch' && selectedUnit && (
-              <button onClick={() => setShowComModal(true)} className="px-4 py-2 bg-yellow-600 text-white rounded font-bold">
-                {units.find(u => u.id === selectedUnit)?.callsign || 'Unit'}
-              </button>
-            )}
-          </div>
-          <div className="flex gap-2">
-            {selectedRole === 'dispatch' && (
-              <>
-                <button onClick={() => setActiveTab('dispatch')} className={`px-4 py-2 rounded ${activeTab === 'dispatch' ? 'bg-blue-600' : 'bg-gray-700'}`}>Dispatch</button>
-                <button onClick={() => setActiveTab('units')} className={`px-4 py-2 rounded ${activeTab === 'units' ? 'bg-blue-600' : 'bg-gray-700'}`}>Units</button>
-                <button onClick={() => setActiveTab('tow')} className={`px-4 py-2 rounded ${activeTab === 'tow' ? 'bg-blue-600' : 'bg-gray-700'}`}>Tow</button>
-                <button onClick={() => setActiveTab('fire-ems')} className={`px-4 py-2 rounded ${activeTab === 'fire-ems' ? 'bg-blue-600' : 'bg-gray-700'}`}>Fire/EMS</button>
-              </>
-            )}
-            {selectedRole === 'police' && (
-              <button className="px-4 py-2 rounded bg-blue-600">My Unit</button>
-            )}
-            {selectedRole === 'fire' && (
-              <button className="px-4 py-2 rounded bg-red-600">My Unit</button>
-            )}
-            {selectedRole === 'tow' && (
-              <button className="px-4 py-2 rounded bg-orange-600">My Unit</button>
-            )}
-          </div>
-        </div>
       </header>
 
-      <main className="flex-1 p-6 pb-20">
+      <main className="flex-1 px-4 md:px-6 py-6 pb-28">
+        <div className="max-w-7xl mx-auto animate-fade-in">
         {selectedRole === 'police' && <UnitViewMode />}
         {selectedRole === 'fire' && <UnitViewMode />}
         {selectedRole === 'tow' && (
-          <div>
-            <h2 className="text-2xl font-bold mb-6">My Tow Truck</h2>
-            <div className="bg-gray-800 rounded-lg p-6 mb-4">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-xl font-bold text-orange-400">{loggedInOfficer?.displayName}</h3>
-                  <p className="text-gray-400">{loggedInOfficer?.department}</p>
+          <div className="space-y-4">
+            <div>
+              <div className="eyebrow mb-1.5">Tow</div>
+              <h2 className="text-2xl font-semibold tracking-tight">My Tow Truck</h2>
+            </div>
+            <div className="panel p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-orange-500/10 text-orange-400 ring-1 ring-orange-500/25">
+                    <Truck size={22} />
+                  </span>
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">{loggedInOfficer?.displayName}</h3>
+                    <p className="text-sm text-gray-400">{loggedInOfficer?.department}</p>
+                  </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-gray-400">Unit ID</p>
-                  <p className="text-lg font-bold text-white">{loggedInOfficer?.unitId}</p>
+                  <p className="eyebrow">Unit ID</p>
+                  <p className="font-mono text-lg font-semibold text-white">{loggedInOfficer?.unitId}</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-gray-800 rounded-lg p-6">
-              <h3 className="text-lg font-semibold mb-4">Active Tow Requests</h3>
-              <p className="text-gray-400 text-center py-8">No active tow requests assigned to you</p>
+            <div className="panel p-6">
+              <h3 className="section-title text-orange-400">Active Tow Requests</h3>
+              <div className="py-10 text-center">
+                <Truck size={36} className="mx-auto mb-3 text-gray-600" />
+                <p className="text-sm text-gray-400">No active tow requests assigned to you</p>
+              </div>
             </div>
           </div>
         )}
 
         {selectedRole === 'dispatch' && activeTab === 'dispatch' && (
-          <div>
-            <div className="flex justify-between mb-6">
-              <h2 className="text-xl font-semibold">Active Calls</h2>
-              <button onClick={() => setShowNewCall(true)} className="px-4 py-2 bg-blue-600 rounded flex items-center gap-2">
-                <Plus size={20} /> New Call
+          <div className="space-y-5">
+            <div className="flex flex-wrap justify-between items-end gap-4">
+              <div>
+                <div className="eyebrow mb-1.5">Dispatch Board</div>
+                <h2 className="text-2xl font-semibold tracking-tight flex items-center gap-3">
+                  Active Calls
+                  <span className="chip font-mono">{activeCallList.length}</span>
+                </h2>
+              </div>
+              <button onClick={() => setShowNewCall(true)} className="btn btn-primary shadow-glow">
+                <Plus size={18} /> New Call
               </button>
             </div>
-            <div className="grid gap-4">
-              {calls.filter(c => c.status !== 'CLOSED').map(call => (
-                <div key={call.id} onClick={() => setSelectedCall(call)} className="bg-gray-800 rounded-lg p-4 cursor-pointer hover:bg-gray-750 border-l-4 border-blue-500">
-                  <div className="flex justify-between mb-2">
-                    <div className="flex gap-2">
-                      <span className="font-mono text-gray-400">{call.id}</span>
-                      <span className={`${getPriorityColor(call.priority)} text-white px-2 py-1 rounded text-sm`}>P{call.priority}</span>
-                      <span className="text-white font-semibold">{call.code}</span>
+
+            {activeCallList.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-white/[0.1] bg-white/[0.02] px-8 py-16 text-center">
+                <Radio size={36} className="mx-auto mb-3 text-gray-600" />
+                <p className="text-white font-medium">No active calls</p>
+                <p className="text-sm text-gray-400 mt-1">New calls you create will appear here.</p>
+              </div>
+            ) : (
+              <div className="grid gap-3">
+                {activeCallList.map(call => (
+                  <div
+                    key={call.id}
+                    onClick={() => setSelectedCall(call)}
+                    className={`group panel relative overflow-hidden p-4 pl-5 cursor-pointer transition-all duration-150 hover:bg-gray-800 hover:!border-white/[0.12] before:absolute before:inset-y-0 before:left-0 before:w-1 ${priorityStripe(call.priority)}`}
+                  >
+                    <div className="flex justify-between items-start gap-4">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-mono text-xs text-gray-500">#{call.id}</span>
+                          <span className={`${getPriorityColor(call.priority)} text-white px-2 py-0.5 rounded-md text-xs font-semibold`}>
+                            {/^\d$/.test(String(call.priority)) ? `P${call.priority}` : call.priority}
+                          </span>
+                          <span className="text-white font-semibold truncate">{call.code}</span>
+                        </div>
+                        <div className="mt-1.5 flex items-center gap-1.5 text-sm text-gray-400">
+                          <MapPin size={14} className="flex-shrink-0" />
+                          <span className="truncate">{call.address}</span>
+                          {call.postal && <span className="font-mono text-xs text-gray-500">· {call.postal}</span>}
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                        <span className="font-mono text-sm text-gray-400">{formatPSTTime(call.timestamp)}</span>
+                        <span className="text-xs text-gray-500">{call.assignedUnits?.length || 0} unit{(call.assignedUnits?.length || 0) === 1 ? '' : 's'}</span>
+                      </div>
                     </div>
-                    <span className="text-gray-400 text-sm">{formatPSTTime(call.timestamp)}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-400">
-                    <MapPin size={16} />
-                    <span>{call.address}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
         {selectedRole === 'dispatch' && activeTab === 'units' && (
-          <div>
-            <h2 className="text-xl font-semibold mb-6">Units</h2>
-            
-            <div className="mb-4 flex gap-2 flex-wrap">
-              <span className="text-gray-400 text-sm">Select Unit:</span>
+          <div className="space-y-5">
+            <div>
+              <div className="eyebrow mb-1.5">Dispatch</div>
+              <h2 className="text-2xl font-semibold tracking-tight">Units</h2>
+            </div>
+
+            <div className="flex gap-2 flex-wrap items-center">
+              <span className="text-gray-400 text-sm mr-1">Select unit:</span>
               {units.map(u => (
                 <button
                   key={u.id}
                   onClick={() => setSelectedUnit(u.id)}
-                  className={`px-3 py-1 rounded font-bold text-sm ${selectedUnit === u.id ? 'bg-blue-700 text-white' : 'bg-gray-700 text-white'}`}
+                  className={`rounded-lg px-3 py-1.5 font-mono text-sm font-semibold border ${
+                    selectedUnit === u.id
+                      ? 'border-accent-500/50 bg-accent-500/15 text-white'
+                      : 'border-white/[0.07] bg-white/[0.03] text-gray-300 hover:bg-white/[0.07] hover:text-white'
+                  }`}
                 >
                   {u.callsign}
                 </button>
               ))}
             </div>
 
-            <div className="grid md:grid-cols-3 gap-4">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {units.map(u => (
-                <div key={u.id} className="bg-gray-800 rounded-lg p-4 border-l-4 border-blue-500">
+                <div key={u.id} className="panel p-4">
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-lg font-bold text-white">{u.callsign}</h3>
-                    <div className={`w-3 h-3 rounded-full ${getStatusColor(u.status)}`}></div>
+                    <h3 className="font-mono text-base font-semibold text-white">{u.callsign}</h3>
+                    <span className="relative flex h-2.5 w-2.5">
+                      <span className={`absolute inset-0 rounded-full ${getStatusColor(u.status)} opacity-40 blur-[3px]`}></span>
+                      <span className={`relative h-2.5 w-2.5 rounded-full ${getStatusColor(u.status)}`}></span>
+                    </span>
                   </div>
                   <div className="text-gray-400 text-sm">{u.officer}</div>
-                  <div className={`text-sm font-semibold ${u.status === 'available' ? 'text-green-400' : 'text-blue-400'}`}>{getStatusLabel(u.status)}</div>
+                  <div className={`mt-2 text-xs font-semibold uppercase tracking-wider ${u.status === 'available' ? 'text-green-400' : 'text-blue-400'}`}>{getStatusLabel(u.status)}</div>
                 </div>
               ))}
             </div>
@@ -13006,132 +13102,127 @@ const CADSystem = () => {
         )}
 
         {selectedRole === 'dispatch' && activeTab === 'tow' && (
-          <div>
-            <h2 className="text-xl font-semibold mb-6">Tow Management</h2>
-
-            <div className="bg-gray-800 rounded-lg p-6 mb-4">
-              <h3 className="text-lg font-semibold mb-4">Active Tow Requests</h3>
-              <p className="text-gray-400 text-center py-8">No active tow requests</p>
+          <div className="space-y-5">
+            <div>
+              <div className="eyebrow mb-1.5">Dispatch</div>
+              <h2 className="text-2xl font-semibold tracking-tight">Tow Management</h2>
             </div>
 
-            <div className="bg-gray-800 rounded-lg p-6">
-              <h3 className="text-lg font-semibold mb-4">Available Tow Trucks</h3>
-              <div className="grid md:grid-cols-3 gap-4">
-                <div className="bg-gray-700 rounded p-4 border-l-4 border-yellow-500">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-bold">TOW-1</h4>
-                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
+            <div className="panel p-6">
+              <h3 className="section-title text-orange-400">Active Tow Requests</h3>
+              <p className="text-gray-400 text-sm text-center py-8">No active tow requests</p>
+            </div>
+
+            <div className="panel p-6">
+              <h3 className="section-title text-orange-400">Available Tow Trucks</h3>
+              <div className="grid md:grid-cols-3 gap-3">
+                {[
+                  { id: 'TOW-1', driver: "Mike's Towing" },
+                  { id: 'TOW-2', driver: 'Quick Tow' },
+                ].map(t => (
+                  <div key={t.id} className="panel-card">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-mono font-semibold">{t.id}</h4>
+                      <div className="w-2.5 h-2.5 rounded-full bg-green-500"></div>
+                    </div>
+                    <div className="text-sm text-gray-400">Driver: {t.driver}</div>
+                    <div className="mt-2 text-xs font-semibold uppercase tracking-wider text-green-400">Available</div>
                   </div>
-                  <div className="text-sm text-gray-400">Driver: Mike's Towing</div>
-                  <div className="text-sm text-green-400 font-semibold">Available</div>
-                </div>
-                <div className="bg-gray-700 rounded p-4 border-l-4 border-yellow-500">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-bold">TOW-2</h4>
-                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                  </div>
-                  <div className="text-sm text-gray-400">Driver: Quick Tow</div>
-                  <div className="text-sm text-green-400 font-semibold">Available</div>
-                </div>
+                ))}
               </div>
             </div>
           </div>
         )}
 
         {selectedRole === 'dispatch' && activeTab === 'fire-ems' && (
-          <div>
-            <h2 className="text-xl font-semibold mb-6">Fire/EMS Management</h2>
-
-            <div className="bg-gray-800 rounded-lg p-6 mb-4">
-              <h3 className="text-lg font-semibold mb-4">Active Fire/EMS Calls</h3>
-              <p className="text-gray-400 text-center py-8">No active fire/EMS calls</p>
+          <div className="space-y-5">
+            <div>
+              <div className="eyebrow mb-1.5">Dispatch</div>
+              <h2 className="text-2xl font-semibold tracking-tight">Fire/EMS Management</h2>
             </div>
 
-            <div className="bg-gray-800 rounded-lg p-6">
-              <h3 className="text-lg font-semibold mb-4">Available Units</h3>
-              <div className="grid md:grid-cols-3 gap-4">
-                <div className="bg-gray-700 rounded p-4 border-l-4 border-red-500">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-bold">ENGINE-1</h4>
-                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
+            <div className="panel p-6">
+              <h3 className="section-title text-red-400">Active Fire/EMS Calls</h3>
+              <p className="text-gray-400 text-sm text-center py-8">No active fire/EMS calls</p>
+            </div>
+
+            <div className="panel p-6">
+              <h3 className="section-title text-red-400">Available Units</h3>
+              <div className="grid md:grid-cols-3 gap-3">
+                {[
+                  { id: 'ENGINE-1', station: 'Station 1' },
+                  { id: 'MEDIC-1', station: 'EMS Station 1' },
+                  { id: 'LADDER-1', station: 'Station 1' },
+                ].map(f => (
+                  <div key={f.id} className="panel-card">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-mono font-semibold">{f.id}</h4>
+                      <div className="w-2.5 h-2.5 rounded-full bg-green-500"></div>
+                    </div>
+                    <div className="text-sm text-gray-400">{f.station}</div>
+                    <div className="mt-2 text-xs font-semibold uppercase tracking-wider text-green-400">Available</div>
                   </div>
-                  <div className="text-sm text-gray-400">Station 1</div>
-                  <div className="text-sm text-green-400 font-semibold">Available</div>
-                </div>
-                <div className="bg-gray-700 rounded p-4 border-l-4 border-red-500">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-bold">MEDIC-1</h4>
-                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                  </div>
-                  <div className="text-sm text-gray-400">EMS Station 1</div>
-                  <div className="text-sm text-green-400 font-semibold">Available</div>
-                </div>
-                <div className="bg-gray-700 rounded p-4 border-l-4 border-red-500">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-bold">LADDER-1</h4>
-                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                  </div>
-                  <div className="text-sm text-gray-400">Station 1</div>
-                  <div className="text-sm text-green-400 font-semibold">Available</div>
-                </div>
+                ))}
               </div>
             </div>
           </div>
         )}
+        </div>
       </main>
 
-      <footer className="bg-gray-800 border-t border-gray-700 p-4 fixed bottom-0 left-0 right-0">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-2">
+      {/* Taskbar */}
+      <footer className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.06] bg-gray-900/85 backdrop-blur-xl">
+        <div className="px-4 md:px-6 h-[72px] flex justify-between items-center gap-3">
+          <div className="flex items-center gap-2 min-w-0">
             <button
               onClick={() => setShowRoleMenu(!showRoleMenu)}
-              className="bg-gray-700 p-1 rounded hover:bg-gray-600 transition"
+              className={`flex items-center gap-2.5 rounded-xl border py-1.5 pl-1.5 pr-3.5 ${
+                showRoleMenu
+                  ? 'border-accent-500/40 bg-accent-500/10'
+                  : 'border-white/[0.07] bg-white/[0.03] hover:border-white/[0.14] hover:bg-white/[0.06]'
+              }`}
               title={selectedRole === 'police' && loggedInOfficer ? loggedInOfficer.displayName : selectedRole === 'dispatch' ? 'Dispatch' : 'Menu'}
             >
-              <img
-                src="/SLRPLogo.png"
-                alt="SLRP Menu"
-                className="w-12 h-12 rounded"
-              />
+              <BrandMark size={34} />
+              <span className="hidden sm:block text-sm font-medium text-gray-200">Menu</span>
             </button>
 
             {/* Pinned Records Buttons - Only show for Police role */}
             {selectedRole === 'police' && (
               <>
+                {(pinnedRecordsButtons.lookup || pinnedRecordsButtons.records || pinnedRecordsButtons.bolo) && (
+                  <div className="mx-1 h-8 w-px bg-white/[0.08]" />
+                )}
                 {pinnedRecordsButtons.lookup && (
-                  <button
-                    onClick={() => setActiveRecordsPanel('lookup')}
-                    className="bg-blue-700 hover:bg-blue-600 px-4 py-2 rounded flex items-center gap-2 text-white transition"
-                  >
-                    <Search size={18} />
-                    <span className="font-semibold">Lookup</span>
+                  <button onClick={() => setActiveRecordsPanel('lookup')} className="btn btn-secondary">
+                    <Search size={16} className="text-blue-400" />
+                    Lookup
                   </button>
                 )}
                 {pinnedRecordsButtons.records && (
-                  <button
-                    onClick={() => setActiveRecordsPanel('records')}
-                    className="bg-purple-700 hover:bg-purple-600 px-4 py-2 rounded flex items-center gap-2 text-white transition"
-                  >
-                    <FileText size={18} />
-                    <span className="font-semibold">Records</span>
+                  <button onClick={() => setActiveRecordsPanel('records')} className="btn btn-secondary">
+                    <FileText size={16} className="text-purple-400" />
+                    Records
                   </button>
                 )}
                 {pinnedRecordsButtons.bolo && (
-                  <button
-                    onClick={() => setActiveRecordsPanel('bolo')}
-                    className="bg-red-700 hover:bg-red-600 px-4 py-2 rounded flex items-center gap-2 text-white transition"
-                  >
-                    <AlertTriangle size={18} />
-                    <span className="font-semibold">BOLO</span>
+                  <button onClick={() => setActiveRecordsPanel('bolo')} className="btn btn-secondary">
+                    <AlertTriangle size={16} className="text-red-400" />
+                    BOLO
                   </button>
                 )}
               </>
             )}
           </div>
-          <div className="bg-gray-700 px-4 py-2 rounded">
-            <div className="text-gray-400 text-xs">Current Time (PST)</div>
-            <div className="text-white font-mono text-lg">
-              {currentTime.toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles', month: '2-digit', day: '2-digit', year: 'numeric' })} {currentTime.toLocaleTimeString('en-US', { timeZone: 'America/Los_Angeles', hour12: true })}
+          <div className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.03] px-4 py-2">
+            <Clock size={16} className="text-accent-400 hidden sm:block" />
+            <div className="leading-tight text-right">
+              <div className="font-mono text-base font-medium text-white tabular-nums">
+                {currentTime.toLocaleTimeString('en-US', { timeZone: 'America/Los_Angeles', hour12: true })}
+              </div>
+              <div className="text-[11px] text-gray-500 tabular-nums">
+                {currentTime.toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles', month: '2-digit', day: '2-digit', year: 'numeric' })} · PST
+              </div>
             </div>
           </div>
         </div>

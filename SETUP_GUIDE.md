@@ -1,4 +1,4 @@
-# Silver Lining CAD System - Complete Setup Guide
+# StrataMDT - Complete Setup Guide
 
 ## 📦 What You've Received
 
