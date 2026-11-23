@@ -278,7 +278,11 @@ Role color is a highlight (pill, dot, icon chip, header underline), not a thick 
 
 - **Login**: centered card over an ambient gradient/grid background, StrataMDT mark + wordmark, inputs with leading icons, show/hide password toggle, accent sign-in button, version footer.
 - **Role selection**: top bar (lockup, user chip, Sign Out), "Where are you working today?" heading, five role cards with icon chips; unavailable roles are dimmed with a "No access" label.
-- **Operational shell (Dispatch/Law Enforcement/Fire/Tow)**: a sticky top bar and a bottom taskbar (Menu button, pinned Records shortcuts, PST clock).
+- **Operational shell (Dispatch/Law Enforcement/Fire/Tow)**: a sticky top bar and a bottom taskbar with the PST clock.
+  - Taskbar, Dispatch and Tow: a Menu button (Change Role / Sign Out).
+  - Taskbar, Law Enforcement: Lookup, Records, BOLO and, for supervisors, Supervisor Panel buttons (`renderTaskbarButton`, with count badges).
+  - Taskbar, Law Enforcement and Fire/EMS: no Menu button. Change Role sits next to the clock, and Sign Out is on role selection.
+  - Backspace and the panel back arrow close the panel.
   - Dispatch: lockup, role pill, segmented nav and the COM button.
   - Law Enforcement and Fire/EMS (`unitTopBar`): one row with the lockup, the unit identity (opens Unit Information), "Riding with", the status buttons, a Units toggle for supervisors, the FiveM chip (`renderFiveMChip`) and PANIC (LE only). There is no nav label. 10-code tags hide below 1400px.
   - Tow: a separate status strip.
