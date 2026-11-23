@@ -71,11 +71,15 @@ The Sheriff view has a **Live Map** tab that shows every unit the bridge is trac
 - **Unit list:** click a unit in the side list to center on it and see its location, vehicle and speed.
 - **Update rate:** the map polls every 1.5s while it's open. Game positions arrive every 2.5s, set by `Config.TelemetryInterval` and `Config.UnitUpdateInterval`.
 
-No map image is included. Until you add one, the map draws a coordinate grid with approximate region labels. To use your own GTA V map image:
-
-1. Put it in `public/map/`.
-2. Set `MAP_CONFIG.image` in [`lib/fivem/mapConfig.ts`](../lib/fivem/mapConfig.ts).
-3. Set `imageBounds` to the world coordinates of the image's edges. That file explains how to calibrate them.
+**Map image:**
+- The map uses the GTA V **Atlas** map from [Flamm64/GTA-V-World-Map](https://github.com/Flamm64/GTA-V-World-Map), which may be modified and reused. Map art © Rockstar Games.
+- It was stitched from the original tiles and cropped to the island, in two sizes:
+  - `public/map/gta5-atlas.jpg` (overview);
+  - `public/map/gta5-atlas-hd.jpg` (loaded when zoomed in).
+- The **layers** button switches between a dark "night" look and the original atlas colors. The browser remembers the choice.
+- The calibration from game coordinates to the image lives in [`lib/fivem/mapConfig.ts`](../lib/fivem/mapConfig.ts). Positions are accurate to about ±100 units, roughly a city block.
+- To use a different image, replace the files and update `imageBounds`.
+- The map shows even before the bridge is configured; it just has no units on it.
 
 ## Protocol reference
 

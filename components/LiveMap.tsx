@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Crosshair, LocateFixed, MapPin, Minus, Plus, Radio, Car } from 'lucide-react';
+import { Crosshair, Layers, LocateFixed, MapPin, Minus, Plus, Radio, Car } from 'lucide-react';
 import { MAP_CONFIG, MAP_LABELS } from '@/lib/fivem/mapConfig';
 import type { UnitTelemetry } from '@/lib/fivem/types';
 import { formatGameLocation } from '@/lib/fivem/useFiveMBridge';
@@ -33,6 +33,11 @@ const HOME: View = { cx: (dv.minX + dv.maxX) / 2, cy: -(dv.minY + dv.maxY) / 2, 
 const MIN_ZOOM = 0.6;
 const MAX_ZOOM = 40;
 
+// Night look for the (light) atlas image: invert lightness, keep hues.
+const DARK_FILTER = 'invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.92) saturate(0.7)';
+type MapStyle = 'dark' | 'atlas';
+const STYLE_KEY = 'strataMapStyle';
+
 const ageLabel = (ms: number) => (ms < 5000 ? 'live' : ms < 60000 ? `${Math.round(ms / 1000)}s ago` : `${Math.round(ms / 60000)}m ago`);
 
 export default function LiveMap({
@@ -57,9 +62,25 @@ export default function LiveMap({
   const [follow, setFollow] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [now, setNow] = useState(Date.now());
+  const [mapStyle, setMapStyle] = useState<MapStyle>('dark');
   const drag = useRef<{ x: number; y: number; cx: number; cy: number; moved: boolean } | null>(null);
 
   const me = myCallsign ? String(myCallsign).trim().toUpperCase() : undefined;
+
+  // Remember the chosen map style per browser (best effort)
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STYLE_KEY);
+      if (saved === 'atlas' || saved === 'dark') setMapStyle(saved);
+    } catch {}
+  }, []);
+  const toggleStyle = () => {
+    setMapStyle(prev => {
+      const next = prev === 'dark' ? 'atlas' : 'dark';
+      try { localStorage.setItem(STYLE_KEY, next); } catch {}
+      return next;
+    });
+  };
 
   // Track the container size so the viewBox keeps the right aspect ratio
   useEffect(() => {
@@ -176,19 +197,6 @@ export default function LiveMap({
     return lines;
   }, [gridStep, ib.minX, ib.maxX, ib.minY, ib.maxY]);
 
-  if (!enabled) {
-    return (
-      <div className="rounded-2xl border border-dashed border-white/[0.1] bg-white/[0.02] px-8 py-16 text-center">
-        <MapPin size={36} className="mx-auto mb-3 text-gray-600" />
-        <p className="text-white font-medium">Live map needs the FiveM bridge</p>
-        <p className="text-sm text-gray-400 mt-1">
-          Set <span className="font-mono text-gray-300">FIVEM_API_KEY</span> on the CAD host and install the
-          strata-mdt resource on your server (see fivem/README.md).
-        </p>
-      </div>
-    );
-  }
-
   const selectedBlip = selected ? blips.find(b => b.t.callsign === selected) : undefined;
 
   return (
@@ -205,14 +213,28 @@ export default function LiveMap({
         >
           <svg className="absolute inset-0 h-full w-full" viewBox={viewBox} preserveAspectRatio="xMidYMid meet">
             {MAP_CONFIG.image ? (
-              <image
-                href={MAP_CONFIG.image}
-                x={ib.minX}
-                y={-ib.maxY}
-                width={ib.maxX - ib.minX}
-                height={ib.maxY - ib.minY}
-                preserveAspectRatio="none"
-              />
+              <g style={{ filter: mapStyle === 'dark' ? DARK_FILTER : undefined }}>
+                {/* open ocean around the image so its edges blend in */}
+                <rect x={-60000} y={-60000} width={120000} height={120000} fill={MAP_CONFIG.oceanColor} />
+                <image
+                  href={MAP_CONFIG.image}
+                  x={ib.minX}
+                  y={-ib.maxY}
+                  width={ib.maxX - ib.minX}
+                  height={ib.maxY - ib.minY}
+                  preserveAspectRatio="none"
+                />
+                {MAP_CONFIG.imageHd && unitsPerPx < MAP_CONFIG.hdBelowUnitsPerPx && (
+                  <image
+                    href={MAP_CONFIG.imageHd}
+                    x={ib.minX}
+                    y={-ib.maxY}
+                    width={ib.maxX - ib.minX}
+                    height={ib.maxY - ib.minY}
+                    preserveAspectRatio="none"
+                  />
+                )}
+              </g>
             ) : (
               <>
                 <rect x={ib.minX} y={-ib.maxY} width={ib.maxX - ib.minX} height={ib.maxY - ib.minY} fill="#0b1220" />
@@ -292,18 +314,31 @@ export default function LiveMap({
           {/* Overlay: connection + controls */}
           <div className="pointer-events-none absolute left-3 top-3 flex items-center gap-2">
             <span
-              className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium backdrop-blur ${
-                connected ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-300' : 'border-white/[0.08] bg-gray-900/70 text-gray-400'
+              className={`inline-flex items-center gap-1.5 rounded-lg border bg-gray-900/85 px-2.5 py-1 text-xs font-medium shadow-panel backdrop-blur ${
+                connected ? 'border-emerald-500/30 text-emerald-300' : 'border-white/[0.08] text-gray-400'
               }`}
             >
               <span className={`h-1.5 w-1.5 rounded-full ${connected ? 'bg-emerald-400 animate-pulse' : 'bg-gray-500'}`} />
-              {connected ? `Live · ${blips.length} unit${blips.length === 1 ? '' : 's'}` : 'FiveM offline'}
+              {!enabled
+                ? 'FiveM bridge not configured'
+                : connected
+                  ? `Live · ${blips.length} unit${blips.length === 1 ? '' : 's'}`
+                  : 'FiveM offline'}
             </span>
           </div>
           <div className="absolute right-3 top-3 flex flex-col gap-1.5" onPointerDown={e => e.stopPropagation()}>
             <button className="icon-btn bg-gray-900/80 backdrop-blur" onClick={() => zoomBy(1.5)} title="Zoom in"><Plus size={16} /></button>
             <button className="icon-btn bg-gray-900/80 backdrop-blur" onClick={() => zoomBy(1 / 1.5)} title="Zoom out"><Minus size={16} /></button>
             <button className="icon-btn bg-gray-900/80 backdrop-blur" onClick={() => { setView(HOME); setFollow(false); }} title="Show whole map"><Crosshair size={16} /></button>
+            {MAP_CONFIG.image && (
+              <button
+                className="icon-btn bg-gray-900/80 backdrop-blur"
+                onClick={toggleStyle}
+                title={mapStyle === 'dark' ? 'Switch to atlas colours' : 'Switch to night map'}
+              >
+                <Layers size={16} />
+              </button>
+            )}
             {me && (
               <button
                 className={`icon-btn backdrop-blur ${follow ? '!bg-accent-500/20 !text-accent-300' : 'bg-gray-900/80'}`}
@@ -350,7 +385,13 @@ export default function LiveMap({
         {blips.length === 0 ? (
           <div className="py-10 text-center text-sm text-gray-400">
             <Radio size={28} className="mx-auto mb-2 text-gray-600" />
-            {connected ? 'No units reporting. Officers appear after running /callsign in game.' : 'Waiting for the FiveM server…'}
+            {!enabled ? (
+              <>Set <span className="font-mono text-gray-300">FIVEM_API_KEY</span> on the CAD host and install the strata-mdt resource (fivem/README.md) to see units here.</>
+            ) : connected ? (
+              'No units reporting. Officers appear after running /callsign in game.'
+            ) : (
+              'Waiting for the FiveM server…'
+            )}
           </div>
         ) : (
           <div className="grid max-h-[calc(100vh-390px)] gap-2 overflow-y-auto pr-1">

@@ -246,7 +246,7 @@ Basis for connecting a FiveM server. Full protocol and setup: `fivem/README.md`.
 - Game -> CAD: `POST /api/fivem/ingest` (heartbeat, unit_update, unit_left, unit_status, panic, call_911, aop_update). CAD -> game: the game polls `GET /api/fivem/outbox?since=`. Lookups: `GET /api/fivem/lookup?plate=|name=`.
 - CAD UI: `useFiveMBridge` polls `/api/fivem/state` (paused while forms/modals are open, same reason as the clock). It drives the top-bar FiveM chip, the "Incoming from FiveM" queue on the Dispatch board, and live locations on unit cards.
 - Units are matched to players by **callsign** (case-insensitive).
-- Live map: `components/LiveMap.tsx` (top-level component so pan/zoom survive CADSystem re-renders), shown via the Sheriff **Live Map** tab (`policeView` state). Map image + calibration in `lib/fivem/mapConfig.ts`; with no image it draws a grid with region labels.
+- Live map: `components/LiveMap.tsx` (top-level component so pan/zoom survive CADSystem re-renders), shown via the Sheriff **Live Map** tab (`policeView` state). Map image is the GTA V atlas in `public/map/` (overview + HD for close zoom, dark/atlas style toggle); calibration in `lib/fivem/mapConfig.ts`. Setting `image: null` falls back to a grid with region labels.
 - Bridge state is in memory (`lib/fivem/store.ts`, on `globalThis`), not in `cad-data.json`, so a single server instance is assumed.
 - CAD actions that should reach the game call `fivem.send(...)` (see createCall, assignUnit, closeCall, updateUnitStatus). Game-originated changes are applied locally and saved, never echoed back.
 
@@ -261,7 +261,7 @@ The `railway.json` configuration handles the deployment settings.
 - Final StrataMDT logo artwork (wire up via `components/Brand.tsx`)
 - Database integration (currently using JSON file persistence)
 - Real-time sync between users (WebSocket/Server-Sent Events)
-- FiveM: waypoints for assigned calls, map image for the live map, ESX/QBCore job sync, shared store (Redis) for multi-instance
+- FiveM: waypoints for assigned calls, finer map calibration / tiled map, ESX/QBCore job sync, shared store (Redis) for multi-instance
 - Multi-instance deployment support
 - Separate the monolithic component into smaller modules
 - Implement proper authentication with JWT tokens

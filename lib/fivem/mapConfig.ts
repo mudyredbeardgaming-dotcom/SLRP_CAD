@@ -1,25 +1,33 @@
 /**
  * Live map settings.
  *
- * GTA V world coordinates: +x is east, +y is north. The default bounds below
- * cover the whole playable map (Los Santos in the south, Paleto Bay in the north).
+ * GTA V world coordinates: +x is east, +y is north.
  *
- * Using a real map image:
- *   1. Put the image in /public/map/ (e.g. /public/map/gta5-map.jpg).
- *   2. Set `image` to its path.
- *   3. Set `imageBounds` to the world coordinates of the image's edges. Ways to calibrate:
- *      - Stand at the far west and far east edges shown on the image and note your x.
- *      - Stand at the far north and far south edges and note your y.
- *      (Your coordinates arrive from the game with each position update. Hover a blip to see them.)
- *      Many community maps publish these bounds with the image.
+ * Map images (public/map/):
+ *   gta5-atlas.jpg     2080x2656  overview, always loaded
+ *   gta5-atlas-hd.jpg  4160x5312  loaded only when zoomed in
+ * Both are crops of the "Atlas" style from Flamm64/GTA-V-World-Map
+ * (https://github.com/Flamm64/GTA-V-World-Map, free to modify and reuse). Map art © Rockstar Games.
  *
- * Without an image the map draws a coordinate grid with region labels.
+ * `imageBounds` are the world coordinates of the image edges. They come from
+ * that project's game -> pixel calibration (0.0503 px per unit at zoom 2) and
+ * were checked against landmarks (Humane Labs, Maze Bank Arena, Fort Zancudo,
+ * Paleto Bay SO...). Accuracy is roughly ±100 units, about a city block.
+ *
+ * To use a different image: replace the files (or the paths) and set
+ * `imageBounds` to the new image's edges. Set `image` to null to fall back to
+ * the grid with region labels.
  */
 export const MAP_CONFIG = {
-  image: null as string | null,
-  imageBounds: { minX: -4500, maxX: 4500, minY: -4500, maxY: 8500 },
+  image: '/map/gta5-atlas.jpg' as string | null,
+  /** Sharper image swapped in when one screen pixel covers less than `hdBelowUnitsPerPx` world units. */
+  imageHd: '/map/gta5-atlas-hd.jpg' as string | null,
+  hdBelowUnitsPerPx: 5,
+  imageBounds: { minX: -4885, maxX: 5453, minY: -4594, maxY: 8606 },
+  /** Ocean colour of the image, used to fill around it so the edges blend. */
+  oceanColor: '#0fa8d2',
   /** Area shown when the map first opens / on "reset". */
-  defaultView: { minX: -4500, maxX: 4500, minY: -4500, maxY: 8500 },
+  defaultView: { minX: -4000, maxX: 4600, minY: -4200, maxY: 8000 },
   /** Blips older than this (ms) are drawn faded. */
   staleAfterMs: 15_000,
 };
