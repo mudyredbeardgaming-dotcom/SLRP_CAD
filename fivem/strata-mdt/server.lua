@@ -94,6 +94,17 @@ local function normalize(callsign)
   return (tostring(callsign or ''):gsub('^%s+', ''):gsub('%s+$', '')):upper()
 end
 
+--- The callsign a player set with /callsign, or nil.
+function Strata.GetCallsign(src)
+  return callsigns[tonumber(src)]
+end
+
+--- Last location a player reported (only while they have a callsign), or nil.
+function Strata.GetLocation(src)
+  local t = telemetry[tonumber(src)]
+  return t and t.location or nil
+end
+
 -- Every player currently using a callsign (several players may share one).
 local function sourcesForCallsign(callsign)
   local wanted, found = normalize(callsign), {}
@@ -218,8 +229,11 @@ Strata.RegisterCommand('runplate', function(src, args)
     if #data.results == 0 then return Strata.Chat(src, ('%s: no registration on file.'):format(plate)) end
     for _, v in ipairs(data.results) do
       local flags = (#(v.flags or {}) > 0) and (' | FLAGS: %d'):format(#v.flags) or ''
-      Strata.Chat(src, ('%s: %s %s %s (%s) | Owner: %s | %s%s'):format(
-        v.plate, v.year or '', v.make or '', v.model or '', v.color or '?', v.owner or '?', v.status or '?', flags))
+      local expired = v.registrationStatus == 'EXPIRED' or v.insuranceStatus == 'EXPIRED'
+      Strata.Chat(src, ('%s: %s %s %s (%s) | Owner: %s | REG %s | INS %s%s'):format(
+        v.plate, v.year or '', v.make or '', v.model or '', v.color or '?', v.owner or '?',
+        v.registrationStatus or v.status or '?', v.insuranceStatus or '?', flags),
+        (expired or flags ~= '') and { 245, 158, 11 } or nil)
     end
   end)
 end)
@@ -236,7 +250,8 @@ Strata.RegisterCommand('runname', function(src, args)
     for _, p in ipairs(data.results) do
       local license = (p.licenses and p.licenses[1]) and (p.licenses[1].status or '?') or 'NONE'
       local flags = (#(p.flags or {}) > 0) and (' | FLAGS: %d'):format(#p.flags) or ''
-      Strata.Chat(src, ('%s | DOB %s | License: %s%s'):format(p.name, p.dob or '?', license, flags))
+      local cites = (p.citations or 0) > 0 and (' | Citations: %d'):format(p.citations) or ''
+      Strata.Chat(src, ('%s | DOB %s | License: %s%s%s'):format(p.name, p.dob or '?', license, cites, flags))
     end
   end)
 end)

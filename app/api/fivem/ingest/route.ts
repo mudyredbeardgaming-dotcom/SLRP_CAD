@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireGameServer } from '@/lib/fivem/auth';
 import { applyInboundEvent, markSeen } from '@/lib/fivem/store';
 import { linkAccount, registerVehicle, setLicense, upsertCharacter } from '@/lib/fivem/characters';
+import { issueCitation } from '@/lib/fivem/records';
 import { FiveMInboundEvent } from '@/lib/fivem/types';
 
 export const dynamic = 'force-dynamic';
@@ -19,6 +20,8 @@ async function applyPersisted(event: any): Promise<unknown | undefined> {
       return setLicense(event.characterId, event.license);
     case 'vehicle_register':
       return registerVehicle(event.characterId, event.vehicle);
+    case 'citation_issued':
+      return issueCitation(event.citation);
     default:
       return undefined;
   }

@@ -1,5 +1,6 @@
 import { randomInt } from 'crypto';
 import { readDataFile, withDataLock, writeDataFile } from '../dataStore';
+import { cadDatePlusYears, cadToday, isPastCadDate } from '../cadDate';
 import type { FiveMOwner, GameCharacter, GameLicense, GameVehicle } from './types';
 
 /**
@@ -36,12 +37,25 @@ const P: ProtectState =
 // Helpers
 // ---------------------------------------------------------------------------
 
-const today = () => new Date().toISOString().slice(0, 10);
-const addYears = (years: number) => {
-  const d = new Date();
-  d.setFullYear(d.getFullYear() + years);
-  return d.toISOString().slice(0, 10);
+// Dates follow the CAD clock (Pacific time), see lib/cadDate.ts
+const today = () => cadToday();
+const addYears = (years: number) => cadDatePlusYears(Number.isFinite(years) && years > 0 ? years : 1);
+/** Default validity for new licenses and registrations, from the CAD date. */
+const DEFAULT_VALID_YEARS = 1;
+/**
+ * A date the player picked, or "auto" (one year from the CAD date).
+ * Returns '' when the value is missing or not a usable date.
+ */
+const chosenDate = (v: unknown) => {
+  if (v == null || v === '') return '';
+  if (String(v).trim().toLowerCase() === 'auto') return addYears(DEFAULT_VALID_YEARS);
+  const iso = isoDate(v);
+  const year = Number(iso.slice(0, 4));
+  return iso && year >= 1900 && year <= 2200 ? iso : '';
 };
+/** A new future date lifts an EXPIRED status; any other status is kept. */
+const revive = (status: unknown, date: string) =>
+  String(status || '').toUpperCase() === 'EXPIRED' && date && !isPastCadDate(date) ? 'VALID' : status;
 const upper = (v: unknown) => String(v ?? '').trim().toUpperCase();
 const clean = (v: unknown, max = 80) => String(v ?? '').trim().slice(0, max);
 const civIdFor = (characterId: unknown) => `FIVEM-${String(characterId ?? '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64)}`;
@@ -96,7 +110,7 @@ const linkedUsername = (data: any, owner?: FiveMOwner) => {
   return cred?.username || null;
 };
 
-async function mutate<T>(fn: (data: any) => T): Promise<T> {
+export async function mutate<T>(fn: (data: any) => T): Promise<T> {
   return withDataLock(async () => {
     const data = ensureShape((await readDataFile()) || {});
     const result = fn(data);
@@ -261,7 +275,7 @@ export async function setLicense(characterId: unknown, lic: GameLicense) {
           licenseNumber: clean(lic.number, 20) || `${type[0]}${digits(recId, 7)}`,
           status: 'VALID',
           issuedDate: today(),
-          expirationDate: addYears(lic.validYears ?? 4),
+          expirationDate: addYears(lic.validYears ?? DEFAULT_VALID_YEARS),
           ...(type === 'DRIVER LICENSE' ? { licenseClass: 'C', motorcycleEndorsement: 'NONE' } : {}),
         },
         source: 'FIVEM',
@@ -274,12 +288,17 @@ export async function setLicense(characterId: unknown, lic: GameLicense) {
     if (lic.status) rec.data.status = upper(lic.status);
     if (lic.class) rec.data.licenseClass = upper(lic.class);
     if (lic.motorcycle) rec.data.motorcycleEndorsement = upper(lic.motorcycle);
-    if (isoDate(lic.expires)) rec.data.expirationDate = isoDate(lic.expires);
+    const expires = chosenDate(lic.expires);
+    if (lic.expires != null && lic.expires !== '' && !expires) throw new Error('license.expires must be a date (YYYY-MM-DD) or "auto"');
+    if (expires) {
+      rec.data.expirationDate = expires;
+      if (!lic.status) rec.data.status = revive(rec.data.status, expires);
+    }
     if (lic.restrictions) rec.data.restrictions = clean(lic.restrictions, 200);
     rec.updatedAt = new Date().toISOString();
 
     protectRecord(civ.id, rec);
-    return { recordId: recId, created, status: rec.data.status };
+    return { recordId: recId, created, licenseType: type, status: rec.data.status, expirationDate: rec.data.expirationDate };
   });
 }
 
@@ -312,9 +331,9 @@ export async function registerVehicle(characterId: unknown, veh: GameVehicle) {
           plateNumber: plate,
           vin: clean(veh.vin, 17).toUpperCase() || vinFor(plate),
           registrationStatus: upper(veh.registrationStatus) || 'VALID',
-          registrationExpiration: addYears(veh.validYears ?? 1),
+          registrationExpiration: addYears(veh.validYears ?? DEFAULT_VALID_YEARS),
           insuranceStatus: upper(veh.insuranceStatus) || 'VALID',
-          insuranceExpiration: addYears(veh.validYears ?? 1),
+          insuranceExpiration: addYears(veh.validYears ?? DEFAULT_VALID_YEARS),
           registrationDate: today(),
         },
         source: 'FIVEM',
@@ -330,13 +349,24 @@ export async function registerVehicle(characterId: unknown, veh: GameVehicle) {
     if (veh.color) d.color = clean(veh.color, 40);
     if (veh.year) d.year = clean(veh.year, 4);
     if (veh.vehicleType) d.vehicleType = upper(veh.vehicleType);
+    for (const [field, dateKey, statusKey] of [
+      ['registrationExpires', 'registrationExpiration', 'registrationStatus'],
+      ['insuranceExpires', 'insuranceExpiration', 'insuranceStatus'],
+    ] as const) {
+      const raw = (veh as any)[field];
+      if (raw == null || raw === '') continue;
+      const date = chosenDate(raw);
+      if (!date) throw new Error(`vehicle.${field} must be a date (YYYY-MM-DD) or "auto"`);
+      d[dateKey] = date;
+      d[statusKey] = revive(d[statusKey], date);
+    }
     d.ownerName = `${civ.firstName} ${civ.lastName}`;
     rec.characterId = civ.id;
     rec.characterName = d.ownerName;
     rec.updatedAt = new Date().toISOString();
 
     protectRecord(civ.id, rec);
-    return { recordId: recId, created, transferredFrom };
+    return { recordId: recId, created, plate, transferredFrom, registrationExpiration: d.registrationExpiration, insuranceExpiration: d.insuranceExpiration };
   });
 }
 

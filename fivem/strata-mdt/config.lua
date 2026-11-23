@@ -34,6 +34,9 @@ Config.Commands = {
   aop      = { name = 'aop',      aliases = {},         enabled = true, ace = 'strata.aop' },
   linkcad  = { name = 'linkcad',  aliases = {},         enabled = true },  -- link a CAD account: /linkcad CODE
   cadsync  = { name = 'cadsync',  aliases = {},         enabled = true },  -- push my current character to the CAD now
+  cite     = { name = 'cite',     aliases = {},         enabled = true, leo = true },  -- /cite <player id> <fine> <offense>
+  dlexpiry  = { name = 'dlexpiry',  aliases = {},       enabled = true },  -- /dlexpiry 2027-06-30 | auto
+  regexpiry = { name = 'regexpiry', aliases = {},       enabled = true },  -- /regexpiry <plate> 2027-06-30 | auto
 }
 
 -- ACE permission for commands marked `leo = true`. nil = anyone can use them.
@@ -101,8 +104,9 @@ Config.CharacterSync = {
   -- Status sent to the CAD when a license the player had is taken away in game.
   revokedLicenseStatus = 'SUSPENDED',
 
-  -- Defaults for newly created CAD records.
-  licenseValidYears = 4,
+  -- Defaults for newly created CAD records (from the CAD's date, which runs on Pacific time).
+  -- Players can pick their own date afterwards (Config.ExpiryChoice).
+  licenseValidYears = 1,
   vehicleValidYears = 1,
   vehicleInsuranceStatus = 'VALID',
 
@@ -119,6 +123,42 @@ Config.CharacterSync = {
     { name = 'qb-vehicleshop:server:financeVehicle', net = true },
     { name = 'qb-cityhall:server:requestId', net = true },
   },
+}
+
+-- ---------------------------------------------------------------------------
+-- Expiration dates players choose
+-- ---------------------------------------------------------------------------
+-- When a player gets a new license or vehicle registration in the CAD, it starts
+-- with the automatic date (one year from the CAD date). The player is then asked
+-- to keep it or pick their own date: a date picker (ox_lib) or, without ox_lib,
+-- a chat message with the commands. They can change it later with the commands too:
+--   /dlexpiry 2027-06-30     /dlexpiry auto
+--   /regexpiry ABC123 2027-06-30     /regexpiry ABC123 auto
+Config.ExpiryChoice = {
+  enabled = true,
+  -- CAD license types that ask for a date. /dlexpiry sets the first one.
+  licenses = { 'DRIVER LICENSE' },
+  -- Ask for new vehicle registrations too.
+  vehicles = true,
+  -- Use ox_lib's input dialog (date picker) when ox_lib is running.
+  useOxLib = true,
+}
+
+-- ---------------------------------------------------------------------------
+-- Citations written in game -> CAD records
+-- ---------------------------------------------------------------------------
+-- A citation becomes a CITATION record in the CAD: listed under the officer's
+-- records (matched by linked CAD account, then by callsign) and on the cited
+-- civilian's record. Use /cite, or call exports['strata-mdt']:IssueCitation from
+-- your ticket script (see fivem/README.md).
+Config.Citations = {
+  enabled = true,
+  -- Highest fine /cite accepts for one offense.
+  maxFine = 10000,
+  -- Charge type for /cite: INFRACTION, MISDEMEANOR, FELONY, WARNING or CORRECTABLE.
+  defaultChargeType = 'INFRACTION',
+  -- Tell the cited player in chat.
+  notifySubject = true,
 }
 
 -- Framework license name -> CAD license. A string is the CAD license type; a table
