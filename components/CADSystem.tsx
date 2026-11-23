@@ -223,6 +223,9 @@ const CADSystem = () => {
   const [activeRecordsPanel, setActiveRecordsPanel] = useState<string | null>(null); // 'lookup', 'records', 'bolo'
   const [boloView, setBoloView] = useState<'active' | 'inactive'>('active');
   const [boloSearch, setBoloSearch] = useState('');
+  // Report "Involved Persons" picker
+  const [involvedSearch, setInvolvedSearch] = useState('');
+  const [involvedRole, setInvolvedRole] = useState('SUSPECT');
 
   // Records Panel state
   const [showNewReportDropdown, setShowNewReportDropdown] = useState(false);
@@ -462,18 +465,36 @@ const CADSystem = () => {
     setCurrentRecordData({ ...record });
   };
 
-  const saveReport = () => {
+  // ---- Civilian helpers --------------------------------------------------
+  // Characters store dateOfBirth / cellPhone / streetResidence; older code and
+  // data used dob / phone / address, so read both.
+  const civName = (c: any) => [c?.firstName, c?.lastName].filter(Boolean).join(' ') || c?.name || '';
+  const civDob = (c: any) => c?.dateOfBirth || c?.dob || '';
+  const civPhone = (c: any) => c?.cellPhone || c?.phone || '';
+  const civAddress = (c: any) => c?.streetResidence || c?.address || '';
+  /** Lower-case, punctuation-free name without middle initials ("John A. Smith" -> "john smith"). */
+  const normName = (n: any) => String(n || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').split(/\s+/).filter(w => w.length > 1).join(' ');
+  /** A report/record field refers to `person` by stored civilian id, or (if no id was stored) by exact name. */
+  const personMatches = (person: any, name: any, id?: any) => {
+    if (!person) return false;
+    if (id) return id === person.id;
+    const n = normName(name);
+    return !!n && n === normName(civName(person));
+  };
+
+  const saveReport = (status?: string) => {
+    const reportData = status ? { ...currentReportData, status } : currentReportData;
     if (editingReportId) {
       // Update existing report
       setOfficerReports(prev => prev.map(r =>
         r.id === editingReportId
-          ? { ...currentReportData, updatedAt: new Date().toISOString() }
+          ? { ...reportData, updatedAt: new Date().toISOString() }
           : r
       ));
     } else {
       // Create new report
       const newReport = {
-        ...currentReportData,
+        ...reportData,
         id: `RPT-${Date.now()}`,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
@@ -574,6 +595,23 @@ const CADSystem = () => {
     }
   };
 
+  // Use of Force: the search fills "Victim of Force" (it used to fill party1, which that form doesn't show)
+  const selectVictimOfForce = (person: any) => {
+    setCurrentReportData((prev: any) => ({
+      ...prev,
+      victimOfForce: {
+        ...prev.victimOfForce,
+        name: civName(person),
+        personId: person.id,
+        dob: civDob(person),
+        address: civAddress(person),
+        phone: civPhone(person),
+      },
+    }));
+    setPartySearchResults1([]);
+    setPartySearchName1('');
+  };
+
   const selectParty = (person: any, partyNumber: 1 | 2) => {
     const partyKey = partyNumber === 1 ? 'party1' : 'party2';
     // Find license info from DMV records if available
@@ -584,11 +622,11 @@ const CADSystem = () => {
       ...prev,
       [partyKey]: {
         ...prev[partyKey],
-        name: `${person.firstName} ${person.lastName}`,
+        name: civName(person),
         personId: person.id,
-        dob: person.dob,
-        address: person.address,
-        phone: person.phone,
+        dob: civDob(person),
+        address: civAddress(person),
+        phone: civPhone(person),
         licenseNumber: licenseData.licenseNumber || '',
         licenseStatus: licenseData.status || '',
         licenseType: licenseData.licenseType || ''
@@ -1036,6 +1074,161 @@ const CADSystem = () => {
     ['reasonMissingPerson', 'Missing Person'],
     ['reasonRecklessDriver', 'Reckless Driver'],
   ];
+  // ---- Involved persons (every report) -----------------------------------
+  // Anyone added here gets the report listed on their record in Lookup.
+  const INVOLVED_ROLES = ['SUSPECT', 'VICTIM', 'WITNESS', 'REPORTING PARTY', 'OTHER'];
+  const roleChip = (role: string) => {
+    const r = String(role || '').toUpperCase();
+    const tone = /SUSPECT|ARRESTEE|TRESPASSER/.test(r) ? 'bg-red-500/15 text-red-300 ring-red-500/30'
+      : /VICTIM|SUBJECT OF FORCE/.test(r) ? 'bg-blue-500/15 text-blue-300 ring-blue-500/30'
+      : /WITNESS/.test(r) ? 'bg-emerald-500/15 text-emerald-300 ring-emerald-500/30'
+      : /REPORTING/.test(r) ? 'bg-purple-500/15 text-purple-300 ring-purple-500/30'
+      : 'bg-white/[0.06] text-gray-300 ring-white/[0.1]';
+    return <span key={r} className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ring-1 ${tone}`}>{r}</span>;
+  };
+  const addInvolvedPerson = (person: any | null, typedName?: string) => {
+    const list = currentReportData.involvedPersons || [];
+    const name = person ? civName(person) : String(typedName || '').trim();
+    if (!name) return;
+    const dup = list.some((x: any) => x.role === involvedRole && (person ? x.civilianId === person.id : normName(x.name) === normName(name)));
+    if (!dup) {
+      const entry = { id: `${Date.now()}`, civilianId: person?.id || null, name, dob: person ? civDob(person) : '', role: involvedRole };
+      setCurrentReportData({ ...currentReportData, involvedPersons: [...list, entry] });
+    }
+    setInvolvedSearch('');
+  };
+  const renderInvolvedPersons = () => {
+    const list = currentReportData.involvedPersons || [];
+    const q = involvedSearch.trim().toLowerCase();
+    const results = q.length >= 2 ? civilians.filter(c => civName(c).toLowerCase().includes(q)).slice(0, 8) : [];
+    const update = (next: any[]) => setCurrentReportData({ ...currentReportData, involvedPersons: next });
+    return (
+      <div className="panel-card">
+        <h4 className="section-title text-purple-400">Involved Persons</h4>
+        <p className="mb-3 text-xs text-gray-500">Suspects, victims and witnesses listed here will have this report on their record in Lookup.</p>
+        <div className="flex flex-wrap gap-2">
+          <select value={involvedRole} onChange={(e) => setInvolvedRole(e.target.value)} className="field !w-auto" aria-label="Role">
+            {INVOLVED_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+          </select>
+          <div className="relative min-w-[220px] flex-1">
+            <input
+              type="text"
+              value={involvedSearch}
+              onChange={(e) => setInvolvedSearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  if (results.length === 1) addInvolvedPerson(results[0]);
+                }
+              }}
+              placeholder="Search character by name to add..."
+              className="field"
+              aria-label="Search involved person"
+            />
+            {q.length >= 2 && (
+              <div className="menu-list absolute z-30 mt-1 max-h-56 w-full overflow-y-auto">
+                {results.map(c => (
+                  <button key={c.id} type="button" onClick={() => addInvolvedPerson(c)} className="menu-item w-full text-left">
+                    <span className="font-medium text-white">{civName(c)}</span>
+                    <span className="ml-2 text-xs text-gray-400">DOB {civDob(c) || 'N/A'}</span>
+                  </button>
+                ))}
+                <button type="button" onClick={() => addInvolvedPerson(null, involvedSearch)} className="menu-item w-full text-left text-gray-400">
+                  Add &quot;{involvedSearch.trim()}&quot; (not in CAD)
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+        {list.length === 0 ? (
+          <p className="mt-3 text-sm text-gray-500">No persons added.</p>
+        ) : (
+          <div className="mt-3 space-y-2">
+            {list.map((x: any) => (
+              <div key={x.id} className="subcard flex flex-wrap items-center justify-between gap-3 p-3">
+                <div className="min-w-0">
+                  <span className="font-medium text-white">{x.name}</span>
+                  {x.dob && <span className="ml-2 text-xs text-gray-400">DOB {x.dob}</span>}
+                  {!x.civilianId && <span className="chip ml-2 !py-0 text-[10px]">Not in CAD</span>}
+                </div>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={x.role}
+                    onChange={(e) => update(list.map((y: any) => (y.id === x.id ? { ...y, role: e.target.value } : y)))}
+                    className="field field-sm !w-auto"
+                    aria-label={`Role for ${x.name}`}
+                  >
+                    {INVOLVED_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                  <button type="button" onClick={() => update(list.filter((y: any) => y.id !== x.id))} className="icon-btn !h-8 !w-8 text-red-400" aria-label={`Remove ${x.name}`}>
+                    <X size={16} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ---- Person history (Lookup) ---------------------------------------------
+  const formatCharges = (charges: any) => {
+    if (!charges) return '';
+    if (!Array.isArray(charges)) return String(charges);
+    return charges
+      .filter((c: any) => c && (c.charge || c.titleCode))
+      .map((c: any) => `${c.titleCode ? c.titleCode + ' ' : ''}${c.charge || ''}${chargeCount(c) > 1 ? ` x${chargeCount(c)}` : ''}`.trim())
+      .join(', ');
+  };
+  const isWarrantActive = (r: any) => (r.warrantStatus || 'ACTIVE') !== 'CLOSED' && !['CLOSED', 'INACTIVE', 'SERVED'].includes(String(r.status || '').toUpperCase());
+  /** Roles a person has in a report: the Involved Persons list plus the person fields of each report type. */
+  const reportRolesFor = (rep: any, person: any) => {
+    const roles: string[] = [];
+    const m = (name: any, id?: any) => personMatches(person, name, id);
+    (rep.involvedPersons || []).forEach((x: any) => { if (m(x.name, x.civilianId)) roles.push(x.role); });
+    if (m(rep.arresteeName, rep.arresteeId)) roles.push('ARRESTEE');
+    if (m(rep.trespasserName, rep.trespasserId)) roles.push('TRESPASSER');
+    [1, 2].forEach(n => {
+      const party = rep[`party${n}`];
+      if (!party || !m(party.name, party.personId)) return;
+      const inv = rep[`party${n}Involvement`];
+      roles.push(inv === 'OTHER' ? (rep[`party${n}InvolvementOther`] || 'OTHER')
+        : inv || (rep.type === 'VEHICLE TOW/RELEASE REPORT' ? 'REGISTERED OWNER'
+          : rep.type === 'TRAFFIC COLLISION REPORT' ? `PARTY ${n}` : 'INVOLVED PARTY'));
+    });
+    if (rep.victimOfForce && m(rep.victimOfForce.name, rep.victimOfForce.personId)) roles.push('SUBJECT OF FORCE');
+    if (m(rep.driverInformationName) || m(rep.driverName)) roles.push('DRIVER');
+    if (m(rep.witness1Name) || m(rep.witness2Name)) roles.push('WITNESS');
+    return Array.from(new Set(roles.map(r => String(r).toUpperCase())));
+  };
+  const getPersonHistory = (person: any) => {
+    const m = (name: any, id?: any) => personMatches(person, name, id);
+    const dmv = person?.dmvRecords || [];
+    const plates = new Set(dmv.filter((r: any) => r.type === 'VEHICLE REGISTRATION')
+      .map((r: any) => String(r.data?.plateNumber || '').trim().toUpperCase()).filter(Boolean));
+    const byDate = (a: any, b: any) => String(b.createdAt || b.date || '').localeCompare(String(a.createdAt || a.date || ''));
+    const bolos = officerRecords
+      .filter(r => r.type === 'BOLO' && isBoloActive(r))
+      .map(r => ({ record: r, bySubject: m(r.subjectName, r.subjectId), plate: String(r.vehiclePlate || '').trim().toUpperCase() }))
+      .filter(x => x.bySubject || (x.plate && plates.has(x.plate)))
+      .sort((a, b) => byDate(a.record, b.record));
+    const warrants = officerRecords.filter(r => r.type === 'WARRANT' && isWarrantActive(r) && m(r.subjectName, r.subjectId)).sort(byDate);
+    const oosWarrants = dmv.filter((r: any) => r.type === 'OUT OF STATE WARRANT'
+      && !['CLOSED', 'INACTIVE', 'SERVED', 'RECALLED'].includes(String(r.data?.status || '').toUpperCase()));
+    const supervision = dmv.filter((r: any) => r.type === 'PROBATION' || r.type === 'PAROLE');
+    const arrests = [
+      ...officerRecords.filter(r => r.type === 'ARREST' && m(r.arresteeName, r.arresteeId)).map(r => ({ kind: 'record', item: r })),
+      ...officerReports.filter(r => r.type === 'ARREST' && m(r.arresteeName, r.arresteeId)).map(r => ({ kind: 'report', item: r })),
+    ].sort((a, b) => byDate(a.item, b.item));
+    const citations = officerRecords.filter(r => r.type === 'CITATION' && m(r.subjectName, r.subjectId)).sort(byDate);
+    const reports = officerReports
+      .map(r => ({ report: r, roles: reportRolesFor(r, person) }))
+      .filter(x => x.roles.length > 0)
+      .sort((a, b) => byDate(a.report, b.report));
+    return { bolos, warrants, oosWarrants, supervision, arrests, citations, reports, wanted: bolos.length + warrants.length + oosWarrants.length > 0 };
+  };
+
   const BOLO_SAFETY: [string, string][] = [
     ['safetyArmed', 'Known to be Armed'],
     ['safetyViolent', 'Known to be Violent'],
@@ -4815,16 +5008,17 @@ const CADSystem = () => {
                                   setCurrentRecordData({
                                     ...currentRecordData,
                                     arresteeName: `${p.firstName} ${p.lastName}`,
-                                    arresteeDOB: p.dob,
-                                    arresteeAddress: p.address,
-                                    arresteePhone: p.phone
+                                    arresteeId: p.id,
+                                    arresteeDOB: civDob(p),
+                                    arresteeAddress: civAddress(p),
+                                    arresteePhone: civPhone(p)
                                   });
                                   setPartySearchResults1([]);
                                   setPartySearchName1('');
                                 }}
                                 className="menu-item"
                               >
-                                {p.firstName} {p.lastName} - DOB: {p.dob}
+                                {p.firstName} {p.lastName} - DOB: {civDob(p)}
                               </div>
                             ))}
                           </div>
@@ -4836,7 +5030,7 @@ const CADSystem = () => {
                           <input
                             type="text"
                             value={currentRecordData.arresteeName || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, arresteeName: e.target.value})}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, arresteeName: e.target.value, arresteeId: null})}
                             className="field"
                           />
                         </div>
@@ -5650,16 +5844,17 @@ const CADSystem = () => {
                                   setCurrentRecordData({
                                     ...currentRecordData,
                                     subjectName: `${p.firstName} ${p.lastName}`,
-                                    subjectDOB: p.dob,
-                                    subjectAddress: p.address,
-                                    subjectPhone: p.phone
+                                    subjectId: p.id,
+                                    subjectDOB: civDob(p),
+                                    subjectAddress: civAddress(p),
+                                    subjectPhone: civPhone(p)
                                   });
                                   setPartySearchResults1([]);
                                   setPartySearchName1('');
                                 }}
                                 className="menu-item"
                               >
-                                {p.firstName} {p.lastName} - DOB: {p.dob}
+                                {p.firstName} {p.lastName} - DOB: {civDob(p)}
                               </div>
                             ))}
                           </div>
@@ -5671,7 +5866,7 @@ const CADSystem = () => {
                           <input
                             type="text"
                             value={currentRecordData.subjectName || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, subjectName: e.target.value})}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, subjectName: e.target.value, subjectId: null})}
                             className="field"
                           />
                         </div>
@@ -6325,16 +6520,17 @@ const CADSystem = () => {
                                   setCurrentRecordData({
                                     ...currentRecordData,
                                     subjectName: `${p.firstName} ${p.lastName}`,
-                                    subjectDOB: p.dob,
-                                    subjectAddress: p.address,
-                                    subjectPhone: p.phone
+                                    subjectId: p.id,
+                                    subjectDOB: civDob(p),
+                                    subjectAddress: civAddress(p),
+                                    subjectPhone: civPhone(p)
                                   });
                                   setPartySearchResults1([]);
                                   setPartySearchName1('');
                                 }}
                                 className="menu-item"
                               >
-                                {p.firstName} {p.lastName} - DOB: {p.dob}
+                                {p.firstName} {p.lastName} - DOB: {civDob(p)}
                               </div>
                             ))}
                           </div>
@@ -6346,7 +6542,7 @@ const CADSystem = () => {
                           <input
                             type="text"
                             value={currentRecordData.subjectName || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, subjectName: e.target.value})}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, subjectName: e.target.value, subjectId: null})}
                             className="field"
                           />
                         </div>
@@ -6883,9 +7079,10 @@ const CADSystem = () => {
                                     setCurrentRecordData({
                                       ...currentRecordData,
                                       subjectName: `${civilian.firstName} ${civilian.lastName}`,
-                                      subjectDOB: civilian.dateOfBirth || '',
-                                      subjectPhone: civilian.phone || '',
-                                      subjectAddress: civilian.address || '',
+                                      subjectId: civilian.id,
+                                      subjectDOB: civDob(civilian),
+                                      subjectPhone: civPhone(civilian),
+                                      subjectAddress: civAddress(civilian),
                                       civilianSearchTerm: '',
                                       civilianSearchResults: []
                                     });
@@ -6893,7 +7090,7 @@ const CADSystem = () => {
                                   className="menu-item"
                                 >
                                   <div className="font-semibold">{civilian.firstName} {civilian.lastName}</div>
-                                  <div className="text-xs text-gray-400">DOB: {civilian.dateOfBirth || 'N/A'} | Phone: {civilian.phone || 'N/A'}</div>
+                                  <div className="text-xs text-gray-400">DOB: {civDob(civilian) || 'N/A'} | Phone: {civPhone(civilian) || 'N/A'}</div>
                                 </div>
                               ))}
                             </div>
@@ -6906,7 +7103,7 @@ const CADSystem = () => {
                           <input
                             type="text"
                             value={currentRecordData.subjectName || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, subjectName: e.target.value})}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, subjectName: e.target.value, subjectId: null})}
                             className="field"
                           />
                         </div>
@@ -7715,205 +7912,9 @@ const CADSystem = () => {
           </div>
   ) : null;
 
-  // Records Panel JSX - Rendered inline to prevent re-render issues with form inputs
-  const recordsPanelJSX = (
-    <div className="modal-backdrop z-50">
-        <div className="modal-surface w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
-          {/* Header */}
-          <div className="modal-header">
-            <div className="flex items-center gap-3">
-              {renderBackButton('Records Management')}
-              <h2 className="text-lg font-semibold text-white flex items-center gap-2.5 [&>svg]:text-purple-400">
-                <FileText size={24} />
-                Records Management
-              </h2>
-            </div>
-            <button
-              onClick={() => setActiveRecordsPanel(null)}
-              className="icon-btn"
-            >
-              <X size={20} />
-            </button>
-          </div>
-
-          {/* Top Button Bar */}
-          <div className="bg-gray-850 px-6 py-3 border-b border-white/[0.06] flex gap-2 flex-wrap">
-            {/* Search Button */}
-            <button
-              onClick={() => {/* TODO: Implement search */}}
-              className="btn btn-primary"
-            >
-              <Search size={18} />
-              Search
-            </button>
-
-            {/* New Report Dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => {
-                  setShowNewReportDropdown(!showNewReportDropdown);
-                  setShowNewRecordDropdown(false);
-                }}
-                className="btn btn-success"
-              >
-                <Plus size={18} />
-                New Report
-                <span className="text-xs">▼</span>
-              </button>
-              {showNewReportDropdown && (
-                <div className="absolute top-full left-0 mt-1 z-10 min-w-64 menu-list">
-                  {REPORT_TYPES.map(type => (
-                    <button
-                      key={type}
-                      onClick={() => handleNewReport(type)}
-                      className="w-full text-left menu-item"
-                    >
-                      {type}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* New Record Dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => {
-                  setShowNewRecordDropdown(!showNewRecordDropdown);
-                  setShowNewReportDropdown(false);
-                }}
-                className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-500 transition flex items-center gap-2"
-              >
-                <Plus size={18} />
-                New Record
-                <span className="text-xs">▼</span>
-              </button>
-              {showNewRecordDropdown && (
-                <div className="absolute top-full left-0 mt-1 z-10 min-w-48 menu-list">
-                  {RECORD_TYPES.map(type => (
-                    <button
-                      key={type}
-                      onClick={() => handleNewRecord(type)}
-                      className="w-full text-left menu-item"
-                    >
-                      {type}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Supervisor Panel Button */}
-            <button
-              onClick={() => {/* TODO: Implement supervisor panel */}}
-              className="btn btn-danger"
-            >
-              <Shield size={18} />
-              Supervisor Panel
-            </button>
-          </div>
-
-          {/* Main Content Area */}
-          <div className="flex-1 overflow-y-auto p-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Reports Section */}
-              <div className="panel-card">
-                <h3 className="text-lg font-semibold text-green-400 mb-4 flex items-center gap-2">
-                  <FileText size={20} />
-                  My Reports
-                </h3>
-                <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {officerReports.length === 0 ? (
-                    <div className="text-gray-400 text-center py-8">
-                      <FileText size={48} className="mx-auto mb-2 opacity-50" />
-                      <p>No reports yet</p>
-                      <p className="text-sm">Click "New Report" to create one</p>
-                    </div>
-                  ) : (
-                    officerReports.map(report => (
-                      <div
-                        key={report.id}
-                        onClick={() => openExistingReport(report)}
-                        className="well p-3 hover:bg-gray-750 cursor-pointer transition"
-                      >
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <div className="text-white font-semibold">{report.type}</div>
-                            <div className="text-gray-400 text-sm">{report.id}</div>
-                            {report.recordNumber && (
-                              <div className="text-blue-400 text-sm">Record# {report.recordNumber}</div>
-                            )}
-                          </div>
-                          <span className={`px-2 py-1 rounded text-xs ${
-                            report.status === 'DRAFT' ? 'bg-yellow-600' :
-                            report.status === 'SUBMITTED' ? 'bg-blue-600' :
-                            report.status === 'APPROVED' ? 'bg-green-600' : 'bg-gray-600'
-                          }`}>
-                            {report.status}
-                          </span>
-                        </div>
-                        <div className="text-gray-500 text-xs mt-2">
-                          Created: {formatRecordDateTime(report.createdAt)}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              {/* Records Section */}
-              <div className="panel-card">
-                <h3 className="text-lg font-semibold text-orange-400 mb-4 flex items-center gap-2">
-                  <Database size={20} />
-                  My Records
-                </h3>
-                <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {officerRecords.length === 0 ? (
-                    <div className="text-gray-400 text-center py-8">
-                      <Database size={48} className="mx-auto mb-2 opacity-50" />
-                      <p>No records yet</p>
-                      <p className="text-sm">Click "New Record" to create one</p>
-                    </div>
-                  ) : (
-                    officerRecords.map(record => (
-                      <div
-                        key={record.id}
-                        onClick={() => openExistingRecord(record)}
-                        className="well p-3 hover:bg-gray-750 cursor-pointer transition"
-                      >
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <div className="text-white font-semibold">{record.type}</div>
-                            <div className="text-gray-400 text-sm">{record.id}</div>
-                            {record.recordNumber && (
-                              <div className="text-blue-400 text-sm">Record# {record.recordNumber}</div>
-                            )}
-                            {record.subject && (
-                              <div className="text-gray-300 text-sm mt-1">Subject: {record.subject}</div>
-                            )}
-                          </div>
-                          <span className={`px-2 py-1 rounded text-xs ${
-                            record.status === 'ACTIVE' ? 'bg-green-600' :
-                            record.status === 'PENDING' ? 'bg-yellow-600' :
-                            record.status === 'CLOSED' || record.status === 'INACTIVE' ? 'bg-gray-600' : 'bg-blue-600'
-                          }`}>
-                            {record.status}
-                          </span>
-                        </div>
-                        <div className="text-gray-500 text-xs mt-2">
-                          Created: {formatRecordDateTime(record.createdAt)}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Report Form Modal */}
-        {activeReportForm && (
+  // Report form modal. Shared by the Records panel and Lookup (open a report
+  // from a person's history).
+  const reportFormModalJSX = activeReportForm ? (
           <div className="modal-backdrop z-[60]">
             <div className="modal-surface w-full max-w-5xl max-h-[90vh] overflow-y-auto">
               <div className="bg-gray-900 px-6 py-4 border-b border-white/[0.06] flex justify-between items-center sticky top-0 z-10">
@@ -8243,7 +8244,7 @@ const CADSystem = () => {
                                 onClick={() => selectParty(p, 1)}
                                 className="menu-item"
                               >
-                                {p.firstName} {p.lastName} - DOB: {p.dob}
+                                {p.firstName} {p.lastName} - DOB: {civDob(p)}
                               </div>
                             ))}
                           </div>
@@ -8255,7 +8256,7 @@ const CADSystem = () => {
                           <input
                             type="text"
                             value={currentReportData.party1?.name || ''}
-                            onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, name: e.target.value}})}
+                            onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, name: e.target.value, personId: null}})}
                             className="field"
                           />
                         </div>
@@ -8464,7 +8465,7 @@ const CADSystem = () => {
                                 onClick={() => selectParty(p, 2)}
                                 className="menu-item"
                               >
-                                {p.firstName} {p.lastName} - DOB: {p.dob}
+                                {p.firstName} {p.lastName} - DOB: {civDob(p)}
                               </div>
                             ))}
                           </div>
@@ -8476,7 +8477,7 @@ const CADSystem = () => {
                           <input
                             type="text"
                             value={currentReportData.party2?.name || ''}
-                            onChange={(e) => setCurrentReportData({...currentReportData, party2: {...currentReportData.party2, name: e.target.value}})}
+                            onChange={(e) => setCurrentReportData({...currentReportData, party2: {...currentReportData.party2, name: e.target.value, personId: null}})}
                             className="field"
                           />
                         </div>
@@ -9011,7 +9012,7 @@ const CADSystem = () => {
                           <div className="mt-2 menu-list max-h-32 overflow-y-auto">
                             {partySearchResults1.map((p, i) => (
                               <div key={i} onClick={() => selectParty(p, 1)} className="menu-item">
-                                {p.firstName} {p.lastName} - DOB: {p.dob}
+                                {p.firstName} {p.lastName} - DOB: {civDob(p)}
                               </div>
                             ))}
                           </div>
@@ -9020,7 +9021,7 @@ const CADSystem = () => {
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="col-span-2">
                           <label className="field-label">Name</label>
-                          <input type="text" value={currentReportData.party1?.name || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, name: e.target.value}})} className="field" />
+                          <input type="text" value={currentReportData.party1?.name || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, name: e.target.value, personId: null}})} className="field" />
                         </div>
                         <div>
                           <label className="field-label">DOB</label>
@@ -9093,7 +9094,7 @@ const CADSystem = () => {
                           <div className="mt-2 menu-list max-h-32 overflow-y-auto">
                             {partySearchResults2.map((p, i) => (
                               <div key={i} onClick={() => selectParty(p, 2)} className="menu-item">
-                                {p.firstName} {p.lastName} - DOB: {p.dob}
+                                {p.firstName} {p.lastName} - DOB: {civDob(p)}
                               </div>
                             ))}
                           </div>
@@ -9102,7 +9103,7 @@ const CADSystem = () => {
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="col-span-2">
                           <label className="field-label">Name</label>
-                          <input type="text" value={currentReportData.party2?.name || ''} onChange={(e) => setCurrentReportData({...currentReportData, party2: {...currentReportData.party2, name: e.target.value}})} className="field" />
+                          <input type="text" value={currentReportData.party2?.name || ''} onChange={(e) => setCurrentReportData({...currentReportData, party2: {...currentReportData.party2, name: e.target.value, personId: null}})} className="field" />
                         </div>
                         <div>
                           <label className="field-label">DOB</label>
@@ -9410,8 +9411,8 @@ const CADSystem = () => {
                         {partySearchResults1.length > 0 && (
                           <div className="mt-2 menu-list max-h-32 overflow-y-auto">
                             {partySearchResults1.map((p, i) => (
-                              <div key={i} onClick={() => selectParty(p, 1)} className="menu-item">
-                                {p.firstName} {p.lastName} - DOB: {p.dob}
+                              <div key={i} onClick={() => selectVictimOfForce(p)} className="menu-item">
+                                {p.firstName} {p.lastName} - DOB: {civDob(p)}
                               </div>
                             ))}
                           </div>
@@ -9420,7 +9421,7 @@ const CADSystem = () => {
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="col-span-2">
                           <label className="field-label">Name</label>
-                          <input type="text" value={currentReportData.victimOfForce?.name || ''} onChange={(e) => setCurrentReportData({...currentReportData, victimOfForce: {...currentReportData.victimOfForce, name: e.target.value}})} className="field" />
+                          <input type="text" value={currentReportData.victimOfForce?.name || ''} onChange={(e) => setCurrentReportData({...currentReportData, victimOfForce: {...currentReportData.victimOfForce, name: e.target.value, personId: null}})} className="field" />
                         </div>
                         <div>
                           <label className="field-label">DOB</label>
@@ -9849,7 +9850,7 @@ const CADSystem = () => {
                           <div className="mt-2 menu-list max-h-32 overflow-y-auto">
                             {partySearchResults1.map((p, i) => (
                               <div key={i} onClick={() => selectParty(p, 1)} className="menu-item">
-                                {p.firstName} {p.lastName} - DOB: {p.dob}
+                                {p.firstName} {p.lastName} - DOB: {civDob(p)}
                               </div>
                             ))}
                           </div>
@@ -9858,7 +9859,7 @@ const CADSystem = () => {
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="col-span-2">
                           <label className="field-label">Name</label>
-                          <input type="text" value={currentReportData.party1?.name || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, name: e.target.value}})} className="field" />
+                          <input type="text" value={currentReportData.party1?.name || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, name: e.target.value, personId: null}})} className="field" />
                         </div>
                         <div>
                           <label className="field-label">DOB</label>
@@ -9958,7 +9959,7 @@ const CADSystem = () => {
                           <div className="mt-2 menu-list max-h-32 overflow-y-auto">
                             {partySearchResults2.map((p, i) => (
                               <div key={i} onClick={() => selectParty(p, 2)} className="menu-item">
-                                {p.firstName} {p.lastName} - DOB: {p.dob}
+                                {p.firstName} {p.lastName} - DOB: {civDob(p)}
                               </div>
                             ))}
                           </div>
@@ -9967,7 +9968,7 @@ const CADSystem = () => {
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="col-span-2">
                           <label className="field-label">Name</label>
-                          <input type="text" value={currentReportData.party2?.name || ''} onChange={(e) => setCurrentReportData({...currentReportData, party2: {...currentReportData.party2, name: e.target.value}})} className="field" />
+                          <input type="text" value={currentReportData.party2?.name || ''} onChange={(e) => setCurrentReportData({...currentReportData, party2: {...currentReportData.party2, name: e.target.value, personId: null}})} className="field" />
                         </div>
                         <div>
                           <label className="field-label">DOB</label>
@@ -10355,7 +10356,7 @@ const CADSystem = () => {
                           <div className="mt-2 menu-list max-h-32 overflow-y-auto">
                             {partySearchResults1.map((p, i) => (
                               <div key={i} onClick={() => selectParty(p, 1)} className="menu-item">
-                                {p.firstName} {p.lastName} - DOB: {p.dob}
+                                {p.firstName} {p.lastName} - DOB: {civDob(p)}
                               </div>
                             ))}
                           </div>
@@ -10364,7 +10365,7 @@ const CADSystem = () => {
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="col-span-2">
                           <label className="field-label">Registered Owner Name</label>
-                          <input type="text" value={currentReportData.party1?.name || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, name: e.target.value}})} className="field" />
+                          <input type="text" value={currentReportData.party1?.name || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, name: e.target.value, personId: null}})} className="field" />
                         </div>
                         <div>
                           <label className="field-label">DOB</label>
@@ -10966,7 +10967,7 @@ const CADSystem = () => {
                               setCurrentReportData({...currentReportData, trespasserSearchQuery: query});
                               if (query.length >= 2) {
                                 const results = civilians.filter(c =>
-                                  c.name.toLowerCase().includes(query.toLowerCase())
+                                  civName(c).toLowerCase().includes(query.toLowerCase())
                                 );
                                 setCurrentReportData({...currentReportData, trespasserSearchQuery: query, trespasserSearchResults: results});
                               }
@@ -10982,18 +10983,19 @@ const CADSystem = () => {
                                 onClick={() => {
                                   setCurrentReportData({
                                     ...currentReportData,
-                                    trespasserName: person.name,
-                                    trespasserDOB: person.dob,
-                                    trespasserPhone: person.phone,
-                                    trespasserAddress: person.address,
+                                    trespasserName: civName(person),
+                                    trespasserId: person.id,
+                                    trespasserDOB: civDob(person),
+                                    trespasserPhone: civPhone(person),
+                                    trespasserAddress: civAddress(person),
                                     trespasserSearchQuery: '',
                                     trespasserSearchResults: []
                                   });
                                 }}
                                 className="menu-item"
                               >
-                                <div className="text-sm text-white">{person.name}</div>
-                                <div className="text-xs text-gray-400">DOB: {person.dob}</div>
+                                <div className="text-sm text-white">{civName(person)}</div>
+                                <div className="text-xs text-gray-400">DOB: {civDob(person)}</div>
                               </div>
                             ))}
                           </div>
@@ -11003,7 +11005,7 @@ const CADSystem = () => {
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <label className="field-label">Name</label>
-                          <input type="text" value={currentReportData.trespasserName || ''} onChange={(e) => setCurrentReportData({...currentReportData, trespasserName: e.target.value})} className="field" />
+                          <input type="text" value={currentReportData.trespasserName || ''} onChange={(e) => setCurrentReportData({...currentReportData, trespasserName: e.target.value, trespasserId: null})} className="field" />
                         </div>
                         <div>
                           <label className="field-label">DOB</label>
@@ -11287,7 +11289,7 @@ const CADSystem = () => {
                             const query = e.target.value;
                             setCurrentReportData({...currentReportData, arresteeSearchQuery: query});
                             if (query.length >= 2) {
-                              const results = civilians.filter(c => c.name.toLowerCase().includes(query.toLowerCase()));
+                              const results = civilians.filter(c => civName(c).toLowerCase().includes(query.toLowerCase()));
                               setCurrentReportData({...currentReportData, arresteeSearchQuery: query, arresteeSearchResults: results});
                             }
                           }}
@@ -11299,16 +11301,17 @@ const CADSystem = () => {
                               <div key={idx} onClick={() => {
                                 setCurrentReportData({
                                   ...currentReportData,
-                                  arresteeName: person.name,
-                                  arresteeDOB: person.dob,
-                                  arresteePhone: person.phone,
-                                  arresteeAddress: person.address,
+                                  arresteeName: civName(person),
+                                  arresteeId: person.id,
+                                  arresteeDOB: civDob(person),
+                                  arresteePhone: civPhone(person),
+                                  arresteeAddress: civAddress(person),
                                   arresteeSearchQuery: '',
                                   arresteeSearchResults: []
                                 });
                               }} className="menu-item">
-                                <div className="text-sm text-white">{person.name}</div>
-                                <div className="text-xs text-gray-400">DOB: {person.dob}</div>
+                                <div className="text-sm text-white">{civName(person)}</div>
+                                <div className="text-xs text-gray-400">DOB: {civDob(person)}</div>
                               </div>
                             ))}
                           </div>
@@ -11318,7 +11321,7 @@ const CADSystem = () => {
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <label className="field-label">Name</label>
-                          <input type="text" value={currentReportData.arresteeName || ''} onChange={(e) => setCurrentReportData({...currentReportData, arresteeName: e.target.value})} className="field" />
+                          <input type="text" value={currentReportData.arresteeName || ''} onChange={(e) => setCurrentReportData({...currentReportData, arresteeName: e.target.value, arresteeId: null})} className="field" />
                         </div>
                         <div>
                           <label className="field-label">DOB</label>
@@ -11821,7 +11824,7 @@ const CADSystem = () => {
                           <div className="mt-2 menu-list max-h-32 overflow-y-auto">
                             {partySearchResults1.map((p, i) => (
                               <div key={i} onClick={() => selectParty(p, 1)} className="menu-item">
-                                {p.firstName} {p.lastName} - DOB: {p.dob}
+                                {p.firstName} {p.lastName} - DOB: {civDob(p)}
                               </div>
                             ))}
                           </div>
@@ -11830,7 +11833,7 @@ const CADSystem = () => {
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="col-span-2">
                           <label className="field-label">Name</label>
-                          <input type="text" value={currentReportData.party1?.name || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, name: e.target.value}})} className="field" />
+                          <input type="text" value={currentReportData.party1?.name || ''} onChange={(e) => setCurrentReportData({...currentReportData, party1: {...currentReportData.party1, name: e.target.value, personId: null}})} className="field" />
                         </div>
                         <div>
                           <label className="field-label">DOB</label>
@@ -11947,9 +11950,13 @@ const CADSystem = () => {
                   </>
                 )}
 
+                {/* Involved Persons: links people (suspect/victim/witness...) to this report for Lookup */}
+                {renderInvolvedPersons()}
+
                 <div className="flex gap-2 justify-end pt-4 border-t border-white/[0.06]">
                   <button
                     onClick={() => {
+                      setInvolvedSearch('');
                       setActiveReportForm(null);
                       setCurrentReportData({});
                       setEditingReportId(null);
@@ -11959,19 +11966,13 @@ const CADSystem = () => {
                     Cancel
                   </button>
                   <button
-                    onClick={() => {
-                      setCurrentReportData({...currentReportData, status: 'DRAFT'});
-                      saveReport();
-                    }}
+                    onClick={() => saveReport('DRAFT')}
                     className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-500"
                   >
                     Save as Draft
                   </button>
                   <button
-                    onClick={() => {
-                      setCurrentReportData({...currentReportData, status: 'SUBMITTED'});
-                      saveReport();
-                    }}
+                    onClick={() => saveReport('SUBMITTED')}
                     className="btn btn-success"
                   >
                     {editingReportId ? 'Save' : 'Add Record'}
@@ -11980,7 +11981,206 @@ const CADSystem = () => {
               </div>
             </div>
           </div>
-        )}
+  ) : null;
+
+  // Records Panel JSX - Rendered inline to prevent re-render issues with form inputs
+  const recordsPanelJSX = (
+    <div className="modal-backdrop z-50">
+        <div className="modal-surface w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+          {/* Header */}
+          <div className="modal-header">
+            <div className="flex items-center gap-3">
+              {renderBackButton('Records Management')}
+              <h2 className="text-lg font-semibold text-white flex items-center gap-2.5 [&>svg]:text-purple-400">
+                <FileText size={24} />
+                Records Management
+              </h2>
+            </div>
+            <button
+              onClick={() => setActiveRecordsPanel(null)}
+              className="icon-btn"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          {/* Top Button Bar */}
+          <div className="bg-gray-850 px-6 py-3 border-b border-white/[0.06] flex gap-2 flex-wrap">
+            {/* Search Button */}
+            <button
+              onClick={() => {/* TODO: Implement search */}}
+              className="btn btn-primary"
+            >
+              <Search size={18} />
+              Search
+            </button>
+
+            {/* New Report Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => {
+                  setShowNewReportDropdown(!showNewReportDropdown);
+                  setShowNewRecordDropdown(false);
+                }}
+                className="btn btn-success"
+              >
+                <Plus size={18} />
+                New Report
+                <span className="text-xs">▼</span>
+              </button>
+              {showNewReportDropdown && (
+                <div className="absolute top-full left-0 mt-1 z-10 min-w-64 menu-list">
+                  {REPORT_TYPES.map(type => (
+                    <button
+                      key={type}
+                      onClick={() => handleNewReport(type)}
+                      className="w-full text-left menu-item"
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* New Record Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => {
+                  setShowNewRecordDropdown(!showNewRecordDropdown);
+                  setShowNewReportDropdown(false);
+                }}
+                className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-500 transition flex items-center gap-2"
+              >
+                <Plus size={18} />
+                New Record
+                <span className="text-xs">▼</span>
+              </button>
+              {showNewRecordDropdown && (
+                <div className="absolute top-full left-0 mt-1 z-10 min-w-48 menu-list">
+                  {RECORD_TYPES.map(type => (
+                    <button
+                      key={type}
+                      onClick={() => handleNewRecord(type)}
+                      className="w-full text-left menu-item"
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Supervisor Panel Button */}
+            <button
+              onClick={() => {/* TODO: Implement supervisor panel */}}
+              className="btn btn-danger"
+            >
+              <Shield size={18} />
+              Supervisor Panel
+            </button>
+          </div>
+
+          {/* Main Content Area */}
+          <div className="flex-1 overflow-y-auto p-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Reports Section */}
+              <div className="panel-card">
+                <h3 className="text-lg font-semibold text-green-400 mb-4 flex items-center gap-2">
+                  <FileText size={20} />
+                  My Reports
+                </h3>
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {officerReports.length === 0 ? (
+                    <div className="text-gray-400 text-center py-8">
+                      <FileText size={48} className="mx-auto mb-2 opacity-50" />
+                      <p>No reports yet</p>
+                      <p className="text-sm">Click "New Report" to create one</p>
+                    </div>
+                  ) : (
+                    officerReports.map(report => (
+                      <div
+                        key={report.id}
+                        onClick={() => openExistingReport(report)}
+                        className="well p-3 hover:bg-gray-750 cursor-pointer transition"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="text-white font-semibold">{report.type}</div>
+                            <div className="text-gray-400 text-sm">{report.id}</div>
+                            {report.recordNumber && (
+                              <div className="text-blue-400 text-sm">Record# {report.recordNumber}</div>
+                            )}
+                          </div>
+                          <span className={`px-2 py-1 rounded text-xs ${
+                            report.status === 'DRAFT' ? 'bg-yellow-600' :
+                            report.status === 'SUBMITTED' ? 'bg-blue-600' :
+                            report.status === 'APPROVED' ? 'bg-green-600' : 'bg-gray-600'
+                          }`}>
+                            {report.status}
+                          </span>
+                        </div>
+                        <div className="text-gray-500 text-xs mt-2">
+                          Created: {formatRecordDateTime(report.createdAt)}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Records Section */}
+              <div className="panel-card">
+                <h3 className="text-lg font-semibold text-orange-400 mb-4 flex items-center gap-2">
+                  <Database size={20} />
+                  My Records
+                </h3>
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {officerRecords.length === 0 ? (
+                    <div className="text-gray-400 text-center py-8">
+                      <Database size={48} className="mx-auto mb-2 opacity-50" />
+                      <p>No records yet</p>
+                      <p className="text-sm">Click "New Record" to create one</p>
+                    </div>
+                  ) : (
+                    officerRecords.map(record => (
+                      <div
+                        key={record.id}
+                        onClick={() => openExistingRecord(record)}
+                        className="well p-3 hover:bg-gray-750 cursor-pointer transition"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="text-white font-semibold">{record.type}</div>
+                            <div className="text-gray-400 text-sm">{record.id}</div>
+                            {record.recordNumber && (
+                              <div className="text-blue-400 text-sm">Record# {record.recordNumber}</div>
+                            )}
+                            {record.subject && (
+                              <div className="text-gray-300 text-sm mt-1">Subject: {record.subject}</div>
+                            )}
+                          </div>
+                          <span className={`px-2 py-1 rounded text-xs ${
+                            record.status === 'ACTIVE' ? 'bg-green-600' :
+                            record.status === 'PENDING' ? 'bg-yellow-600' :
+                            record.status === 'CLOSED' || record.status === 'INACTIVE' ? 'bg-gray-600' : 'bg-blue-600'
+                          }`}>
+                            {record.status}
+                          </span>
+                        </div>
+                        <div className="text-gray-500 text-xs mt-2">
+                          Created: {formatRecordDateTime(record.createdAt)}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {reportFormModalJSX}
 
         {recordFormModalJSX}
       </div>
@@ -12264,16 +12464,26 @@ const CADSystem = () => {
               </div>
               {lookupSearchResults.length > 0 && (
                 <div className="mt-2 menu-list max-h-48 overflow-y-auto">
-                  {lookupSearchResults.map((person: any) => (
-                    <button
-                      key={person.id}
-                      onClick={() => selectLookupPerson(person)}
-                      className="w-full text-left menu-item"
-                    >
-                      <div className="font-semibold">{person.firstName} {person.lastName}</div>
-                      <div className="text-sm text-gray-400">DOB: {person.dob}</div>
-                    </button>
-                  ))}
+                  {lookupSearchResults.map((person: any) => {
+                    const wanted = getPersonHistory(person).wanted;
+                    return (
+                      <button
+                        key={person.id}
+                        onClick={() => selectLookupPerson(person)}
+                        className="w-full text-left menu-item flex items-center justify-between gap-3"
+                        title="Verify ID"
+                      >
+                        <span className="min-w-0">
+                          <span className="block font-semibold">{civName(person)}</span>
+                          <span className="block text-sm text-gray-400">DOB: {civDob(person) || 'N/A'}</span>
+                        </span>
+                        <span className="flex flex-shrink-0 items-center gap-2">
+                          {wanted && <span className="rounded-md bg-red-600 px-2 py-0.5 text-[11px] font-bold text-white">WANTED</span>}
+                          <span className="text-xs text-accent-300">Verify ID →</span>
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -12315,45 +12525,215 @@ const CADSystem = () => {
           </div>
 
           {/* Selected Person Results */}
-          {selectedLookupPerson && (
+          {selectedLookupPerson && (() => {
+            const person = selectedLookupPerson;
+            const h = getPersonHistory(person);
+            const license = (person.dmvRecords || []).find((r: any) => r.type === 'LICENSE' && /driver/i.test(r.data?.licenseType || ''))
+              || (person.dmvRecords || []).find((r: any) => r.type === 'LICENSE');
+            const age = (() => {
+              const d = new Date(civDob(person));
+              if (isNaN(d.getTime())) return null;
+              const now = new Date();
+              let a = now.getFullYear() - d.getFullYear();
+              if (now.getMonth() < d.getMonth() || (now.getMonth() === d.getMonth() && now.getDate() < d.getDate())) a--;
+              return a;
+            })();
+            const viewBtn = (onClick: () => void) => (
+              <button onClick={onClick} className="btn btn-secondary btn-sm flex-shrink-0"><Eye size={14} /> View</button>
+            );
+            const info = (label: string, value: any, wide = false) => (
+              <div className={wide ? 'col-span-2' : ''}>
+                <div className="eyebrow">{label}</div>
+                <div className="text-sm text-white">{value || <span className="text-gray-500">N/A</span>}</div>
+              </div>
+            );
+            return (
             <div className="space-y-4">
-              {/* Person Info Card */}
-              <div className="panel-card">
-                <div className="flex justify-between items-start mb-4">
-                  <h3 className="text-xl font-bold text-white">
-                    {selectedLookupPerson.firstName} {selectedLookupPerson.lastName}
-                  </h3>
-                  <button
-                    onClick={() => setSelectedLookupPerson(null)}
-                    className="icon-btn"
-                  >
-                    <X size={20} />
-                  </button>
+              {/* Wanted check: shown first so the officer sees it immediately */}
+              {h.wanted ? (
+                <div className="rounded-xl border border-red-500/50 bg-red-500/10 p-4 shadow-[0_0_0_1px_rgb(239_68_68/0.15)]" role="alert">
+                  <div className="mb-3 flex items-center gap-3">
+                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-red-600 text-white animate-pulse"><AlertTriangle size={20} /></span>
+                    <div>
+                      <div className="text-lg font-bold tracking-wide text-red-300">WANTED: {civName(person)}</div>
+                      <div className="text-xs text-red-200/80">
+                        {[h.warrants.length + h.oosWarrants.length > 0 && `${h.warrants.length + h.oosWarrants.length} active warrant${h.warrants.length + h.oosWarrants.length === 1 ? '' : 's'}`,
+                          h.bolos.length > 0 && `${h.bolos.length} active BOLO${h.bolos.length === 1 ? '' : 's'}`].filter(Boolean).join(' · ')}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    {h.warrants.map((w: any) => (
+                      <div key={w.id} className="flex flex-wrap items-start justify-between gap-3 rounded-lg bg-gray-950/40 p-3">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="rounded-md bg-red-600 px-2 py-0.5 text-xs font-bold text-white">WARRANT</span>
+                            <span className="text-sm font-semibold text-white">{w.warrantType || 'Warrant'}</span>
+                            {w.recordNumber && <span className="font-mono text-xs text-gray-400">#{w.recordNumber}</span>}
+                          </div>
+                          {formatCharges(w.charges) && <div className="mt-1 text-sm text-red-100">{formatCharges(w.charges)}</div>}
+                          <div className="mt-1 text-xs text-gray-400">Issued {formatRecordDateTime(w.createdAt || w.date)}{w.officer ? ` by ${w.officer}` : ''}{w.timeOfExecution ? ` · Serve ${w.timeOfExecution}` : ''}</div>
+                        </div>
+                        {viewBtn(() => openExistingRecord(w))}
+                      </div>
+                    ))}
+                    {h.oosWarrants.map((w: any, idx: number) => (
+                      <div key={w.id || idx} className="rounded-lg bg-gray-950/40 p-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="rounded-md bg-red-600 px-2 py-0.5 text-xs font-bold text-white">WARRANT</span>
+                          <span className="text-sm font-semibold text-white">Out of State{w.data?.state ? ` (${w.data.state})` : ''}</span>
+                          {w.data?.extraditable != null && <span className="text-xs text-gray-400">Extraditable: {w.data.extraditable ? 'YES' : 'NO'}</span>}
+                        </div>
+                        {formatCharges(w.data?.charges) && <div className="mt-1 text-sm text-red-100">{formatCharges(w.data?.charges)}</div>}
+                      </div>
+                    ))}
+                    {h.bolos.map(({ record: b, bySubject }: any) => {
+                      const safety = BOLO_SAFETY.filter(([k]) => b[k]).map(([, l]) => l);
+                      const reasons = BOLO_REASONS.filter(([k]) => b[k]).map(([, l]) => l);
+                      return (
+                        <div key={b.id} className="flex flex-wrap items-start justify-between gap-3 rounded-lg bg-gray-950/40 p-3">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="rounded-md bg-yellow-500 px-2 py-0.5 text-xs font-bold text-black">BOLO</span>
+                              {b.recordNumber && <span className="font-mono text-xs text-gray-400">#{b.recordNumber}</span>}
+                              {!bySubject && <span className="text-xs font-semibold text-yellow-300">On their vehicle {b.vehiclePlate}</span>}
+                              {reasons.map(r => <span key={r} className="chip !py-0 text-[11px]">{r}</span>)}
+                            </div>
+                            {safety.length > 0 && (
+                              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                                {safety.map(l => <span key={l} className="rounded-md bg-red-500/20 px-2 py-0.5 text-xs font-bold text-red-200 ring-1 ring-red-500/40">{l}</span>)}
+                              </div>
+                            )}
+                            {b.briefInformation && <div className="mt-1 text-sm text-gray-200">{b.briefInformation}</div>}
+                            {formatCharges(b.charges) && <div className="mt-1 text-xs text-gray-300">Possible charges: {formatCharges(b.charges)}</div>}
+                          </div>
+                          {viewBtn(() => openExistingRecord(b))}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
+              ) : (
+                <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm font-medium text-emerald-300">
+                  <Check size={18} /> No active warrants or BOLOs for {civName(person)}
+                </div>
+              )}
 
-                <div className="grid grid-cols-3 gap-4 text-sm">
-                  <div>
-                    <span className="text-gray-400">Date of Birth:</span>
-                    <span className="text-white ml-2">{selectedLookupPerson.dob}</span>
+              {/* ID card */}
+              <div className="panel-card">
+                <div className="flex flex-wrap items-start gap-5">
+                  <div className="h-28 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-white/[0.04] ring-1 ring-white/[0.08]">
+                    {person.photo
+                      ? <img src={person.photo} alt="" className="h-full w-full object-cover" />
+                      : <div className="flex h-full w-full items-center justify-center text-gray-600"><User size={36} /></div>}
                   </div>
-                  <div>
-                    <span className="text-gray-400">Gender:</span>
-                    <span className="text-white ml-2">{selectedLookupPerson.gender}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-400">Phone:</span>
-                    <span className="text-white ml-2">{selectedLookupPerson.phone || 'N/A'}</span>
-                  </div>
-                  <div className="col-span-2">
-                    <span className="text-gray-400">Address:</span>
-                    <span className="text-white ml-2">{selectedLookupPerson.address || 'N/A'}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-400">Occupation:</span>
-                    <span className="text-white ml-2">{selectedLookupPerson.occupation || 'N/A'}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h3 className="text-xl font-bold text-white">
+                          {person.firstName} {person.middleInitial ? `${person.middleInitial}. ` : ''}{person.lastName}
+                        </h3>
+                        <div className="mt-1 flex flex-wrap gap-1.5">
+                          {person.aka && <span className="chip !py-0 text-[11px]">AKA {person.aka}</span>}
+                          {person.deceased && <span className="rounded-md bg-gray-600 px-2 py-0.5 text-[11px] font-bold text-white">DECEASED</span>}
+                          {h.supervision.map((r: any, idx: number) => (
+                            <span key={idx} className="rounded-md bg-orange-500/20 px-2 py-0.5 text-[11px] font-bold text-orange-300 ring-1 ring-orange-500/40">ON {r.type}</span>
+                          ))}
+                          {license && (
+                            <span className={`rounded-md px-2 py-0.5 text-[11px] font-bold ring-1 ${license.data?.status === 'VALID' ? 'bg-emerald-500/15 text-emerald-300 ring-emerald-500/30' : 'bg-red-500/15 text-red-300 ring-red-500/30'}`}>
+                              {(license.data?.licenseType || 'LICENSE').toUpperCase()}: {license.data?.status || 'UNKNOWN'}
+                            </span>
+                          )}
+                          {!license && <span className="rounded-md bg-red-500/15 px-2 py-0.5 text-[11px] font-bold text-red-300 ring-1 ring-red-500/30">NO LICENSE ON FILE</span>}
+                        </div>
+                      </div>
+                      <button onClick={() => setSelectedLookupPerson(null)} className="icon-btn" aria-label="Close person">
+                        <X size={20} />
+                      </button>
+                    </div>
+                    <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-4">
+                      {info('Date of birth', civDob(person) ? `${civDob(person)}${age != null ? ` (${age})` : ''}` : '')}
+                      {info('Sex', person.sex === 'M' ? 'Male' : person.sex === 'F' ? 'Female' : person.sex || person.gender)}
+                      {info('Height / Weight', [person.height, person.weight].filter(Boolean).join(' / '))}
+                      {info('Hair / Eyes', [person.hairColor, person.eyeColor].filter(Boolean).join(' / '))}
+                      {info('Address', [civAddress(person), person.postalCode].filter(Boolean).join(', '), true)}
+                      {info('Phone', civPhone(person))}
+                      {info('Scars / marks / tattoos', person.scarsMarksTattoos)}
+                    </div>
                   </div>
                 </div>
               </div>
+
+              {/* Arrest history */}
+              <div className="panel-card">
+                <h3 className="section-title text-red-400">Arrest History ({h.arrests.length})</h3>
+                {h.arrests.length === 0 ? (
+                  <p className="text-sm text-gray-500">No arrests on record.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {h.arrests.map(({ kind, item }: any) => (
+                      <div key={item.id} className="subcard flex flex-wrap items-start justify-between gap-3 p-3">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-sm font-semibold text-white">{formatRecordDateTime(item.createdAt || item.date)}</span>
+                            {item.recordNumber && <span className="font-mono text-xs text-gray-400">#{item.recordNumber}</span>}
+                            <span className="chip !py-0 text-[10px]">{kind === 'report' ? 'Arrest report' : 'Arrest record'}</span>
+                          </div>
+                          <div className="mt-1 text-sm text-gray-200">{formatCharges(item.charges) || <span className="text-gray-500">No charges listed</span>}</div>
+                          {item.officer && <div className="mt-0.5 text-xs text-gray-500">Arresting officer: {item.officer}</div>}
+                        </div>
+                        {viewBtn(() => (kind === 'report' ? openExistingReport(item) : openExistingRecord(item)))}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Reports this person is named in */}
+              <div className="panel-card">
+                <h3 className="section-title text-purple-400">Involved In Reports ({h.reports.length})</h3>
+                {h.reports.length === 0 ? (
+                  <p className="text-sm text-gray-500">Not named in any reports.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {h.reports.map(({ report: r, roles }: any) => (
+                      <div key={r.id} className="subcard flex flex-wrap items-center justify-between gap-3 p-3">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-sm font-semibold text-white">{r.type}</span>
+                            {r.recordNumber && <span className="font-mono text-xs text-gray-400">#{r.recordNumber}</span>}
+                            {roles.map((role: string) => roleChip(role))}
+                            {r.status === 'DRAFT' && <span className="rounded-md bg-yellow-500/15 px-2 py-0.5 text-[10px] font-semibold text-yellow-300">DRAFT</span>}
+                          </div>
+                          <div className="mt-0.5 text-xs text-gray-500">{formatRecordDateTime(r.createdAt || r.date)}{r.officer ? ` · ${r.officer}` : ''}</div>
+                        </div>
+                        {viewBtn(() => openExistingReport(r))}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Citations */}
+              {h.citations.length > 0 && (
+                <div className="panel-card">
+                  <h3 className="section-title text-orange-400">Citations ({h.citations.length})</h3>
+                  <div className="space-y-2">
+                    {h.citations.map((c: any) => (
+                      <div key={c.id} className="subcard flex flex-wrap items-start justify-between gap-3 p-3">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-sm font-semibold text-white">{formatRecordDateTime(c.createdAt || c.date)}</span>
+                            {c.recordNumber && <span className="font-mono text-xs text-gray-400">#{c.recordNumber}</span>}
+                          </div>
+                          <div className="mt-1 text-sm text-gray-200">{formatCharges(c.charges) || <span className="text-gray-500">No charges listed</span>}</div>
+                        </div>
+                        {viewBtn(() => openExistingRecord(c))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* DMV Records */}
               <div className="panel-card">
@@ -12449,7 +12829,7 @@ const CADSystem = () => {
                           {record.type === 'OUT OF STATE WARRANT' && record.data && (
                             <div className="bg-red-500/10 rounded-md p-2 mt-2">
                               <div><span className="text-gray-300">State:</span> <span className="text-white">{record.data.state}</span></div>
-                              <div><span className="text-gray-300">Charges:</span> <span className="text-white">{record.data.charges}</span></div>
+                              <div><span className="text-gray-300">Charges:</span> <span className="text-white">{formatCharges(record.data.charges)}</span></div>
                               <div><span className="text-gray-300">Extraditable:</span> <span className="text-white">{record.data.extraditable ? 'YES' : 'NO'}</span></div>
                             </div>
                           )}
@@ -12496,53 +12876,23 @@ const CADSystem = () => {
                   </div>
                 )}
               </div>
-
-              {/* Police Records for this person */}
-              {officerRecords.filter(r =>
-                r.suspectName?.toLowerCase().includes(`${selectedLookupPerson.firstName} ${selectedLookupPerson.lastName}`.toLowerCase())
-              ).length > 0 && (
-                <div className="panel-card">
-                  <h3 className="text-lg font-bold text-orange-400 mb-4 flex items-center gap-2">
-                    <AlertTriangle size={20} />
-                    Police Records
-                  </h3>
-                  <div className="space-y-2">
-                    {officerRecords.filter(r =>
-                      r.suspectName?.toLowerCase().includes(`${selectedLookupPerson.firstName} ${selectedLookupPerson.lastName}`.toLowerCase())
-                    ).map((record: any) => (
-                      <div key={record.id} className={`bg-gray-800 rounded p-3 border-l-4 ${
-                        record.type === 'ARREST' ? 'border-red-500' :
-                        record.type === 'WARRANT' ? 'border-orange-500' :
-                        record.type === 'BOLO' ? 'border-yellow-500' :
-                        'border-blue-500'
-                      }`}>
-                        <div className="flex justify-between">
-                          <span className="font-semibold text-white">{record.type}</span>
-                          <span className="text-xs text-gray-400">{record.id}</span>
-                        </div>
-                        {record.charges && <div className="text-sm text-gray-300 mt-1">Charges: {record.charges}</div>}
-                        {record.description && <div className="text-sm text-gray-300 mt-1">{record.description}</div>}
-                        <div className="text-xs text-gray-500 mt-2">
-                          {new Date(record.createdAt).toLocaleString()}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
-          )}
+            );
+          })()}
 
           {/* No selection message */}
           {!selectedLookupPerson && lookupSearchResults.length === 0 && lookupVehicleResults.length === 0 && (
             <div className="rounded-lg border border-white/[0.06] bg-white/[0.025] p-8 text-center">
               <Search size={48} className="mx-auto mb-4 text-gray-600" />
               <p className="text-gray-400">Search for a person by name or vehicle by plate number</p>
-              <p className="text-gray-500 text-sm mt-2">Results will display DMV records, licenses, and any police records</p>
+              <p className="text-gray-500 text-sm mt-2">Results show warrants and BOLOs first, then arrests, reports, licenses and DMV records</p>
             </div>
           )}
         </div>
       </div>
+
+      {reportFormModalJSX}
+      {recordFormModalJSX}
     </div>
   );
 

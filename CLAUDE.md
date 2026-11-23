@@ -147,6 +147,21 @@ Standard dispatch call types
 ### BOLO panel
 Records Management → BOLO (`activeRecordsPanel === 'bolo'`, `boloPanelJSX`) lists every officer's BOLO records that are active. Deactivating sets `status: 'INACTIVE'` (+ `deactivatedAt`/`deactivatedBy`), which removes the BOLO from the Active list. Deactivated BOLOs stay under the Inactive tab and can be reactivated. Deactivate/Reactivate is available on the card and in the BOLO record footer. The record form modal is `recordFormModalJSX`, which both the Records and BOLO panels render.
 
+### Lookup and person history
+Selecting a person in Lookup ("Verify ID") shows, in order:
+1. A **WANTED** banner, or a green "no active warrants or BOLOs" line. The banner lists active WARRANT records, out-of-state warrants from the person's DMV records, and active BOLOs on the person or on one of their registered plates.
+2. The ID card.
+3. Arrest history: ARREST records and ARREST reports.
+4. Reports the person is named in, with their role.
+5. Citations.
+6. DMV records.
+
+Matching is `personMatches(person, name, id)`. A stored civilian id wins (`subjectId`, `arresteeId`, `trespasserId`, `party.personId`, `victimOfForce.personId`, `involvedPersons[].civilianId`). Without an id it falls back to an exact name match that ignores middle initials. Typing a name by hand clears the stored id.
+
+Every report has an **Involved Persons** section (`renderInvolvedPersons`, stored as `report.involvedPersons` `[{civilianId, name, dob, role}]`; roles SUSPECT, VICTIM, WITNESS, REPORTING PARTY, OTHER). `reportRolesFor` also derives roles from each report's own person fields (arrestee, trespasser, party 1/2 + involvement, victim of force, driver, witnesses). Report and record forms are `reportFormModalJSX` / `recordFormModalJSX`, so they open on top of the Records, BOLO and Lookup panels.
+
+Characters store `dateOfBirth`, `cellPhone`, `streetResidence`; use `civName`/`civDob`/`civPhone`/`civAddress` (they also read the legacy `dob`/`phone`/`address`).
+
 ### Charges
 Every charge list stores `counts` per charge (times charged with the same offense) and edits it with `renderCountsInput` (−/+ stepper). Bond totals multiply by counts (`chargeCount(c)`).
 
