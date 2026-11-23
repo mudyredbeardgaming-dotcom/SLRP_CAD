@@ -7,11 +7,12 @@
       "officer": "Officer Johnson",
       "assignedCall": null,
       "aop": "Area 3",
-      "agency": "LSSO",
+      "agency": "B.C.S.O",
       "rank": "Deputy",
-      "department": "SO-AREA 3A",
+      "department": "B.C.S.O",
       "location": "Postal 1234",
-      "callHistory": []
+      "callHistory": [],
+      "subdivision": "BCSO-PATROL"
     },
     {
       "id": "Unit-2",
@@ -20,11 +21,12 @@
       "officer": "Officer Smith",
       "assignedCall": null,
       "aop": "Area 4",
-      "agency": "LSSO",
+      "agency": "B.C.S.O",
       "rank": "Deputy",
-      "department": "SO-AREA 4A",
+      "department": "B.C.S.O",
       "location": "Postal 5678",
-      "callHistory": []
+      "callHistory": [],
+      "subdivision": "BCSO-PATROL"
     },
     {
       "id": "Unit-3",
@@ -33,11 +35,12 @@
       "officer": "Officer Davis",
       "assignedCall": null,
       "aop": "Area 5",
-      "agency": "LSSO",
+      "agency": "B.C.S.O",
       "rank": "Deputy",
-      "department": "SO-AREA 5A",
+      "department": "B.C.S.O",
       "location": "Postal 9012",
-      "callHistory": []
+      "callHistory": [],
+      "subdivision": "BCSO-PATROL"
     },
     {
       "id": "Engine-1",
@@ -184,7 +187,7 @@
       "unitId": "Unit-1",
       "displayName": "Deputy Johnson",
       "role": "police",
-      "department": "LSSO"
+      "department": "B.C.S.O"
     },
     {
       "username": "smith",
@@ -192,7 +195,7 @@
       "unitId": "Unit-2",
       "displayName": "Deputy Smith",
       "role": "police",
-      "department": "LSSO"
+      "department": "B.C.S.O"
     },
     {
       "username": "davis",
@@ -200,7 +203,7 @@
       "unitId": "Unit-3",
       "displayName": "Deputy Davis",
       "role": "police",
-      "department": "LSSO"
+      "department": "B.C.S.O"
     },
     {
       "username": "firefighter1",
@@ -240,7 +243,7 @@
       "unitId": "DISPATCH-1",
       "displayName": "Dispatcher Davis",
       "role": "dispatch",
-      "department": "Dispatch"
+      "department": "B.C.S.O"
     },
     {
       "username": "civilian1",

@@ -1,20 +1,34 @@
 import React, { useState, useEffect } from 'react';
 import { AlertCircle, Radio, MapPin, Clock, User, Phone, FileText, Plus, X, Check, Shield, AlertTriangle, Lock, LogOut, Search, Database, Pin, PinOff, Car, Flame, Truck, ArrowRight, Eye, EyeOff, LayoutGrid, ChevronRight } from 'lucide-react';
 import { BRAND, BrandMark, BrandLockup } from './Brand';
+import { useFiveMBridge, formatGameLocation } from '@/lib/fivem/useFiveMBridge';
 
 // App version - increment this to force re-login after updates
 const APP_VERSION = '2.0.0';
 
 const CALL_CODES = ['CALL FOR SERVICE', 'ASSAULT', 'BURGLARY', 'TRAFFIC STOP', 'DOMESTIC DISTURBANCE', 'THEFT', 'SUSPICIOUS ACTIVITY', 'WELFARE CHECK', 'NOISE COMPLAINT', 'TRESPASSING'];
 
-const DEPARTMENTS = [
-  'SO-ADMIN', 'SO-CMND', 'SO-AREA 3 SUPRV', 'SO-AREA 4 SUPRV', 'SO-AREA 3|4 SUPRV', 'SO-AREA 5 SUPRV',
-  'SO-SUPRV', 'SO-AREA 3A', 'SO-AREA 4A', 'SO-AREA 5A', 'SO-SWAT', 'SO-TRFC', 'SO-MARINE', 'SO-DET',
-  'SO-K9', 'SO-AIR', 'CSO-AREA 3|4', 'CSO-METRO', 'CSO-ASSISTANCE', 'MT-METRO 3', 'MT-METRO 4',
-  'MT-METRO 3|4', 'MT-METRO 5', 'MT-METRO 5|6', 'MT-SUPRV', 'PL-PALETO', 'SO-AREA 3P', 'SO-AREA 3Z',
-  'SO-AREA 4G', 'SO-AREA 4F', 'SO-AREA 4H', 'MT-DET', 'MT-K9', 'PL-K9', 'MT-AIR', 'SO-PROBATION',
-  'CSO-TOW', 'SO-COMMS', 'SO-WC', 'SO-ROAM', 'SO-HEAT'
+// Law enforcement departments (Police + Dispatch roles, report agency fields)
+const DEPARTMENTS = ['B.C.S.O', 'L.S.P.D'];
+
+// Unit subdivisions. `dept` limits an option to one department; shared ones have none.
+const SUBDIVISIONS: { value: string; label: string; dept?: string }[] = [
+  { value: 'BCSO-PATROL', label: 'BCSO-PATROL', dept: 'B.C.S.O' },
+  { value: 'BCSO-SUPV', label: 'BCSO-SUPV', dept: 'B.C.S.O' },
+  { value: 'LSPD-PATROL', label: 'LSPD-PATROL', dept: 'L.S.P.D' },
+  { value: 'LSPD-SUPV', label: 'LSPD-SUPV', dept: 'L.S.P.D' },
+  { value: 'TED', label: 'TED' },
+  { value: 'K-9', label: 'K-9' },
+  { value: 'AIR', label: 'AIR' },
+  { value: 'CIU', label: 'CIU' },
+  { value: 'IA', label: 'IA' },
+  { value: 'SRT', label: 'SRT' },
+  { value: 'MARINE', label: 'MARINE' },
+  { value: 'CVE', label: 'CVE' },
+  { value: 'DO', label: 'DO' },
+  { value: 'WC', label: 'WC' },
 ];
+const subdivisionsFor = (dept: string) => SUBDIVISIONS.filter(s => !dept || !s.dept || s.dept === dept);
 
 // Charge Autocomplete Input Component (Standalone to avoid circular dependencies)
 const ChargeAutocompleteInput = ({ value, onChange, onSelect, placeholder = "Type to search charges...", codes }: any) => {
@@ -282,7 +296,7 @@ const CADSystem = () => {
       unitId: 'Unit-1',
       displayName: 'Deputy Johnson',
       role: 'police',
-      department: 'LSSO'
+      department: 'B.C.S.O'
     },
     {
       username: 'smith',
@@ -290,7 +304,7 @@ const CADSystem = () => {
       unitId: 'Unit-2',
       displayName: 'Deputy Smith',
       role: 'police',
-      department: 'LSSO'
+      department: 'B.C.S.O'
     },
     {
       username: 'davis',
@@ -298,7 +312,7 @@ const CADSystem = () => {
       unitId: 'Unit-3',
       displayName: 'Deputy Davis',
       role: 'police',
-      department: 'LSSO'
+      department: 'B.C.S.O'
     },
     // Dispatcher
     {
@@ -307,7 +321,7 @@ const CADSystem = () => {
       unitId: 'DISPATCH-1',
       displayName: 'Dispatcher Davis',
       role: 'dispatch',
-      department: 'LSSO Communications'
+      department: 'B.C.S.O'
     },
     // Firefighters
     {
@@ -693,9 +707,10 @@ const CADSystem = () => {
           officer: 'Officer Johnson',
           assignedCall: null,
           aop: 'Area 3',
-          agency: 'LSSO',
+          agency: 'B.C.S.O',
           rank: 'Deputy',
-          department: 'SO-AREA 3A',
+          department: 'B.C.S.O',
+          subdivision: 'BCSO-PATROL',
           location: 'Postal 1234',
           callHistory: []
         },
@@ -706,9 +721,10 @@ const CADSystem = () => {
           officer: 'Officer Smith',
           assignedCall: null,
           aop: 'Area 4',
-          agency: 'LSSO',
+          agency: 'B.C.S.O',
           rank: 'Deputy',
-          department: 'SO-AREA 4A',
+          department: 'B.C.S.O',
+          subdivision: 'BCSO-PATROL',
           location: 'Postal 5678',
           callHistory: []
         },
@@ -719,9 +735,10 @@ const CADSystem = () => {
           officer: 'Officer Davis',
           assignedCall: null,
           aop: 'Area 5',
-          agency: 'LSSO',
+          agency: 'B.C.S.O',
           rank: 'Deputy',
-          department: 'SO-AREA 5A',
+          department: 'B.C.S.O',
+          subdivision: 'BCSO-PATROL',
           location: 'Postal 9012',
           callHistory: []
         },
@@ -872,7 +889,37 @@ const CADSystem = () => {
     }
   }, [isClient, selectedRole, showLogin, showNewCall, selectedCall, showUnitInfo, civilianView, activeReportForm, activeRecordForm]);
 
-  const createCall = (callData) => {
+  // ---- FiveM bridge (lib/fivem) -------------------------------------------
+  // Polls /api/fivem/state while a CAD role is open. Paused while forms/modals
+  // are open, for the same reason the clock and data refresh pause: a
+  // re-render would remount the nested form components and drop typed input.
+  const [newCallPrefill, setNewCallPrefill] = useState<any>(null);
+  const fivemPaused = showLogin || showNewCall || !!selectedCall || showUnitInfo || showComModal ||
+    civilianView === 'add' || civilianView === 'edit' || !!activeReportForm || !!activeRecordForm;
+  const fivem = useFiveMBridge({
+    active: isClient && isAuthenticated && !!selectedRole && selectedRole !== 'civilian',
+    paused: fivemPaused,
+    onEvent: (event) => {
+      // Game-originated changes: apply locally only (don't echo back to the game)
+      if (event.type === 'unit_status' || event.type === 'panic') {
+        const status = event.type === 'panic' ? 'panic' : event.status;
+        const matches = (u) => String(u.callsign || '').trim().toUpperCase() === event.callsign;
+        if (!units.some(u => matches(u) && u.status !== status)) return;
+        const newUnits = units.map(u => matches(u) ? { ...u, status } : u);
+        setUnits(newUnits);
+        // Save right away so the 5s refresh can't revert it (same as createCall/assignUnit)
+        saveDataImmediately({ units: newUnits, calls, civilians, officerReports, officerRecords, officerCredentials });
+      }
+    }
+  });
+  const callsignOf = (unitId) => units.find(u => u.id === unitId)?.callsign;
+  const callForGame = (call) => ({
+    id: call.id, code: call.code, priority: call.priority,
+    address: call.address, postal: call.postal, description: call.description
+  });
+
+  const createCall = (rawCallData) => {
+    const { fivemAlertId, ...callData } = rawCallData || {};
     const callId = String(callIdCounter).padStart(6, '0');
     const availableUnit = units.find(u => u.status === 'available' && !u.assignedCall);
 
@@ -899,6 +946,11 @@ const CADSystem = () => {
 
     setCallIdCounter(callIdCounter + 1);
     setShowNewCall(false);
+    setNewCallPrefill(null);
+    if (fivemAlertId) fivem.acknowledge(fivemAlertId);
+    if (availableUnit?.callsign) {
+      fivem.send({ type: 'call_assigned', callsigns: [availableUnit.callsign], call: callForGame(newCall) });
+    }
 
     console.log('📞 CREATE CALL - Triggering immediate save with', newCalls.length, 'calls');
     // Immediately save to prevent loss during refresh
@@ -944,6 +996,16 @@ const CADSystem = () => {
     setCalls(newCalls);
     setUnits(newUnits);
 
+    const assignedCall = newCalls.find(c => c.id === callId);
+    const unitCallsign = callsignOf(unitId);
+    if (assignedCall && unitCallsign) {
+      if (assignedCall.assignedUnits.includes(unitId)) {
+        fivem.send({ type: 'call_assigned', callsigns: [unitCallsign], call: callForGame(assignedCall) });
+      } else {
+        fivem.send({ type: 'call_closed', callsigns: [unitCallsign], callId });
+      }
+    }
+
     // Immediately save to prevent loss during refresh
     saveDataImmediately({
       units: newUnits,
@@ -957,6 +1019,8 @@ const CADSystem = () => {
 
   const updateUnitStatus = (unitId, newStatus) => {
     setUnits(prevUnits => prevUnits.map(u => u.id === unitId ? { ...u, status: newStatus } : u));
+    const unitCallsign = callsignOf(unitId);
+    if (unitCallsign) fivem.send({ type: 'unit_status', callsign: unitCallsign, status: newStatus });
   };
 
   const updateUnitInfo = (unitId, updatedInfo) => {
@@ -965,6 +1029,10 @@ const CADSystem = () => {
 
   const closeCall = (callId) => {
     const call = calls.find(c => c.id === callId);
+    if (call) {
+      const callsigns = (call.assignedUnits || []).map(callsignOf).filter(Boolean);
+      if (callsigns.length) fivem.send({ type: 'call_closed', callsigns, callId });
+    }
     const newCalls = calls.map(c => c.id === callId ? { ...c, status: 'CLOSED' } : c);
     const newUnits = units.map(u => {
       if (u.assignedCall === callId || (call && call.assignedUnits.includes(u.id))) {
@@ -5341,10 +5409,7 @@ const CADSystem = () => {
                           <label className="field-label">Department</label>
                           <select value={currentReportData.completedByDepartment || ''} onChange={(e) => setCurrentReportData({...currentReportData, completedByDepartment: e.target.value})} className="field">
                             <option value="">Select...</option>
-                            <option value="LSSO">LSSO</option>
-                            <option value="LSSO_CONTRACT">LSSO Contract Agency</option>
-                            <option value="LSSO_COMMUNITY">LSSO Community Service</option>
-                            <option value="LSSO_CORRECTIONS">LSSO Corrections Department</option>
+                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                           </select>
                         </div>
                         <div>
@@ -5486,10 +5551,7 @@ const CADSystem = () => {
                           <label className="field-label">Primary Department</label>
                           <select value={currentReportData.primaryDepartment || ''} onChange={(e) => setCurrentReportData({...currentReportData, primaryDepartment: e.target.value})} className="field">
                             <option value="">Select...</option>
-                            <option value="LSSO">LSSO</option>
-                            <option value="LSSO_CONTRACT">LSSO Contract Agency</option>
-                            <option value="LSSO_COMMUNITY">LSSO Community Service</option>
-                            <option value="LSSO_CORRECTIONS">LSSO Corrections Department</option>
+                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                           </select>
                         </div>
                         <div>
@@ -5790,10 +5852,7 @@ const CADSystem = () => {
                           <label className="field-label">Department</label>
                           <select value={currentReportData.completedByDepartment || ''} onChange={(e) => setCurrentReportData({...currentReportData, completedByDepartment: e.target.value})} className="field">
                             <option value="">Select...</option>
-                            <option value="LSSO">LSSO</option>
-                            <option value="LSSO_CONTRACT">LSSO Contract Agency</option>
-                            <option value="LSSO_COMMUNITY">LSSO Community Service</option>
-                            <option value="LSSO_CORRECTIONS">LSSO Corrections Department</option>
+                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                           </select>
                         </div>
                         <div>
@@ -5877,10 +5936,7 @@ const CADSystem = () => {
                           <label className="field-label">Agency</label>
                           <select value={currentReportData.officerInvolvedAgency || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerInvolvedAgency: e.target.value})} className="field">
                             <option value="">Select...</option>
-                            <option value="LSSO">LSSO</option>
-                            <option value="LSSO_CONTRACT">LSSO Contract Agency</option>
-                            <option value="LSSO_COMMUNITY">LSSO Community Service</option>
-                            <option value="LSSO_CORRECTIONS">LSSO Corrections Department</option>
+                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                           </select>
                         </div>
                         <div>
@@ -5940,9 +5996,7 @@ const CADSystem = () => {
                           <label className="field-label">Other Agency Involvement</label>
                           <select value={currentReportData.otherAgencyInvolvement || ''} onChange={(e) => setCurrentReportData({...currentReportData, otherAgencyInvolvement: e.target.value})} className="field">
                             <option value="">Select...</option>
-                            <option value="LSSO">LSSO</option>
-                            <option value="LSPD">LSPD</option>
-                            <option value="MARSHAL">Marshal</option>
+                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                             <option value="ALL_AGENCIES">All Agencies</option>
                             <option value="N/A">N/A</option>
                           </select>
@@ -6284,9 +6338,7 @@ const CADSystem = () => {
                           <label className="field-label">Detective Agency</label>
                           <select value={currentReportData.detectiveAgency || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectiveAgency: e.target.value})} className="field">
                             <option value="">Select...</option>
-                            <option value="LSSO">LSSO</option>
-                            <option value="LSPD">LSPD</option>
-                            <option value="MARSHAL">Marshal</option>
+                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                           </select>
                         </div>
                         <div>
@@ -6366,9 +6418,7 @@ const CADSystem = () => {
                           <label className="field-label">Primary Department</label>
                           <select value={currentReportData.primaryDepartment || ''} onChange={(e) => setCurrentReportData({...currentReportData, primaryDepartment: e.target.value})} className="field">
                             <option value="">Select...</option>
-                            <option value="LSSO">LSSO</option>
-                            <option value="LSSO_COMMUNITY">LSSO Community Service</option>
-                            <option value="LSSO_CONTRACT">LSSO Contract Agency</option>
+                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                           </select>
                         </div>
                         <div>
@@ -6749,9 +6799,7 @@ const CADSystem = () => {
                           <label className="field-label">Detective Agency</label>
                           <select value={currentReportData.detectiveAgency || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectiveAgency: e.target.value})} className="field">
                             <option value="">Select...</option>
-                            <option value="LSSO">LSSO</option>
-                            <option value="LSPD">LSPD</option>
-                            <option value="MARSHAL">Marshal</option>
+                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                           </select>
                         </div>
                         <div>
@@ -7061,9 +7109,7 @@ const CADSystem = () => {
                             <label className="field-label">Arresting Agency</label>
                             <select value={currentReportData.arrestingAgency || ''} onChange={(e) => setCurrentReportData({...currentReportData, arrestingAgency: e.target.value})} className="field">
                               <option value="">Select...</option>
-                              <option value="LSSO">LSSO</option>
-                              <option value="LSSO_METRO">LSSO - Metro</option>
-                              <option value="LSSO_PALETO">LSSO - Paleto</option>
+                              {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                             </select>
                           </div>
                           <div>
@@ -7096,8 +7142,7 @@ const CADSystem = () => {
                           <label className="field-label">Officer Agency</label>
                           <select value={currentReportData.officerAgency || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerAgency: e.target.value})} className="field">
                             <option value="">Select...</option>
-                            <option value="LSSO">LSSO</option>
-                            <option value="LSSO_COMMUNITY">LSSO Community Service</option>
+                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                           </select>
                         </div>
                       </div>
@@ -7162,8 +7207,7 @@ const CADSystem = () => {
                           <label className="field-label">Primary Department</label>
                           <select value={currentReportData.primaryDepartment || ''} onChange={(e) => setCurrentReportData({...currentReportData, primaryDepartment: e.target.value})} className="field">
                             <option value="">Select...</option>
-                            <option value="LSPD">LSPD</option>
-                            <option value="LSSO">LSSO</option>
+                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                           </select>
                         </div>
                         <div>
@@ -7375,8 +7419,7 @@ const CADSystem = () => {
                           <label className="field-label">Detective Agency</label>
                           <select value={currentReportData.detectiveAgency || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectiveAgency: e.target.value})} className="field">
                             <option value="">Select...</option>
-                            <option value="LSSO">LSSO</option>
-                            <option value="LSPD">LSPD</option>
+                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                           </select>
                         </div>
                         <div>
@@ -7503,8 +7546,7 @@ const CADSystem = () => {
                           <label className="field-label">Officer Agency</label>
                           <select value={currentReportData.officerAgency || ''} onChange={(e) => setCurrentReportData({...currentReportData, officerAgency: e.target.value})} className="field">
                             <option value="">Select...</option>
-                            <option value="LSSO">LSSO</option>
-                            <option value="LSPD">LSPD</option>
+                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                           </select>
                         </div>
                       </div>
@@ -7805,8 +7847,7 @@ const CADSystem = () => {
                           <label className="field-label">Primary Department</label>
                           <select value={currentReportData.primaryDepartment || ''} onChange={(e) => setCurrentReportData({...currentReportData, primaryDepartment: e.target.value})} className="field">
                             <option value="">Select...</option>
-                            <option value="LSSO">LSSO</option>
-                            <option value="LSSO CONTRACT AGENCY">LSSO CONTRACT AGENCY</option>
+                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                           </select>
                         </div>
                         <div>
@@ -8355,9 +8396,7 @@ const CADSystem = () => {
                           <label className="field-label">Detective Agency</label>
                           <select value={currentReportData.detectiveAgency || ''} onChange={(e) => setCurrentReportData({...currentReportData, detectiveAgency: e.target.value})} className="field">
                             <option value="">Select...</option>
-                            <option value="LSSO">LSSO</option>
-                            <option value="LSPD">LSPD</option>
-                            <option value="MARSHAL">MARSHAL</option>
+                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                           </select>
                         </div>
                         <div>
@@ -8509,10 +8548,7 @@ const CADSystem = () => {
                           <label className="field-label">Department</label>
                           <select value={currentReportData.completedByDepartment || ''} onChange={(e) => setCurrentReportData({...currentReportData, completedByDepartment: e.target.value})} className="field">
                             <option value="">Select...</option>
-                            <option value="LSSO">LSSO</option>
-                            <option value="LSSO_CONTRACT">LSSO Contract Agency</option>
-                            <option value="LSSO_COMMUNITY">LSSO Community Service</option>
-                            <option value="LSSO_CORRECTIONS">LSSO Corrections Department</option>
+                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                           </select>
                         </div>
                         <div>
@@ -8708,12 +8744,11 @@ const CADSystem = () => {
                         <div>
                           <label className="field-label">Primary Department</label>
                           <select
-                            value={currentRecordData.primaryDepartment || 'LSSO'}
+                            value={currentRecordData.primaryDepartment || 'B.C.S.O'}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, primaryDepartment: e.target.value})}
                             className="field"
                           >
-                            <option value="LSSO">LSSO</option>
-                            <option value="LSSO CONTRACT AGENCY">LSSO CONTRACT AGENCY</option>
+                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                           </select>
                         </div>
                         <div>
@@ -9547,13 +9582,11 @@ const CADSystem = () => {
                         <div>
                           <label className="field-label">Detective Agency</label>
                           <select
-                            value={currentRecordData.detectiveAgency || 'LSSO'}
+                            value={currentRecordData.detectiveAgency || 'B.C.S.O'}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, detectiveAgency: e.target.value})}
                             className="field field-danger"
                           >
-                            <option value="LSSO">LSSO</option>
-                            <option value="LSPD">LSPD</option>
-                            <option value="MARSHAL">MARSHAL</option>
+                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                           </select>
                         </div>
                         <div className="col-span-2">
@@ -9923,12 +9956,7 @@ const CADSystem = () => {
                             className="field"
                           >
                             <option value="">Select Agency</option>
-                            <option value="LSSO PATROL">LSSO PATROL</option>
-                            <option value="LSSO INVESTIGATION SERVICES UNIT">LSSO INVESTIGATION SERVICES UNIT</option>
-                            <option value="LSSO TRAFFIC ENFORCEMENT">LSSO TRAFFIC ENFORCEMENT</option>
-                            <option value="LSSO MARINE">LSSO MARINE</option>
-                            <option value="LSSO CONTRACT AGENCY">LSSO CONTRACT AGENCY</option>
-                            <option value="LSSO CORRECTIONS DEPARTMENT">LSSO CORRECTIONS DEPARTMENT</option>
+                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                           </select>
                         </div>
                         <div>
@@ -10011,12 +10039,7 @@ const CADSystem = () => {
                             className="field"
                           >
                             <option value="">Select Agency</option>
-                            <option value="LSSO">LSSO</option>
-                            <option value="LSSO INVESTIGATION SERVICES">LSSO INVESTIGATION SERVICES</option>
-                            <option value="LSSO TRAFFIC ENFORCEMENT">LSSO TRAFFIC ENFORCEMENT</option>
-                            <option value="LSSO MARINE">LSSO MARINE</option>
-                            <option value="LSSO CORRECTIONS DEPARTMENT">LSSO CORRECTIONS DEPARTMENT</option>
-                            <option value="LSSO CONTRACT AGENCY">LSSO CONTRACT AGENCY</option>
+                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                           </select>
                         </div>
                         <div>
@@ -10637,11 +10660,11 @@ const CADSystem = () => {
                         <div>
                           <label className="field-label">Agency</label>
                           <select
-                            value={currentRecordData.issuingAgency || 'LSSO'}
+                            value={currentRecordData.issuingAgency || 'B.C.S.O'}
                             onChange={(e) => setCurrentRecordData({...currentRecordData, issuingAgency: e.target.value})}
                             className="field"
                           >
-                            <option value="LSSO">LSSO</option>
+                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                             <option value="DISTRICT ATTORNEY">DISTRICT ATTORNEY</option>
                           </select>
                         </div>
@@ -11466,8 +11489,7 @@ const CADSystem = () => {
                             className="field field-warn"
                           >
                             <option value="">Select Department...</option>
-                            <option value="LSSO">LSSO</option>
-                            <option value="LSPD">LSPD</option>
+                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                             <option value="DNR">DNR</option>
                           </select>
                         </div>
@@ -12423,9 +12445,10 @@ const CADSystem = () => {
   };
 
   const NewCallForm = () => {
-    const [data, setData] = useState({
+    const [data, setData] = useState<any>({
       callOrigin: 'CALLER', priority: '2', address: '', postal: '', callTitle: 'LE',
-      code: 'CALL FOR SERVICE', description: '', caller: '', phone: ''
+      code: 'CALL FOR SERVICE', description: '', caller: '', phone: '',
+      ...(newCallPrefill || {}) // e.g. an in-game 911 call from the FiveM bridge
     });
 
     const availUnit = units.find(u => u.status === 'available' && !u.assignedCall);
@@ -12745,8 +12768,10 @@ const CADSystem = () => {
       agency: unit.agency || '',
       rank: unit.rank || '',
       department: unit.department || '',
+      subdivision: unit.subdivision || '',
       location: unit.location || ''
     });
+    const subdivisionOptions = subdivisionsFor(info.department);
 
     const handleSave = () => {
       updateUnitInfo(unit.id, info);
@@ -12782,19 +12807,57 @@ const CADSystem = () => {
               <label className="field-label">Department</label>
               <select
                 value={info.department}
-                onChange={(e) => setInfo({...info, department: e.target.value})}
+                onChange={(e) => {
+                  const department = e.target.value;
+                  // Clear a subdivision that belongs to the other department
+                  const keep = subdivisionsFor(department).some(s => s.value === info.subdivision);
+                  setInfo({ ...info, department, subdivision: keep ? info.subdivision : '' });
+                }}
                 onMouseDown={(e) => e.stopPropagation()}
                 onClick={(e) => e.stopPropagation()}
                 className="field"
               >
                 <option value="">Select Department</option>
+                {/* Keep a legacy value visible instead of silently blanking it */}
+                {info.department && !DEPARTMENTS.includes(info.department) && (
+                  <option value={info.department}>{info.department}</option>
+                )}
                 {DEPARTMENTS.map(dept => <option key={dept} value={dept}>{dept}</option>)}
               </select>
             </div>
 
             <div>
-              <label className="field-label">Location</label>
-              <input type="text" value={info.location} onChange={(e) => setInfo({...info, location: e.target.value})} className="field" />
+              <label className="field-label">Subdivision</label>
+              <select
+                value={info.subdivision}
+                onChange={(e) => setInfo({...info, subdivision: e.target.value})}
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+                className="field"
+              >
+                <option value="">Select Subdivision</option>
+                {info.subdivision && !subdivisionOptions.some(s => s.value === info.subdivision) && (
+                  <option value={info.subdivision}>{info.subdivision}</option>
+                )}
+                {subdivisionOptions.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="field-label">AOP</label>
+                <input
+                  type="text"
+                  value={info.aop}
+                  onChange={(e) => setInfo({...info, aop: e.target.value})}
+                  placeholder="Area of patrol, e.g. Blaine County"
+                  className="field"
+                />
+              </div>
+              <div>
+                <label className="field-label">Location</label>
+                <input type="text" value={info.location} onChange={(e) => setInfo({...info, location: e.target.value})} className="field" />
+              </div>
             </div>
 
             <div className="flex gap-2 justify-end">
@@ -12902,6 +12965,29 @@ const CADSystem = () => {
           </nav>
 
           <div className="flex items-center gap-2">
+            {fivem.enabled && (
+              <span
+                className={`hidden lg:inline-flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs font-medium ${
+                  fivem.connected
+                    ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-300'
+                    : 'border-white/[0.08] bg-white/[0.03] text-gray-400'
+                }`}
+                title={fivem.connected
+                  ? `FiveM connected${fivem.server.serverName ? ` · ${fivem.server.serverName}` : ''}`
+                  : 'FiveM server not connected'}
+              >
+                <span className={`h-1.5 w-1.5 rounded-full ${fivem.connected ? 'bg-emerald-400' : 'bg-gray-500'}`} />
+                {fivem.connected ? 'FiveM' : 'FiveM offline'}
+                {fivem.connected && fivem.server.playerCount != null && (
+                  <span className="font-mono text-emerald-200/80">
+                    {fivem.server.playerCount}{fivem.server.maxPlayers ? `/${fivem.server.maxPlayers}` : ''}
+                  </span>
+                )}
+                {fivem.connected && fivem.aop && (
+                  <span className="border-l border-emerald-500/25 pl-2 text-emerald-200/90">AOP: {fivem.aop}</span>
+                )}
+              </span>
+            )}
             {selectedRole === 'dispatch' && selectedUnit && (
               <button
                 onClick={() => setShowComModal(true)}
@@ -13013,10 +13099,69 @@ const CADSystem = () => {
                   <span className="chip font-mono">{activeCallList.length}</span>
                 </h2>
               </div>
-              <button onClick={() => setShowNewCall(true)} className="btn btn-primary shadow-glow">
+              <button onClick={() => { setNewCallPrefill(null); setShowNewCall(true); }} className="btn btn-primary shadow-glow">
                 <Plus size={18} /> New Call
               </button>
             </div>
+
+            {fivem.pending.length > 0 && (
+              <div className="panel p-4">
+                <h3 className="section-title text-red-400">Incoming from FiveM ({fivem.pending.length})</h3>
+                <div className="grid gap-2 max-h-80 overflow-y-auto pr-1">
+                  {fivem.pending.map(alert => {
+                    const where = formatGameLocation(alert.location);
+                    const isPanic = alert.kind === 'panic';
+                    return (
+                      <div
+                        key={alert.id}
+                        className={`subcard flex flex-wrap items-center justify-between gap-3 ${isPanic ? '!border-red-500/40 !bg-red-500/10' : ''}`}
+                      >
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className={`rounded-md px-2 py-0.5 text-xs font-bold ${isPanic ? 'bg-red-600 text-white animate-pulse' : 'bg-yellow-500/20 text-yellow-300'}`}>
+                              {isPanic ? 'PANIC' : '911'}
+                            </span>
+                            <span className="font-semibold text-white">
+                              {isPanic ? `${alert.callsign}${alert.officer ? ` · ${alert.officer}` : ''}` : (alert.caller || 'Unknown caller')}
+                            </span>
+                            {alert.phone && <span className="font-mono text-xs text-gray-400">{alert.phone}</span>}
+                            <span className="font-mono text-xs text-gray-500">{formatPSTTime(new Date(alert.receivedAt).toISOString())}</span>
+                          </div>
+                          {alert.description && <p className="mt-1 text-sm text-gray-300">{alert.description}</p>}
+                          {where && (
+                            <p className="mt-1 flex items-center gap-1.5 text-xs text-gray-400"><MapPin size={12} />{where}</p>
+                          )}
+                        </div>
+                        <div className="flex gap-2 flex-shrink-0">
+                          {!isPanic && (
+                            <button
+                              onClick={() => {
+                                setNewCallPrefill({
+                                  callOrigin: 'CALLER',
+                                  address: [alert.location?.street, alert.location?.crossStreet].filter(Boolean).join(' / ') || alert.location?.zone || '',
+                                  postal: alert.location?.postal || '',
+                                  description: alert.description || '',
+                                  caller: alert.caller || '',
+                                  phone: alert.phone || '',
+                                  fivemAlertId: alert.id
+                                });
+                                setShowNewCall(true);
+                              }}
+                              className="btn btn-primary btn-sm"
+                            >
+                              <Plus size={14} /> Create Call
+                            </button>
+                          )}
+                          <button onClick={() => fivem.acknowledge(alert.id)} className="btn btn-secondary btn-sm">
+                            {isPanic ? 'Acknowledge' : 'Dismiss'}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {activeCallList.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-white/[0.1] bg-white/[0.02] px-8 py-16 text-center">
@@ -13094,7 +13239,22 @@ const CADSystem = () => {
                     </span>
                   </div>
                   <div className="text-gray-400 text-sm">{u.officer}</div>
-                  <div className={`mt-2 text-xs font-semibold uppercase tracking-wider ${u.status === 'available' ? 'text-green-400' : 'text-blue-400'}`}>{getStatusLabel(u.status)}</div>
+                  {(u.department || u.subdivision) && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {u.department && <span className="chip">{u.department}</span>}
+                      {u.subdivision && <span className="chip">{u.subdivision}</span>}
+                    </div>
+                  )}
+                  {u.aop && <div className="mt-2 text-xs text-gray-400"><span className="text-gray-500">AOP</span> {u.aop}</div>}
+                  {(() => {
+                    const live = formatGameLocation(fivem.telemetryFor(u.callsign)?.location);
+                    return live ? (
+                      <div className="mt-1 flex items-center gap-1.5 text-xs text-emerald-300" title="Live position from FiveM">
+                        <MapPin size={12} />{live}
+                      </div>
+                    ) : null;
+                  })()}
+                  <div className={`mt-2 text-xs font-semibold uppercase tracking-wider ${u.status === 'available' ? 'text-green-400' : u.status === 'panic' ? 'text-red-400' : 'text-blue-400'}`}>{getStatusLabel(u.status)}</div>
                 </div>
               ))}
             </div>

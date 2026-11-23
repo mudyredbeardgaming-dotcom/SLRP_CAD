@@ -19,6 +19,7 @@ StrataMDT is a Mobile Data Terminal / Computer-Aided Dispatch (CAD) system for G
 ```
 StrataMDT/
 ├── app/
+│   ├── api/            # load-data, save-data, fivem/* (bridge endpoints)
 │   ├── layout.tsx      # Root layout, metadata, fonts
 │   ├── page.tsx        # Main page that renders CADSystem
 │   ├── icon.svg        # Favicon (StrataMDT mark)
@@ -26,6 +27,8 @@ StrataMDT/
 ├── components/
 │   ├── Brand.tsx       # BRAND config, BrandMark, BrandLockup (logo swap point)
 │   └── CADSystem.tsx   # Main application component (monolithic)
+├── lib/fivem/          # FiveM bridge: protocol types, in-memory store, API-key auth, useFiveMBridge hook
+├── fivem/strata-mdt/   # Sample FiveM resource (Lua) + fivem/README.md protocol docs
 ├── public/             # Static assets (legacy role logos still live here)
 ├── package.json
 ├── tailwind.config.js  # Palette (gray override + accent), radii, shadows, animations
@@ -102,7 +105,10 @@ The project uses strict mode but with `noImplicitAny: false` to allow flexibilit
 ## Key Constants & Data
 
 ### Departments (DEPARTMENTS array)
-Sheriff's Office divisions, Metro units, CSO units, etc.
+Only `B.C.S.O` and `L.S.P.D`. Used by the Unit Information modal and every department/agency dropdown in the report and record forms (rendered with `DEPARTMENTS.map`). Don't add hard-coded agency `<option>`s.
+
+### Subdivisions (SUBDIVISIONS array)
+TED, K-9, AIR, CIU, IA, SRT, MARINE, CVE, DO, WC, BCSO-PATROL, BCSO-SUPV, LSPD-PATROL, LSPD-SUPV. Entries with a `dept` only show for that department (`subdivisionsFor(dept)`). Stored on `unit.subdivision`; the Unit Information modal also edits `unit.aop` (free text).
 
 ### Call Codes (CALL_CODES array)
 Standard dispatch call types
@@ -232,6 +238,16 @@ All test credentials are stored in `/data/cad-data.json` under `officerCredentia
 | Civilian | ❌ | ✅ | ❌ | ❌ | ❌ |
 | Admin | ✅ | ✅ | ✅ | ✅ | ✅ |
 
+## FiveM Bridge
+
+Basis for connecting a FiveM server. Full protocol and setup: `fivem/README.md`.
+- Off unless `FIVEM_API_KEY` is set on the CAD host. The game server authenticates with `Authorization: Bearer <key>`.
+- Game -> CAD: `POST /api/fivem/ingest` (heartbeat, unit_update, unit_left, unit_status, panic, call_911, aop_update). CAD -> game: the game polls `GET /api/fivem/outbox?since=`. Lookups: `GET /api/fivem/lookup?plate=|name=`.
+- CAD UI: `useFiveMBridge` polls `/api/fivem/state` (paused while forms/modals are open, same reason as the clock). It drives the top-bar FiveM chip, the "Incoming from FiveM" queue on the Dispatch board, and live locations on unit cards.
+- Units are matched to players by **callsign** (case-insensitive).
+- Bridge state is in memory (`lib/fivem/store.ts`, on `globalThis`), not in `cad-data.json`, so a single server instance is assumed.
+- CAD actions that should reach the game call `fivem.send(...)` (see createCall, assignUnit, closeCall, updateUnitStatus). Game-originated changes are applied locally and saved, never echoed back.
+
 ## Deployment
 
 Deployed on Railway. See `DEPLOYMENT_GUIDE.md` for details.
@@ -243,6 +259,7 @@ The `railway.json` configuration handles the deployment settings.
 - Final StrataMDT logo artwork (wire up via `components/Brand.tsx`)
 - Database integration (currently using JSON file persistence)
 - Real-time sync between users (WebSocket/Server-Sent Events)
+- FiveM: waypoints for assigned calls, live map from telemetry, ESX/QBCore job sync, shared store (Redis) for multi-instance
 - Multi-instance deployment support
 - Separate the monolithic component into smaller modules
 - Implement proper authentication with JWT tokens

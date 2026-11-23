@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
 
+// Must run on every request. Without this Next.js prerenders the route at build
+// time and serves that snapshot forever, so saved data never comes back.
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     // Path to data file
@@ -28,7 +32,7 @@ export async function GET(request: NextRequest) {
             unitId: 'Unit-1',
             displayName: 'Deputy Johnson',
             role: 'police',
-            department: 'LSSO'
+            department: 'B.C.S.O'
           },
           {
             username: 'smith',
@@ -36,7 +40,7 @@ export async function GET(request: NextRequest) {
             unitId: 'Unit-2',
             displayName: 'Deputy Smith',
             role: 'police',
-            department: 'LSSO'
+            department: 'B.C.S.O'
           },
           {
             username: 'davis',
@@ -44,7 +48,7 @@ export async function GET(request: NextRequest) {
             unitId: 'Unit-3',
             displayName: 'Deputy Davis',
             role: 'police',
-            department: 'LSSO'
+            department: 'B.C.S.O'
           },
           {
             username: 'firefighter1',
