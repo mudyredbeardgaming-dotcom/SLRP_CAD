@@ -144,6 +144,12 @@ Standard dispatch call types
 - Warrant
 - Citation
 
+### BOLO panel
+Records Management → BOLO (`activeRecordsPanel === 'bolo'`, `boloPanelJSX`) lists every officer's BOLO records that are active. Deactivating sets `status: 'INACTIVE'` (+ `deactivatedAt`/`deactivatedBy`), which removes the BOLO from the Active list. Deactivated BOLOs stay under the Inactive tab and can be reactivated. Deactivate/Reactivate is available on the card and in the BOLO record footer. The record form modal is `recordFormModalJSX`, which both the Records and BOLO panels render.
+
+### Charges
+Every charge list stores `counts` per charge (times charged with the same offense) and edits it with `renderCountsInput` (−/+ stepper). Bond totals multiply by counts (`chargeCount(c)`).
+
 ## Branding
 
 - Product name: **StrataMDT** (wordmark renders as "Strata" + accent-colored "MDT").

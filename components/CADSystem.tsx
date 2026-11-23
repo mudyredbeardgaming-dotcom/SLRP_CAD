@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AlertCircle, Radio, MapPin, Clock, User, Phone, FileText, Plus, X, Check, Shield, AlertTriangle, Lock, LogOut, Search, Database, Pin, PinOff, Car, Flame, Truck, ArrowRight, Eye, EyeOff, LayoutGrid, ChevronRight, ArrowLeft } from 'lucide-react';
+import { AlertCircle, Radio, MapPin, Clock, User, Phone, FileText, Plus, X, Check, Shield, AlertTriangle, Lock, LogOut, Search, Database, Pin, PinOff, Car, Flame, Truck, ArrowRight, Eye, EyeOff, LayoutGrid, ChevronRight, ArrowLeft, Minus, Power, RotateCcw } from 'lucide-react';
 import { BRAND, BrandMark, BrandLockup } from './Brand';
 import { useFiveMBridge, formatGameLocation } from '@/lib/fivem/useFiveMBridge';
 import LiveMap from './LiveMap';
@@ -221,6 +221,8 @@ const CADSystem = () => {
     bolo: false
   });
   const [activeRecordsPanel, setActiveRecordsPanel] = useState<string | null>(null); // 'lookup', 'records', 'bolo'
+  const [boloView, setBoloView] = useState<'active' | 'inactive'>('active');
+  const [boloSearch, setBoloSearch] = useState('');
 
   // Records Panel state
   const [showNewReportDropdown, setShowNewReportDropdown] = useState(false);
@@ -941,6 +943,7 @@ const CADSystem = () => {
     }
     if (activeRecordsPanel) {
       if (activeRecordsPanel === 'lookup') resetLookup();
+      if (activeRecordsPanel === 'bolo') setBoloSearch('');
       setShowNewReportDropdown(false);
       setShowNewRecordDropdown(false);
       setActiveRecordsPanel(null);
@@ -971,6 +974,75 @@ const CADSystem = () => {
       <ArrowLeft size={18} />
     </button>
   );
+
+  // ---- Charge counts -------------------------------------------------------
+  // Stepper used by every charge list (reports, records, DMV warrant/probation/
+  // parole). `counts` = how many times the subject is charged with that same
+  // offense. The field may be empty while typing; it snaps back to 1 on blur.
+  const chargeCount = (c: any) => Math.max(1, parseInt(c?.counts) || 1);
+  const renderCountsInput = (value: any, onChange: (n: any) => void, small = false) => {
+    const n = Math.max(1, parseInt(value) || 1);
+    const stepBtn = 'inline-flex w-8 flex-shrink-0 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.03] text-gray-300 hover:bg-white/[0.08] hover:text-white disabled:opacity-40 disabled:hover:bg-white/[0.03]';
+    return (
+      <div className="flex items-stretch gap-1">
+        <button type="button" onClick={() => onChange(n - 1)} disabled={n <= 1} className={stepBtn} aria-label="Fewer counts" title="Fewer counts">
+          <Minus size={14} />
+        </button>
+        <input
+          type="number"
+          min="1"
+          max="99"
+          inputMode="numeric"
+          value={value === '' ? '' : n}
+          onChange={(e) => {
+            const v = e.target.value;
+            onChange(v === '' ? '' : Math.min(99, Math.max(1, parseInt(v) || 1)));
+          }}
+          onBlur={() => { if (value === '' || !(parseInt(value) >= 1)) onChange(1); }}
+          className={`field ${small ? 'field-sm' : ''} no-spin min-w-0 text-center font-mono`}
+          aria-label="Counts"
+        />
+        <button type="button" onClick={() => onChange(Math.min(99, n + 1))} disabled={n >= 99} className={stepBtn} aria-label="More counts" title="More counts">
+          <Plus size={14} />
+        </button>
+      </div>
+    );
+  };
+
+  // ---- BOLO status ---------------------------------------------------------
+  // A BOLO stays on the BOLO panel until it is deactivated (status INACTIVE).
+  const isBoloActive = (r: any) => r?.status !== 'INACTIVE';
+  const setRecordActive = (record: any, active: boolean) => {
+    const now = new Date().toISOString();
+    const updated = {
+      ...record,
+      status: active ? 'ACTIVE' : 'INACTIVE',
+      deactivatedAt: active ? null : now,
+      deactivatedBy: active ? null : (loggedInOfficer?.displayName || loggedInOfficer?.username || ''),
+      updatedAt: now,
+    };
+    const newRecords = officerRecords.map(r => (r.id === record.id ? updated : r));
+    setOfficerRecords(newRecords);
+    // Save right away so the 5s refresh can't bring the old status back
+    saveDataImmediately({ units, calls, civilians, officerReports, officerRecords: newRecords, officerCredentials });
+  };
+  const BOLO_REASONS: [string, string][] = [
+    ['reasonStolenVehicle', 'Stolen Vehicle'],
+    ['reasonWarrantSubject', 'Warrant Subject'],
+    ['reasonEvaded', 'Evaded Law Enforcement'],
+    ['reasonViolentCrime', 'Violent Crime Suspect'],
+    ['reasonQuestioning', 'Wanted for Questioning'],
+    ['reasonWelfareCheck', 'Welfare Check'],
+    ['reasonMissingPerson', 'Missing Person'],
+    ['reasonRecklessDriver', 'Reckless Driver'],
+  ];
+  const BOLO_SAFETY: [string, string][] = [
+    ['safetyArmed', 'Known to be Armed'],
+    ['safetyViolent', 'Known to be Violent'],
+    ['safetySuicidal', 'Suicidal'],
+    ['safetyGang', 'Gang Involvement'],
+    ['safetyMental', 'Mental Issues'],
+  ];
   const callForGame = (call) => ({
     id: call.id, code: call.code, priority: call.priority,
     address: call.address, postal: call.postal, description: call.description
@@ -2535,7 +2607,7 @@ const CADSystem = () => {
                                             {charge.chargeType}
                                           </span>
                                           <span className="text-white font-semibold">{charge.charge}</span>
-                                          {charge.counts > 1 && <span className="text-gray-400 ml-1">(x{charge.counts})</span>}
+                                          {chargeCount(charge) > 1 && <span className="text-gray-400 ml-1">({chargeCount(charge)} counts)</span>}
                                           {charge.titleCode && <span className="text-gray-400 ml-2">[{charge.titleCode}]</span>}
                                         </div>
                                         <div className="text-right">
@@ -2554,7 +2626,7 @@ const CADSystem = () => {
                                 <div className="mt-2 text-right">
                                   <span className="text-gray-400 text-sm">Total: </span>
                                   <span className="text-green-400 font-bold">
-                                    ${record.data.charges.reduce((sum, c) => sum + (parseFloat(c.bondAmount) || 0), 0).toLocaleString('en-US', {minimumFractionDigits: 2})}
+                                    ${record.data.charges.reduce((sum, c) => sum + (parseFloat(c.bondAmount) || 0) * chargeCount(c), 0).toLocaleString('en-US', {minimumFractionDigits: 2})}
                                   </span>
                                 </div>
                               </div>
@@ -2605,7 +2677,7 @@ const CADSystem = () => {
                                             {charge.chargeType}
                                           </span>
                                           <span className="text-white font-semibold">{charge.charge}</span>
-                                          {charge.counts > 1 && <span className="text-gray-400 ml-1">(x{charge.counts})</span>}
+                                          {chargeCount(charge) > 1 && <span className="text-gray-400 ml-1">({chargeCount(charge)} counts)</span>}
                                           {charge.titleCode && <span className="text-gray-400 ml-2">[{charge.titleCode}]</span>}
                                         </div>
                                         <div className="text-right">
@@ -2624,7 +2696,7 @@ const CADSystem = () => {
                                 <div className="mt-2 text-right">
                                   <span className="text-gray-400 text-sm">Total: </span>
                                   <span className="text-green-400 font-bold">
-                                    ${record.data.probationCharges.reduce((sum, c) => sum + (parseFloat(c.bondAmount) || 0), 0).toLocaleString('en-US', {minimumFractionDigits: 2})}
+                                    ${record.data.probationCharges.reduce((sum, c) => sum + (parseFloat(c.bondAmount) || 0) * chargeCount(c), 0).toLocaleString('en-US', {minimumFractionDigits: 2})}
                                   </span>
                                 </div>
                               </div>
@@ -2675,7 +2747,7 @@ const CADSystem = () => {
                                             {charge.chargeType}
                                           </span>
                                           <span className="text-white font-semibold">{charge.charge}</span>
-                                          {charge.counts > 1 && <span className="text-gray-400 ml-1">(x{charge.counts})</span>}
+                                          {chargeCount(charge) > 1 && <span className="text-gray-400 ml-1">({chargeCount(charge)} counts)</span>}
                                           {charge.titleCode && <span className="text-gray-400 ml-2">[{charge.titleCode}]</span>}
                                         </div>
                                         <div className="text-right">
@@ -2694,7 +2766,7 @@ const CADSystem = () => {
                                 <div className="mt-2 text-right">
                                   <span className="text-gray-400 text-sm">Total: </span>
                                   <span className="text-green-400 font-bold">
-                                    ${record.data.paroleCharges.reduce((sum, c) => sum + (parseFloat(c.bondAmount) || 0), 0).toLocaleString('en-US', {minimumFractionDigits: 2})}
+                                    ${record.data.paroleCharges.reduce((sum, c) => sum + (parseFloat(c.bondAmount) || 0) * chargeCount(c), 0).toLocaleString('en-US', {minimumFractionDigits: 2})}
                                   </span>
                                 </div>
                               </div>
@@ -3553,18 +3625,7 @@ const CADSystem = () => {
                             </div>
                             <div>
                               <label className="field-label">Counts</label>
-                              <input
-                                type="number"
-                                min="1"
-                                value={charge.counts}
-                                onChange={(e) => {
-                                  const updated = dmvRecordData.charges.map(c =>
-                                    c.id === charge.id ? {...c, counts: parseInt(e.target.value) || 1} : c
-                                  );
-                                  setDmvRecordData({...dmvRecordData, charges: updated});
-                                }}
-                                className="field field-sm"
-                              />
+                              {renderCountsInput(charge.counts, (n) => { const updated = dmvRecordData.charges.map(c => c.id === charge.id ? {...c, counts: n} : c); setDmvRecordData({...dmvRecordData, charges: updated}); }, true)}
                             </div>
                             <div>
                               <label className="field-label">Title/Code</label>
@@ -3646,7 +3707,7 @@ const CADSystem = () => {
                       <div className="rounded-lg border border-white/[0.06] bg-white/[0.025] px-4 py-2">
                         <span className="text-gray-400 text-sm">Fine Total: </span>
                         <span className="text-green-400 font-bold text-lg">
-                          ${dmvRecordData.charges.reduce((sum, c) => sum + (parseFloat(c.bondAmount) || 0), 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                          ${dmvRecordData.charges.reduce((sum, c) => sum + (parseFloat(c.bondAmount) || 0) * chargeCount(c), 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                         </span>
                       </div>
                     </div>
@@ -3812,18 +3873,7 @@ const CADSystem = () => {
                             </div>
                             <div>
                               <label className="field-label">Counts</label>
-                              <input
-                                type="number"
-                                min="1"
-                                value={charge.counts}
-                                onChange={(e) => {
-                                  const updated = dmvRecordData.probationCharges.map(c =>
-                                    c.id === charge.id ? {...c, counts: parseInt(e.target.value) || 1} : c
-                                  );
-                                  setDmvRecordData({...dmvRecordData, probationCharges: updated});
-                                }}
-                                className="field field-sm"
-                              />
+                              {renderCountsInput(charge.counts, (n) => { const updated = dmvRecordData.probationCharges.map(c => c.id === charge.id ? {...c, counts: n} : c); setDmvRecordData({...dmvRecordData, probationCharges: updated}); }, true)}
                             </div>
                             <div>
                               <label className="field-label">Title/Code</label>
@@ -3905,7 +3955,7 @@ const CADSystem = () => {
                       <div className="rounded-lg border border-white/[0.06] bg-white/[0.025] px-4 py-2">
                         <span className="text-gray-400 text-sm">Fine Total: </span>
                         <span className="text-green-400 font-bold text-lg">
-                          ${dmvRecordData.probationCharges.reduce((sum, c) => sum + (parseFloat(c.bondAmount) || 0), 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                          ${dmvRecordData.probationCharges.reduce((sum, c) => sum + (parseFloat(c.bondAmount) || 0) * chargeCount(c), 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                         </span>
                       </div>
                     </div>
@@ -4071,18 +4121,7 @@ const CADSystem = () => {
                             </div>
                             <div>
                               <label className="field-label">Counts</label>
-                              <input
-                                type="number"
-                                min="1"
-                                value={charge.counts}
-                                onChange={(e) => {
-                                  const updated = dmvRecordData.paroleCharges.map(c =>
-                                    c.id === charge.id ? {...c, counts: parseInt(e.target.value) || 1} : c
-                                  );
-                                  setDmvRecordData({...dmvRecordData, paroleCharges: updated});
-                                }}
-                                className="field field-sm"
-                              />
+                              {renderCountsInput(charge.counts, (n) => { const updated = dmvRecordData.paroleCharges.map(c => c.id === charge.id ? {...c, counts: n} : c); setDmvRecordData({...dmvRecordData, paroleCharges: updated}); }, true)}
                             </div>
                             <div>
                               <label className="field-label">Title/Code</label>
@@ -4164,7 +4203,7 @@ const CADSystem = () => {
                       <div className="rounded-lg border border-white/[0.06] bg-white/[0.025] px-4 py-2">
                         <span className="text-gray-400 text-sm">Fine Total: </span>
                         <span className="text-green-400 font-bold text-lg">
-                          ${dmvRecordData.paroleCharges.reduce((sum, c) => sum + (parseFloat(c.bondAmount) || 0), 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                          ${dmvRecordData.paroleCharges.reduce((sum, c) => sum + (parseFloat(c.bondAmount) || 0) * chargeCount(c), 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                         </span>
                       </div>
                     </div>
@@ -4524,6 +4563,3158 @@ const CADSystem = () => {
     );
   };
 
+  // Record form modal. Shared by the Records panel and the BOLO panel, so it
+  // is built before both.
+  const recordFormModalJSX = activeRecordForm ? (
+          <div className="modal-backdrop z-[60]">
+            <div className="modal-surface w-full max-w-3xl max-h-[85vh] overflow-y-auto">
+              <div className="bg-gray-900 px-6 py-4 border-b border-white/[0.06] flex justify-between items-center sticky top-0">
+                <h3 className="text-lg font-bold text-orange-400 flex items-center gap-2">
+                  {editingRecordId ? '' : 'New '}{activeRecordForm}
+                  {activeRecordForm === 'BOLO' && editingRecordId && (
+                    <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${isBoloActive(currentRecordData) ? 'bg-red-500/15 text-red-300 ring-1 ring-red-500/30' : 'bg-white/[0.06] text-gray-400 ring-1 ring-white/[0.1]'}`}>
+                      {isBoloActive(currentRecordData) ? 'ACTIVE' : 'INACTIVE'}
+                    </span>
+                  )}
+                </h3>
+                <button
+                  onClick={() => {
+                    setActiveRecordForm(null);
+                    setCurrentRecordData({});
+                    setEditingRecordId(null);
+                  }}
+                  className="icon-btn"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="p-6 space-y-4">
+                {/* Common Fields */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="field-label">Officer Name</label>
+                    <input
+                      type="text"
+                      value={currentRecordData.officer || ''}
+                      onChange={(e) => setCurrentRecordData({...currentRecordData, officer: e.target.value})}
+                      className="field"
+                    />
+                  </div>
+                  <div>
+                    <label className="field-label">Badge Number</label>
+                    <input
+                      type="text"
+                      value={currentRecordData.badge || ''}
+                      onChange={(e) => setCurrentRecordData({...currentRecordData, badge: e.target.value})}
+                      className="field"
+                    />
+                  </div>
+                </div>
+
+                {/* ARREST specific fields */}
+                {activeRecordForm === 'ARREST' && (
+                  <>
+                    {/* Agency Information Section */}
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-blue-400">AGENCY INFORMATION</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div>
+                          <label className="field-label">Callsign</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.callsign || ''}
+                            readOnly
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Department</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.department || ''}
+                            readOnly
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Officer Name</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.officer || ''}
+                            readOnly
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Record#</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.recordNumber || ''}
+                            readOnly
+                            className="field"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Report Reference Section */}
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-green-400">REPORT REFERENCE</h4>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div>
+                          <label className="field-label">Date of Call</label>
+                          <input
+                            type="date"
+                            value={currentRecordData.dateOfCall || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, dateOfCall: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Primary Department</label>
+                          <select
+                            value={currentRecordData.primaryDepartment || 'B.C.S.O'}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, primaryDepartment: e.target.value})}
+                            className="field"
+                          >
+                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="field-label">Arresting Officer Badge #</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.arrestingOfficerBadge || loggedInOfficer?.badgeNumber || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, arrestingOfficerBadge: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Dispatch ID #</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.dispatchId || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, dispatchId: e.target.value})}
+                            className="field"
+                            placeholder="Dispatch ID..."
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Traffic Accident Ref #</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.trafficAccidentRef || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, trafficAccidentRef: e.target.value})}
+                            className="field"
+                            placeholder="Reference number..."
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Citation Ref #</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.citationRef || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, citationRef: e.target.value})}
+                            className="field"
+                            placeholder="Citation reference..."
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Supplemental Report to be Filed?</label>
+                          <select
+                            value={currentRecordData.supplementalReportFiled || 'NO'}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, supplementalReportFiled: e.target.value})}
+                            className="field"
+                          >
+                            <option value="YES">YES</option>
+                            <option value="NO">NO</option>
+                          </select>
+                        </div>
+                        <div className="col-span-2">
+                          <label className="field-label">Additional Reference Info (Not Required)</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.additionalReferenceInfo || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, additionalReferenceInfo: e.target.value})}
+                            className="field"
+                            placeholder="Additional reference information..."
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Subject Transported by Other Officer?</label>
+                          <select
+                            value={currentRecordData.transportedByOther || 'NO'}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, transportedByOther: e.target.value})}
+                            className="field"
+                          >
+                            <option value="YES">YES</option>
+                            <option value="NO">NO</option>
+                          </select>
+                        </div>
+                        <div className="col-span-2">
+                          <label className="field-label">Badge # and Name of Transporting Agent (If Applicable)</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.transportingAgent || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, transportingAgent: e.target.value})}
+                            className="field"
+                            placeholder="Badge # and Name..."
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Subject Treated by EMS?</label>
+                          <select
+                            value={currentRecordData.treatedByEMS || 'NO'}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, treatedByEMS: e.target.value})}
+                            className="field"
+                          >
+                            <option value="YES">YES</option>
+                            <option value="NO">NO</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="field-label">EMS Transport Subject to Hospital?</label>
+                          <select
+                            value={currentRecordData.emsTransportToHospital || 'NO'}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, emsTransportToHospital: e.target.value})}
+                            className="field"
+                          >
+                            <option value="YES">YES</option>
+                            <option value="NO">NO</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Arrestee Information Section */}
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-red-400">ARRESTEE INFORMATION</h4>
+                      <div className="mb-3">
+                        <label className="field-label">Search by Name</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={partySearchName1}
+                            onChange={(e) => setPartySearchName1(e.target.value)}
+                            placeholder="Enter name..."
+                            className="field flex-1 min-w-0"
+                          />
+                          <button
+                            onClick={() => searchPersonByName(partySearchName1, 1)}
+                            className="btn btn-primary"
+                          >
+                            Search
+                          </button>
+                        </div>
+                        {partySearchResults1.length > 0 && (
+                          <div className="mt-2 menu-list max-h-32 overflow-y-auto">
+                            {partySearchResults1.map((p, i) => (
+                              <div
+                                key={i}
+                                onClick={() => {
+                                  setCurrentRecordData({
+                                    ...currentRecordData,
+                                    arresteeName: `${p.firstName} ${p.lastName}`,
+                                    arresteeDOB: p.dob,
+                                    arresteeAddress: p.address,
+                                    arresteePhone: p.phone
+                                  });
+                                  setPartySearchResults1([]);
+                                  setPartySearchName1('');
+                                }}
+                                className="menu-item"
+                              >
+                                {p.firstName} {p.lastName} - DOB: {p.dob}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="field-label">Name</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.arresteeName || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, arresteeName: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Date of Birth</label>
+                          <input
+                            type="date"
+                            value={currentRecordData.arresteeDOB || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, arresteeDOB: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Phone</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.arresteePhone || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, arresteePhone: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Address</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.arresteeAddress || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, arresteeAddress: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Vehicles Associated Section */}
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-purple-400">VEHICLES ASSOCIATED</h4>
+                      <div className="mb-3">
+                        <label className="field-label">Search by Plate</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={vehicleSearchPlate1}
+                            onChange={(e) => setVehicleSearchPlate1(e.target.value)}
+                            placeholder="Enter plate number..."
+                            className="field flex-1 min-w-0"
+                          />
+                          <button
+                            onClick={() => searchVehicleByPlate(vehicleSearchPlate1, 1)}
+                            className="btn btn-primary"
+                          >
+                            Search
+                          </button>
+                        </div>
+                        {vehicleSearchResults1.length > 0 && (
+                          <div className="mt-2 menu-list max-h-32 overflow-y-auto">
+                            {vehicleSearchResults1.map((v, i) => (
+                              <div
+                                key={i}
+                                onClick={() => {
+                                  setCurrentRecordData({
+                                    ...currentRecordData,
+                                    vehiclePlate: v.plate,
+                                    vehicleMake: v.make,
+                                    vehicleModel: v.model,
+                                    vehicleColor: v.color
+                                  });
+                                  setVehicleSearchResults1([]);
+                                  setVehicleSearchPlate1('');
+                                }}
+                                className="menu-item"
+                              >
+                                {v.plate} - {v.make} {v.model} ({v.color})
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="field-label">Plate Number</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.vehiclePlate || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, vehiclePlate: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Make</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.vehicleMake || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, vehicleMake: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Model</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.vehicleModel || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, vehicleModel: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Color</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.vehicleColor || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, vehicleColor: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Charges Filed Section */}
+                    <div className="panel-card mb-4">
+                      <div className="flex justify-between items-center mb-3">
+                        <h4 className="text-md font-semibold text-red-400">CHARGES FILED</h4>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newCharge = {
+                              id: Date.now(),
+                              charge: '',
+                              chargeType: 'MISDEMEANOR',
+                              counts: 1,
+                              titleCode: ''
+                            };
+                            setCurrentRecordData({
+                              ...currentRecordData,
+                              charges: [...(currentRecordData.charges || []), newCharge]
+                            });
+                          }}
+                          className="btn btn-danger btn-sm"
+                        >
+                          <Plus size={16} /> Add Charge
+                        </button>
+                      </div>
+                      {(!currentRecordData.charges || currentRecordData.charges.length === 0) ? (
+                        <p className="text-gray-500 text-center py-4">No charges added. Click "Add Charge" to add charges.</p>
+                      ) : (
+                        <div className="space-y-3">
+                          {currentRecordData.charges.map((charge, index) => (
+                            <div key={charge.id} className="subcard p-3">
+                              <div className="flex justify-between items-start mb-2">
+                                <span className="text-xs text-gray-400">Charge #{index + 1}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setCurrentRecordData({
+                                      ...currentRecordData,
+                                      charges: currentRecordData.charges.filter(c => c.id !== charge.id)
+                                    });
+                                  }}
+                                  className="text-red-400 hover:text-red-300"
+                                >
+                                  <X size={16} />
+                                </button>
+                              </div>
+                              <div className="grid grid-cols-4 gap-2">
+                                <div className="col-span-2">
+                                  <label className="field-label">Charge</label>
+                                  <ChargeAutocompleteInput
+                                    value={charge.charge}
+                                    onChange={(value) => {
+                                      const updated = currentRecordData.charges.map(c =>
+                                        c.id === charge.id ? {...c, charge: value} : c
+                                      );
+                                      setCurrentRecordData({...currentRecordData, charges: updated});
+                                    }}
+                                    onSelect={(code) => {
+                                      const updated = currentRecordData.charges.map(c =>
+                                        c.id === charge.id ? {
+                                          ...c,
+                                          charge: code.title,
+                                          titleCode: code.code,
+                                          chargeType: code.chargeType || 'MISDEMEANOR',
+                                          bondType: code.bondType || 'CASH BAIL',
+                                          bondAmount: code.bondAmount || 0,
+                                          jailTime: code.jailTime || ''
+                                        } : c
+                                      );
+                                      setCurrentRecordData({...currentRecordData, charges: updated});
+                                    }}
+                                    codes={californiaCodes}
+                                    placeholder="Type to search charges..."
+                                  />
+                                </div>
+                                <div>
+                                  <label className="field-label">Charge Type</label>
+                                  <select
+                                    value={charge.chargeType}
+                                    onChange={(e) => {
+                                      const updated = currentRecordData.charges.map(c =>
+                                        c.id === charge.id ? {...c, chargeType: e.target.value} : c
+                                      );
+                                      setCurrentRecordData({...currentRecordData, charges: updated});
+                                    }}
+                                    className="field field-sm"
+                                  >
+                                    <option value="INFRACTION">INFRACTION</option>
+                                    <option value="MISDEMEANOR">MISDEMEANOR</option>
+                                    <option value="FELONY">FELONY</option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="field-label">Counts</label>
+                                  {renderCountsInput(charge.counts, (n) => { const updated = currentRecordData.charges.map(c => c.id === charge.id ? {...c, counts: n} : c); setCurrentRecordData({...currentRecordData, charges: updated}); }, true)}
+                                </div>
+                                <div>
+                                  <label className="field-label">Title/Code</label>
+                                  <input
+                                    type="text"
+                                    value={charge.titleCode}
+                                    onChange={(e) => {
+                                      const updated = currentRecordData.charges.map(c =>
+                                        c.id === charge.id ? {...c, titleCode: e.target.value} : c
+                                      );
+                                      setCurrentRecordData({...currentRecordData, charges: updated});
+                                    }}
+                                    className="field field-sm"
+                                    placeholder="e.g., PC 242"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Evidence or Property Log Section */}
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-yellow-400">EVIDENCE OR PROPERTY LOG</h4>
+                      <div className="grid grid-cols-1 gap-3">
+                        <div>
+                          <label className="field-label">Evidence Locker #</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.evidenceLockerNumber || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, evidenceLockerNumber: e.target.value})}
+                            className="field"
+                            placeholder="Evidence locker number..."
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="field-label">Item A Quantity</label>
+                            <input
+                              type="text"
+                              value={currentRecordData.itemAQuantity || ''}
+                              onChange={(e) => setCurrentRecordData({...currentRecordData, itemAQuantity: e.target.value})}
+                              className="field"
+                              placeholder="Quantity..."
+                            />
+                          </div>
+                          <div>
+                            <label className="field-label">Item A Description</label>
+                            <input
+                              type="text"
+                              value={currentRecordData.itemADescription || ''}
+                              onChange={(e) => setCurrentRecordData({...currentRecordData, itemADescription: e.target.value})}
+                              className="field"
+                              placeholder="Description..."
+                            />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="field-label">Item B Quantity</label>
+                            <input
+                              type="text"
+                              value={currentRecordData.itemBQuantity || ''}
+                              onChange={(e) => setCurrentRecordData({...currentRecordData, itemBQuantity: e.target.value})}
+                              className="field"
+                              placeholder="Quantity..."
+                            />
+                          </div>
+                          <div>
+                            <label className="field-label">Item B Description</label>
+                            <input
+                              type="text"
+                              value={currentRecordData.itemBDescription || ''}
+                              onChange={(e) => setCurrentRecordData({...currentRecordData, itemBDescription: e.target.value})}
+                              className="field"
+                              placeholder="Description..."
+                            />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="field-label">Item C Quantity</label>
+                            <input
+                              type="text"
+                              value={currentRecordData.itemCQuantity || ''}
+                              onChange={(e) => setCurrentRecordData({...currentRecordData, itemCQuantity: e.target.value})}
+                              className="field"
+                              placeholder="Quantity..."
+                            />
+                          </div>
+                          <div>
+                            <label className="field-label">Item C Description</label>
+                            <input
+                              type="text"
+                              value={currentRecordData.itemCDescription || ''}
+                              onChange={(e) => setCurrentRecordData({...currentRecordData, itemCDescription: e.target.value})}
+                              className="field"
+                              placeholder="Description..."
+                            />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="field-label">Item D Quantity</label>
+                            <input
+                              type="text"
+                              value={currentRecordData.itemDQuantity || ''}
+                              onChange={(e) => setCurrentRecordData({...currentRecordData, itemDQuantity: e.target.value})}
+                              className="field"
+                              placeholder="Quantity..."
+                            />
+                          </div>
+                          <div>
+                            <label className="field-label">Item D Description</label>
+                            <input
+                              type="text"
+                              value={currentRecordData.itemDDescription || ''}
+                              onChange={(e) => setCurrentRecordData({...currentRecordData, itemDDescription: e.target.value})}
+                              className="field"
+                              placeholder="Description..."
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Narrative Section */}
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-cyan-400">NARRATIVE</h4>
+                      <div>
+                        <label className="field-label">Narrative</label>
+                        <textarea
+                          value={currentRecordData.narrative || ''}
+                          onChange={(e) => setCurrentRecordData({...currentRecordData, narrative: e.target.value})}
+                          className="field h-32"
+                          placeholder="Detailed narrative of the arrest..."
+                        />
+                      </div>
+                    </div>
+
+                    {/* Image Attachments Section */}
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-orange-400">IMAGE ATTACHMENTS</h4>
+                      <div className="space-y-3">
+                        <div>
+                          <label className="field-label">Image File 1</label>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                  setCurrentRecordData({...currentRecordData, imageUrl1: reader.result as string});
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                            className="field mb-2"
+                          />
+                          {currentRecordData.imageUrl1 && (
+                            <div className="mb-2">
+                              <img src={currentRecordData.imageUrl1} alt="Attachment 1" className="max-h-32 rounded border border-gray-500" />
+                              <button
+                                type="button"
+                                onClick={() => setCurrentRecordData({...currentRecordData, imageUrl1: ''})}
+                                className="mt-1 text-xs text-red-400 hover:text-red-300"
+                              >
+                                Remove Image
+                              </button>
+                            </div>
+                          )}
+                          <label className="field-label">Image 1 Description</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.imageDesc1 || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, imageDesc1: e.target.value})}
+                            className="field"
+                            placeholder="Description..."
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Image File 2</label>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                  setCurrentRecordData({...currentRecordData, imageUrl2: reader.result as string});
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                            className="field mb-2"
+                          />
+                          {currentRecordData.imageUrl2 && (
+                            <div className="mb-2">
+                              <img src={currentRecordData.imageUrl2} alt="Attachment 2" className="max-h-32 rounded border border-gray-500" />
+                              <button
+                                type="button"
+                                onClick={() => setCurrentRecordData({...currentRecordData, imageUrl2: ''})}
+                                className="mt-1 text-xs text-red-400 hover:text-red-300"
+                              >
+                                Remove Image
+                              </button>
+                            </div>
+                          )}
+                          <label className="field-label">Image 2 Description</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.imageDesc2 || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, imageDesc2: e.target.value})}
+                            className="field"
+                            placeholder="Description..."
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Image File 3</label>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                  setCurrentRecordData({...currentRecordData, imageUrl3: reader.result as string});
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                            className="field mb-2"
+                          />
+                          {currentRecordData.imageUrl3 && (
+                            <div className="mb-2">
+                              <img src={currentRecordData.imageUrl3} alt="Attachment 3" className="max-h-32 rounded border border-gray-500" />
+                              <button
+                                type="button"
+                                onClick={() => setCurrentRecordData({...currentRecordData, imageUrl3: ''})}
+                                className="mt-1 text-xs text-red-400 hover:text-red-300"
+                              >
+                                Remove Image
+                              </button>
+                            </div>
+                          )}
+                          <label className="field-label">Image 3 Description</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.imageDesc3 || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, imageDesc3: e.target.value})}
+                            className="field"
+                            placeholder="Description..."
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Linked Reports Section */}
+                    <div className="panel-card mb-4">
+                      <div className="flex justify-between items-center mb-3">
+                        <h4 className="text-md font-semibold text-indigo-400">LINKED REPORTS</h4>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newLinkedReport = { id: Date.now(), reportNumber: '', reportType: '' };
+                            setCurrentRecordData({
+                              ...currentRecordData,
+                              linkedReports: [...(currentRecordData.linkedReports || []), newLinkedReport]
+                            });
+                          }}
+                          className="px-3 py-1 bg-indigo-600 text-white rounded text-sm hover:bg-indigo-500 flex items-center gap-1"
+                        >
+                          <Plus size={16} /> Add Linked Report
+                        </button>
+                      </div>
+                      {(!currentRecordData.linkedReports || currentRecordData.linkedReports.length === 0) ? (
+                        <p className="text-gray-500 text-center py-4">No linked reports. Click "Add Linked Report" to link reports.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {currentRecordData.linkedReports.map((report, index) => (
+                            <div key={report.id} className="subcard p-3 flex gap-2 items-end">
+                              <div className="flex-1">
+                                <label className="field-label">Report Number</label>
+                                <input
+                                  type="text"
+                                  value={report.reportNumber}
+                                  onChange={(e) => {
+                                    const updated = currentRecordData.linkedReports.map(r =>
+                                      r.id === report.id ? {...r, reportNumber: e.target.value} : r
+                                    );
+                                    setCurrentRecordData({...currentRecordData, linkedReports: updated});
+                                  }}
+                                  className="field field-sm"
+                                  placeholder="Report #..."
+                                />
+                              </div>
+                              <div className="flex-1">
+                                <label className="field-label">Report Type</label>
+                                <input
+                                  type="text"
+                                  value={report.reportType}
+                                  onChange={(e) => {
+                                    const updated = currentRecordData.linkedReports.map(r =>
+                                      r.id === report.id ? {...r, reportType: e.target.value} : r
+                                    );
+                                    setCurrentRecordData({...currentRecordData, linkedReports: updated});
+                                  }}
+                                  className="field field-sm"
+                                  placeholder="Type..."
+                                />
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCurrentRecordData({
+                                    ...currentRecordData,
+                                    linkedReports: currentRecordData.linkedReports.filter(r => r.id !== report.id)
+                                  });
+                                }}
+                                className="text-red-400 hover:text-red-300 pb-1"
+                              >
+                                <X size={16} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Administrative Section */}
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-pink-400">ADMINISTRATIVE</h4>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div>
+                          <label className="field-label">Booking Officer Signature</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.bookingOfficerSignature || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, bookingOfficerSignature: e.target.value})}
+                            className="field"
+                            placeholder="Officer signature..."
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Booking Officer Badge #</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.bookingOfficerBadge || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, bookingOfficerBadge: e.target.value})}
+                            className="field"
+                            placeholder="Badge #..."
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Date</label>
+                          <input
+                            type="date"
+                            value={currentRecordData.bookingDate || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, bookingDate: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Supervisor Signature</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.supervisorSignature || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, supervisorSignature: e.target.value})}
+                            className="field"
+                            placeholder="Supervisor signature..."
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Supervisor Badge #</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.supervisorBadge || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, supervisorBadge: e.target.value})}
+                            className="field"
+                            placeholder="Badge #..."
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Date</label>
+                          <input
+                            type="date"
+                            value={currentRecordData.supervisorDate || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, supervisorDate: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Status</label>
+                          <select
+                            value={currentRecordData.adminStatus || 'CLOSED/APPROVED'}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, adminStatus: e.target.value})}
+                            className="field"
+                          >
+                            <option value="CLOSED/APPROVED">CLOSED/APPROVED</option>
+                            <option value="FORWARD TO DETECTIVE DIVISION">FORWARD TO DETECTIVE DIVISION</option>
+                            <option value="DETECTIVES IN PROGRESS">DETECTIVES IN PROGRESS</option>
+                            <option value="DENIED/NEEDS EDITS">DENIED/NEEDS EDITS</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="field-label">Case Gone to Court?</label>
+                          <select
+                            value={currentRecordData.caseGoneToCourt || 'NO'}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, caseGoneToCourt: e.target.value})}
+                            className="field"
+                          >
+                            <option value="YES">YES</option>
+                            <option value="NO">NO</option>
+                            <option value="UNDER TRIAL">UNDER TRIAL</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Detective Reference Only Section */}
+                    <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-4">
+                      <h4 className="text-md font-semibold text-red-300 mb-3 border-b border-red-600 pb-2">DETECTIVE REFERENCE ONLY</h4>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div>
+                          <label className="field-label">Detective Assigned</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.detectiveAssigned || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, detectiveAssigned: e.target.value})}
+                            className="field field-danger"
+                            placeholder="Detective name..."
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Detective Badge #</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.detectiveBadge || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, detectiveBadge: e.target.value})}
+                            className="field field-danger"
+                            placeholder="Badge #..."
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Detective Agency</label>
+                          <select
+                            value={currentRecordData.detectiveAgency || 'B.C.S.O'}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, detectiveAgency: e.target.value})}
+                            className="field field-danger"
+                          >
+                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                          </select>
+                        </div>
+                        <div className="col-span-2">
+                          <label className="field-label">Detective Reference Info (Case # etc)</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.detectiveReferenceInfo || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, detectiveReferenceInfo: e.target.value})}
+                            className="field field-danger"
+                            placeholder="Case #, reference info..."
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Detective Involvement</label>
+                          <select
+                            value={currentRecordData.detectiveInvolvement || 'INVOLVED AFTER ARREST'}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, detectiveInvolvement: e.target.value})}
+                            className="field field-danger"
+                          >
+                            <option value="MADE ARREST">MADE ARREST</option>
+                            <option value="INVOLVED IN INVESTIGATION PRIOR TO ARREST">INVOLVED IN INVESTIGATION PRIOR TO ARREST</option>
+                            <option value="INVOLVED AFTER ARREST">INVOLVED AFTER ARREST</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* BOLO specific fields */}
+                {activeRecordForm === 'BOLO' && (
+                  <>
+                    {/* Vehicle Information Section */}
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-yellow-400">VEHICLE INFORMATION</h4>
+                      <div className="mb-3">
+                        <label className="field-label">Search by Plate</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={vehicleSearchPlate1}
+                            onChange={(e) => setVehicleSearchPlate1(e.target.value)}
+                            placeholder="Enter plate number..."
+                            className="field flex-1 min-w-0"
+                          />
+                          <button
+                            onClick={() => searchVehicleByPlate(vehicleSearchPlate1, 1)}
+                            className="btn btn-primary"
+                          >
+                            Search
+                          </button>
+                        </div>
+                        {vehicleSearchResults1.length > 0 && (
+                          <div className="mt-2 menu-list max-h-32 overflow-y-auto">
+                            {vehicleSearchResults1.map((v, i) => (
+                              <div
+                                key={i}
+                                onClick={() => {
+                                  setCurrentRecordData({
+                                    ...currentRecordData,
+                                    vehiclePlate: v.plate,
+                                    vehicleMake: v.make,
+                                    vehicleModel: v.model,
+                                    vehicleColor: v.color
+                                  });
+                                  setVehicleSearchResults1([]);
+                                  setVehicleSearchPlate1('');
+                                }}
+                                className="menu-item"
+                              >
+                                {v.plate} - {v.make} {v.model} ({v.color})
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="field-label">Plate Number</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.vehiclePlate || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, vehiclePlate: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Make</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.vehicleMake || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, vehicleMake: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Model</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.vehicleModel || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, vehicleModel: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Color</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.vehicleColor || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, vehicleColor: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Subject Information Section */}
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-yellow-400">SUBJECT INFORMATION</h4>
+                      <div className="mb-3">
+                        <label className="field-label">Search by Name</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={partySearchName1}
+                            onChange={(e) => setPartySearchName1(e.target.value)}
+                            placeholder="Enter name..."
+                            className="field flex-1 min-w-0"
+                          />
+                          <button
+                            onClick={() => searchPersonByName(partySearchName1, 1)}
+                            className="btn btn-primary"
+                          >
+                            Search
+                          </button>
+                        </div>
+                        {partySearchResults1.length > 0 && (
+                          <div className="mt-2 menu-list max-h-32 overflow-y-auto">
+                            {partySearchResults1.map((p, i) => (
+                              <div
+                                key={i}
+                                onClick={() => {
+                                  setCurrentRecordData({
+                                    ...currentRecordData,
+                                    subjectName: `${p.firstName} ${p.lastName}`,
+                                    subjectDOB: p.dob,
+                                    subjectAddress: p.address,
+                                    subjectPhone: p.phone
+                                  });
+                                  setPartySearchResults1([]);
+                                  setPartySearchName1('');
+                                }}
+                                className="menu-item"
+                              >
+                                {p.firstName} {p.lastName} - DOB: {p.dob}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="field-label">Name</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.subjectName || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, subjectName: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Date of Birth</label>
+                          <input
+                            type="date"
+                            value={currentRecordData.subjectDOB || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, subjectDOB: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Phone</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.subjectPhone || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, subjectPhone: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Address</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.subjectAddress || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, subjectAddress: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Reason Section */}
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-orange-400">REASON</h4>
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="flex items-center gap-2 text-sm text-gray-300">
+                          <input
+                            type="checkbox"
+                            checked={currentRecordData.reasonStolenVehicle || false}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, reasonStolenVehicle: e.target.checked})}
+                            className="w-4 h-4"
+                          />
+                          STOLEN VEHICLE
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-gray-300">
+                          <input
+                            type="checkbox"
+                            checked={currentRecordData.reasonWarrantSubject || false}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, reasonWarrantSubject: e.target.checked})}
+                            className="w-4 h-4"
+                          />
+                          WARRANT SUBJECT
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-gray-300">
+                          <input
+                            type="checkbox"
+                            checked={currentRecordData.reasonEvaded || false}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, reasonEvaded: e.target.checked})}
+                            className="w-4 h-4"
+                          />
+                          EVADED LAW ENFORCEMENT
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-gray-300">
+                          <input
+                            type="checkbox"
+                            checked={currentRecordData.reasonViolentCrime || false}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, reasonViolentCrime: e.target.checked})}
+                            className="w-4 h-4"
+                          />
+                          VIOLENT CRIME SUSPECT
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-gray-300">
+                          <input
+                            type="checkbox"
+                            checked={currentRecordData.reasonQuestioning || false}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, reasonQuestioning: e.target.checked})}
+                            className="w-4 h-4"
+                          />
+                          WANTED FOR QUESTIONING
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-gray-300">
+                          <input
+                            type="checkbox"
+                            checked={currentRecordData.reasonWelfareCheck || false}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, reasonWelfareCheck: e.target.checked})}
+                            className="w-4 h-4"
+                          />
+                          WELFARE CHECK
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-gray-300">
+                          <input
+                            type="checkbox"
+                            checked={currentRecordData.reasonMissingPerson || false}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, reasonMissingPerson: e.target.checked})}
+                            className="w-4 h-4"
+                          />
+                          MISSING PERSON
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-gray-300">
+                          <input
+                            type="checkbox"
+                            checked={currentRecordData.reasonRecklessDriver || false}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, reasonRecklessDriver: e.target.checked})}
+                            className="w-4 h-4"
+                          />
+                          RECKLESS DRIVER
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Officer Safety Section */}
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-red-400">OFFICER SAFETY</h4>
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="flex items-center gap-2 text-sm text-gray-300">
+                          <input
+                            type="checkbox"
+                            checked={currentRecordData.safetyArmed || false}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, safetyArmed: e.target.checked})}
+                            className="w-4 h-4"
+                          />
+                          KNOWN TO BE ARMED
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-gray-300">
+                          <input
+                            type="checkbox"
+                            checked={currentRecordData.safetyViolent || false}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, safetyViolent: e.target.checked})}
+                            className="w-4 h-4"
+                          />
+                          KNOWN TO BE VIOLENT
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-gray-300">
+                          <input
+                            type="checkbox"
+                            checked={currentRecordData.safetySuicidal || false}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, safetySuicidal: e.target.checked})}
+                            className="w-4 h-4"
+                          />
+                          SUICIDAL
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-gray-300">
+                          <input
+                            type="checkbox"
+                            checked={currentRecordData.safetyGang || false}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, safetyGang: e.target.checked})}
+                            className="w-4 h-4"
+                          />
+                          GANG INVOLVEMENT
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-gray-300">
+                          <input
+                            type="checkbox"
+                            checked={currentRecordData.safetyMental || false}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, safetyMental: e.target.checked})}
+                            className="w-4 h-4"
+                          />
+                          MENTAL ISSUES
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Last Known Location Section */}
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-purple-400">LAST KNOWN LOCATION</h4>
+                      <div>
+                        <label className="field-label">Area Seen</label>
+                        <input
+                          type="text"
+                          value={currentRecordData.lastKnownLocation || ''}
+                          onChange={(e) => setCurrentRecordData({...currentRecordData, lastKnownLocation: e.target.value})}
+                          className="field"
+                          placeholder="Enter last known location or area seen..."
+                        />
+                      </div>
+                    </div>
+
+                    {/* Brief Information Section */}
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-cyan-400">BRIEF INFORMATION</h4>
+                      <textarea
+                        value={currentRecordData.briefInformation || ''}
+                        onChange={(e) => setCurrentRecordData({...currentRecordData, briefInformation: e.target.value})}
+                        className="field h-32"
+                        placeholder="ADD DETAILS AS NEEDED"
+                      />
+                    </div>
+
+                    {/* Issuing Agency Information Section */}
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-green-400">ISSUING AGENCY INFORMATION</h4>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div>
+                          <label className="field-label">Issuing Agency</label>
+                          <select
+                            value={currentRecordData.issuingAgency || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, issuingAgency: e.target.value})}
+                            className="field"
+                          >
+                            <option value="">Select Agency</option>
+                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="field-label">Date Issued</label>
+                          <input
+                            type="date"
+                            value={currentRecordData.dateIssued || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, dateIssued: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Time Issued</label>
+                          <input
+                            type="time"
+                            value={currentRecordData.timeIssued || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, timeIssued: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Report Filed Information Section */}
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-blue-400">REPORT FILED INFORMATION</h4>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="field-label">Report Filed?</label>
+                          <select
+                            value={currentRecordData.reportFiled || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, reportFiled: e.target.value})}
+                            className="field"
+                          >
+                            <option value="">Select Option</option>
+                            <option value="YES">YES</option>
+                            <option value="NO">NO</option>
+                            <option value="UNKNOWN-DISPATCH CREATED">UNKNOWN-DISPATCH CREATED</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="field-label">Record/Report Case # Reference/Info</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.reportCaseReference || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, reportCaseReference: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Contact Information (If Found) Section */}
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-pink-400">CONTACT INFORMATION (IF FOUND)</h4>
+                      <div className="grid grid-cols-2 gap-3 mb-3">
+                        <div>
+                          <label className="field-label">Officer Name</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.contactOfficerName || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, contactOfficerName: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Officer Badge #</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.contactOfficerBadge || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, contactOfficerBadge: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Agency</label>
+                          <select
+                            value={currentRecordData.contactAgency || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, contactAgency: e.target.value})}
+                            className="field"
+                          >
+                            <option value="">Select Agency</option>
+                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="field-label">Officer Phone Number</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.contactOfficerPhone || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, contactOfficerPhone: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="field-label">Additional Contact Info</label>
+                        <textarea
+                          value={currentRecordData.contactAdditionalInfo || ''}
+                          onChange={(e) => setCurrentRecordData({...currentRecordData, contactAdditionalInfo: e.target.value})}
+                          className="field h-20"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Possible Charges Section */}
+                    <div className="panel-card mb-4">
+                      <div className="flex justify-between items-center mb-3">
+                        <h4 className="text-md font-semibold text-red-400">POSSIBLE CHARGES</h4>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newCharge = {
+                              id: Date.now(),
+                              charge: '',
+                              chargeType: 'MISDEMEANOR',
+                              counts: 1,
+                              titleCode: '',
+                              bondType: 'CASH',
+                              bondAmount: 0,
+                              jailTime: ''
+                            };
+                            setCurrentRecordData({
+                              ...currentRecordData,
+                              charges: [...(currentRecordData.charges || []), newCharge]
+                            });
+                          }}
+                          className="btn btn-danger btn-sm"
+                        >
+                          <Plus size={16} /> Add Charge
+                        </button>
+                      </div>
+                      {(!currentRecordData.charges || currentRecordData.charges.length === 0) ? (
+                        <p className="text-gray-500 text-center py-4">No charges added. Click "Add Charge" to add possible charges.</p>
+                      ) : (
+                        <div className="space-y-3">
+                          {currentRecordData.charges.map((charge, index) => (
+                            <div key={charge.id} className="subcard p-3">
+                              <div className="flex justify-between items-start mb-2">
+                                <span className="text-xs text-gray-400">Charge #{index + 1}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setCurrentRecordData({
+                                      ...currentRecordData,
+                                      charges: currentRecordData.charges.filter(c => c.id !== charge.id)
+                                    });
+                                  }}
+                                  className="text-red-400 hover:text-red-300"
+                                >
+                                  <X size={16} />
+                                </button>
+                              </div>
+                              <div className="grid grid-cols-4 gap-2">
+                                <div className="col-span-2">
+                                  <label className="field-label">Charge</label>
+                                  <ChargeAutocompleteInput
+                                    value={charge.charge}
+                                    onChange={(value) => {
+                                      const updated = currentRecordData.charges.map(c =>
+                                        c.id === charge.id ? {...c, charge: value} : c
+                                      );
+                                      setCurrentRecordData({...currentRecordData, charges: updated});
+                                    }}
+                                    onSelect={(code) => {
+                                      const updated = currentRecordData.charges.map(c =>
+                                        c.id === charge.id ? {
+                                          ...c,
+                                          charge: code.title,
+                                          titleCode: code.code,
+                                          chargeType: code.chargeType || 'MISDEMEANOR',
+                                          bondType: code.bondType || 'CASH BAIL',
+                                          bondAmount: code.bondAmount || 0,
+                                          jailTime: code.jailTime || ''
+                                        } : c
+                                      );
+                                      setCurrentRecordData({...currentRecordData, charges: updated});
+                                    }}
+                                    codes={californiaCodes}
+                                    placeholder="Type to search charges..."
+                                  />
+                                </div>
+                                <div>
+                                  <label className="field-label">Type</label>
+                                  <select
+                                    value={charge.chargeType}
+                                    onChange={(e) => {
+                                      const updated = currentRecordData.charges.map(c =>
+                                        c.id === charge.id ? {...c, chargeType: e.target.value} : c
+                                      );
+                                      setCurrentRecordData({...currentRecordData, charges: updated});
+                                    }}
+                                    className="field field-sm"
+                                  >
+                                    <option value="INFRACTION">INFRACTION</option>
+                                    <option value="MISDEMEANOR">MISDEMEANOR</option>
+                                    <option value="FELONY">FELONY</option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="field-label">Counts</label>
+                                  {renderCountsInput(charge.counts, (n) => { const updated = currentRecordData.charges.map(c => c.id === charge.id ? {...c, counts: n} : c); setCurrentRecordData({...currentRecordData, charges: updated}); }, true)}
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-4 gap-2 mt-2">
+                                <div className="col-span-2">
+                                  <label className="field-label">Title/Code</label>
+                                  <input
+                                    type="text"
+                                    value={charge.titleCode}
+                                    onChange={(e) => {
+                                      const updated = currentRecordData.charges.map(c =>
+                                        c.id === charge.id ? {...c, titleCode: e.target.value} : c
+                                      );
+                                      setCurrentRecordData({...currentRecordData, charges: updated});
+                                    }}
+                                    className="field field-sm"
+                                    placeholder="e.g., PC 242"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Linked Reports/Records Section */}
+                    <div className="panel-card mb-4">
+                      <div className="flex justify-between items-center mb-3">
+                        <h4 className="text-md font-semibold text-purple-400">LINKED REPORTS/RECORDS</h4>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newLink = { id: Date.now(), recordNumber: '', description: '' };
+                            setCurrentRecordData({
+                              ...currentRecordData,
+                              linkedRecords: [...(currentRecordData.linkedRecords || []), newLink]
+                            });
+                          }}
+                          className="px-3 py-1 bg-purple-600 text-white rounded text-sm hover:bg-purple-500 flex items-center gap-1"
+                        >
+                          <Plus size={16} /> Add Link
+                        </button>
+                      </div>
+                      {(!currentRecordData.linkedRecords || currentRecordData.linkedRecords.length === 0) ? (
+                        <p className="text-gray-500 text-center py-4">No linked records. Click "Add Link" to link reports or records.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {currentRecordData.linkedRecords.map((link, index) => (
+                            <div key={link.id} className="flex gap-2 items-start">
+                              <div className="flex-1 grid grid-cols-2 gap-2">
+                                <input
+                                  type="text"
+                                  value={link.recordNumber}
+                                  onChange={(e) => {
+                                    const updated = currentRecordData.linkedRecords.map(l =>
+                                      l.id === link.id ? {...l, recordNumber: e.target.value} : l
+                                    );
+                                    setCurrentRecordData({...currentRecordData, linkedRecords: updated});
+                                  }}
+                                  placeholder="Record #"
+                                  className="field"
+                                />
+                                <input
+                                  type="text"
+                                  value={link.description}
+                                  onChange={(e) => {
+                                    const updated = currentRecordData.linkedRecords.map(l =>
+                                      l.id === link.id ? {...l, description: e.target.value} : l
+                                    );
+                                    setCurrentRecordData({...currentRecordData, linkedRecords: updated});
+                                  }}
+                                  placeholder="Description"
+                                  className="field"
+                                />
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCurrentRecordData({
+                                    ...currentRecordData,
+                                    linkedRecords: currentRecordData.linkedRecords.filter(l => l.id !== link.id)
+                                  });
+                                }}
+                                className="text-red-400 hover:text-red-300 p-2"
+                              >
+                                <X size={16} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Agency Information Section */}
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-blue-400">AGENCY INFORMATION</h4>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="field-label">Callsign</label>
+                          <input
+                            type="text"
+                            value={loggedInOfficer?.callsign || ''}
+                            readOnly
+                            className="field text-gray-400"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Department</label>
+                          <input
+                            type="text"
+                            value={loggedInOfficer?.department || ''}
+                            readOnly
+                            className="field text-gray-400"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Officer Name</label>
+                          <input
+                            type="text"
+                            value={loggedInOfficer?.name || ''}
+                            readOnly
+                            className="field text-gray-400"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Date</label>
+                          <input
+                            type="text"
+                            value={new Date().toLocaleDateString()}
+                            readOnly
+                            className="field text-gray-400"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Record #</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.recordId || `BOLO-${nextReportRecordId}`}
+                            readOnly
+                            className="field text-gray-400"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* WARRANT specific fields */}
+                {activeRecordForm === 'WARRANT' && (
+                  <>
+                    {/* Type of Warrant Section */}
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-red-400">TYPE OF WARRANT</h4>
+                      <div>
+                        <label className="field-label">Warrant Type</label>
+                        <select
+                          value={currentRecordData.warrantType || ''}
+                          onChange={(e) => setCurrentRecordData({...currentRecordData, warrantType: e.target.value})}
+                          className="field"
+                        >
+                          <option value="">Select Type...</option>
+                          <option value="FELONY WARRANT">FELONY WARRANT</option>
+                          <option value="MISDEMEANOR WARRANT">MISDEMEANOR WARRANT</option>
+                          <option value="SEARCH WARRANT">SEARCH WARRANT</option>
+                          <option value="FAILURE TO APPEAR">FAILURE TO APPEAR</option>
+                          <option value="FAILURE TO PAY FINES">FAILURE TO PAY FINES</option>
+                          <option value="FUGITIVE WARRANT">FUGITIVE WARRANT</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Status Section */}
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-green-400">STATUS</h4>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="field-label">Status</label>
+                          <select
+                            value={currentRecordData.warrantStatus || 'ACTIVE'}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, warrantStatus: e.target.value})}
+                            className="field"
+                          >
+                            <option value="ACTIVE">ACTIVE</option>
+                            <option value="CLOSED">CLOSED</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="field-label">Time of Execution</label>
+                          <select
+                            value={currentRecordData.timeOfExecution || 'DAY AND NIGHT'}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, timeOfExecution: e.target.value})}
+                            className="field"
+                          >
+                            <option value="DAY ONLY">DAY ONLY</option>
+                            <option value="DAY AND NIGHT">DAY AND NIGHT</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="field-label">Authorizing Supervisor/Judicial Signature</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.authorizingSignature || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, authorizingSignature: e.target.value})}
+                            className="field"
+                            placeholder="Signature..."
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Date</label>
+                          <input
+                            type="date"
+                            value={currentRecordData.authorizingDate || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, authorizingDate: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Warrant Subject Section */}
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-yellow-400">WARRANT SUBJECT</h4>
+                      <div className="mb-3">
+                        <label className="field-label">Search by Name</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={partySearchName1}
+                            onChange={(e) => setPartySearchName1(e.target.value)}
+                            placeholder="Enter name..."
+                            className="field flex-1 min-w-0"
+                          />
+                          <button
+                            onClick={() => searchPersonByName(partySearchName1, 1)}
+                            className="btn btn-primary"
+                          >
+                            Search
+                          </button>
+                        </div>
+                        {partySearchResults1.length > 0 && (
+                          <div className="mt-2 menu-list max-h-32 overflow-y-auto">
+                            {partySearchResults1.map((p, i) => (
+                              <div
+                                key={i}
+                                onClick={() => {
+                                  setCurrentRecordData({
+                                    ...currentRecordData,
+                                    subjectName: `${p.firstName} ${p.lastName}`,
+                                    subjectDOB: p.dob,
+                                    subjectAddress: p.address,
+                                    subjectPhone: p.phone
+                                  });
+                                  setPartySearchResults1([]);
+                                  setPartySearchName1('');
+                                }}
+                                className="menu-item"
+                              >
+                                {p.firstName} {p.lastName} - DOB: {p.dob}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="field-label">Name</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.subjectName || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, subjectName: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Date of Birth</label>
+                          <input
+                            type="date"
+                            value={currentRecordData.subjectDOB || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, subjectDOB: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Phone</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.subjectPhone || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, subjectPhone: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Address</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.subjectAddress || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, subjectAddress: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Location Authorized (If Search Warrant) Section */}
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-purple-400">LOCATION AUTHORIZED (IF SEARCH WARRANT)</h4>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="col-span-2">
+                          <label className="field-label">Street Number and Name</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.locationStreet || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, locationStreet: e.target.value})}
+                            className="field"
+                            placeholder="Street address..."
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Postal</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.locationPostal || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, locationPostal: e.target.value})}
+                            className="field"
+                            placeholder="Postal code..."
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Type of Building</label>
+                          <select
+                            value={currentRecordData.buildingType || 'UNKNOWN'}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, buildingType: e.target.value})}
+                            className="field"
+                          >
+                            <option value="RESIDENTIAL">RESIDENTIAL</option>
+                            <option value="BUSINESS">BUSINESS</option>
+                            <option value="UNKNOWN">UNKNOWN</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="field-label">Knock and Notice Required?</label>
+                          <select
+                            value={currentRecordData.knockAndNotice || 'YES'}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, knockAndNotice: e.target.value})}
+                            className="field"
+                          >
+                            <option value="YES">YES</option>
+                            <option value="NO">NO</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Charges Section */}
+                    <div className="panel-card mb-4">
+                      <div className="flex justify-between items-center mb-3">
+                        <h4 className="text-md font-semibold text-red-400">CHARGES</h4>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newCharge = {
+                              id: Date.now(),
+                              charge: '',
+                              chargeType: 'MISDEMEANOR',
+                              counts: 1,
+                              titleCode: '',
+                              bondType: 'CASH BAIL',
+                              bondAmount: 0,
+                              jailTime: ''
+                            };
+                            setCurrentRecordData({
+                              ...currentRecordData,
+                              charges: [...(currentRecordData.charges || []), newCharge]
+                            });
+                          }}
+                          className="btn btn-danger btn-sm"
+                        >
+                          <Plus size={16} /> Add Charge
+                        </button>
+                      </div>
+                      {(!currentRecordData.charges || currentRecordData.charges.length === 0) ? (
+                        <p className="text-gray-500 text-center py-4">No charges added. Click "Add Charge" to add charges.</p>
+                      ) : (
+                        <div className="space-y-3">
+                          {currentRecordData.charges.map((charge, index) => (
+                            <div key={charge.id} className="subcard p-3">
+                              <div className="flex justify-between items-start mb-2">
+                                <span className="text-xs text-gray-400">Charge #{index + 1}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setCurrentRecordData({
+                                      ...currentRecordData,
+                                      charges: currentRecordData.charges.filter(c => c.id !== charge.id)
+                                    });
+                                  }}
+                                  className="text-red-400 hover:text-red-300"
+                                >
+                                  <X size={16} />
+                                </button>
+                              </div>
+                              <div className="grid grid-cols-4 gap-2">
+                                <div className="col-span-2">
+                                  <label className="field-label">Charge</label>
+                                  <ChargeAutocompleteInput
+                                    value={charge.charge}
+                                    onChange={(value) => {
+                                      const updated = currentRecordData.charges.map(c =>
+                                        c.id === charge.id ? {...c, charge: value} : c
+                                      );
+                                      setCurrentRecordData({...currentRecordData, charges: updated});
+                                    }}
+                                    onSelect={(code) => {
+                                      const updated = currentRecordData.charges.map(c =>
+                                        c.id === charge.id ? {
+                                          ...c,
+                                          charge: code.title,
+                                          titleCode: code.code,
+                                          chargeType: code.chargeType || 'MISDEMEANOR',
+                                          bondType: code.bondType || 'CASH BAIL',
+                                          bondAmount: code.bondAmount || 0,
+                                          jailTime: code.jailTime || ''
+                                        } : c
+                                      );
+                                      setCurrentRecordData({...currentRecordData, charges: updated});
+                                    }}
+                                    codes={californiaCodes}
+                                    placeholder="Type to search charges..."
+                                  />
+                                </div>
+                                <div>
+                                  <label className="field-label">Charge Type</label>
+                                  <select
+                                    value={charge.chargeType}
+                                    onChange={(e) => {
+                                      const updated = currentRecordData.charges.map(c =>
+                                        c.id === charge.id ? {...c, chargeType: e.target.value} : c
+                                      );
+                                      setCurrentRecordData({...currentRecordData, charges: updated});
+                                    }}
+                                    className="field field-sm"
+                                  >
+                                    <option value="FELONY">FELONY</option>
+                                    <option value="MISDEMEANOR">MISDEMEANOR</option>
+                                    <option value="INFRACTION">INFRACTION</option>
+                                    <option value="WARNING">WARNING</option>
+                                    <option value="CORRECTABLE">CORRECTABLE</option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="field-label">Counts</label>
+                                  {renderCountsInput(charge.counts, (n) => { const updated = currentRecordData.charges.map(c => c.id === charge.id ? {...c, counts: n} : c); setCurrentRecordData({...currentRecordData, charges: updated}); }, true)}
+                                </div>
+                                <div>
+                                  <label className="field-label">Title/Code</label>
+                                  <input
+                                    type="text"
+                                    value={charge.titleCode}
+                                    onChange={(e) => {
+                                      const updated = currentRecordData.charges.map(c =>
+                                        c.id === charge.id ? {...c, titleCode: e.target.value} : c
+                                      );
+                                      setCurrentRecordData({...currentRecordData, charges: updated});
+                                    }}
+                                    className="field field-sm"
+                                    placeholder="e.g., PC 242"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Warrant Narrative Section */}
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-cyan-400">WARRANT NARRATIVE</h4>
+                      <div>
+                        <label className="field-label">Narrative</label>
+                        <textarea
+                          value={currentRecordData.narrative || ''}
+                          onChange={(e) => setCurrentRecordData({...currentRecordData, narrative: e.target.value})}
+                          className="field h-32"
+                          placeholder="Detailed narrative for the warrant..."
+                        />
+                      </div>
+                    </div>
+
+                    {/* Issuing Agency and Contact Information Section */}
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-orange-400">ISSUING AGENCY AND CONTACT INFORMATION</h4>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="field-label">Agency</label>
+                          <select
+                            value={currentRecordData.issuingAgency || 'B.C.S.O'}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, issuingAgency: e.target.value})}
+                            className="field"
+                          >
+                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                            <option value="DISTRICT ATTORNEY">DISTRICT ATTORNEY</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="field-label">Primary Officer / D.A. Name in Case</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.primaryOfficerName || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, primaryOfficerName: e.target.value})}
+                            className="field"
+                            placeholder="Name..."
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Officer/D.A. Contact Phone Number</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.contactPhone || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, contactPhone: e.target.value})}
+                            className="field"
+                            placeholder="Phone number..."
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Main Record ID/Report Reference #</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.mainRecordId || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, mainRecordId: e.target.value})}
+                            className="field"
+                            placeholder="Record/Report #..."
+                          />
+                        </div>
+                        <div className="col-span-2">
+                          <label className="field-label">Additional Info (If Required)</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.additionalContactInfo || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, additionalContactInfo: e.target.value})}
+                            className="field"
+                            placeholder="Additional information..."
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Agency Information Section */}
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-blue-400">AGENCY INFORMATION</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div>
+                          <label className="field-label">Callsign</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.callsign || ''}
+                            readOnly
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Department</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.department || ''}
+                            readOnly
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Officer Name</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.officer || ''}
+                            readOnly
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Record#</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.recordNumber || ''}
+                            readOnly
+                            className="field"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Administrative Flags (Supervisor/Judicial Use Only) Section */}
+                    <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-4">
+                      <h4 className="text-md font-semibold text-red-300 mb-3 border-b border-red-600 pb-2">ADMINISTRATIVE FLAGS (SUPERVISOR/JUDICIAL USE ONLY)</h4>
+                      <div className="flex justify-between items-center mb-3">
+                        <span className="text-sm text-gray-300">Linked Cases/Citations</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newLinkedCase = { id: Date.now(), caseNumber: '', caseType: '' };
+                            setCurrentRecordData({
+                              ...currentRecordData,
+                              linkedCases: [...(currentRecordData.linkedCases || []), newLinkedCase]
+                            });
+                          }}
+                          className="btn btn-danger btn-sm"
+                        >
+                          <Plus size={16} /> Add Linked Case
+                        </button>
+                      </div>
+                      {(!currentRecordData.linkedCases || currentRecordData.linkedCases.length === 0) ? (
+                        <p className="text-gray-400 text-center py-4">No linked cases. Click "Add Linked Case" to link cases/citations.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {currentRecordData.linkedCases.map((linkedCase, index) => (
+                            <div key={linkedCase.id} className="bg-red-800 rounded-lg p-3 flex gap-2 items-end">
+                              <div className="flex-1">
+                                <label className="field-label">Case/Citation Number</label>
+                                <input
+                                  type="text"
+                                  value={linkedCase.caseNumber}
+                                  onChange={(e) => {
+                                    const updated = currentRecordData.linkedCases.map(c =>
+                                      c.id === linkedCase.id ? {...c, caseNumber: e.target.value} : c
+                                    );
+                                    setCurrentRecordData({...currentRecordData, linkedCases: updated});
+                                  }}
+                                  className="field field-sm field-danger"
+                                  placeholder="Case/Citation #..."
+                                />
+                              </div>
+                              <div className="flex-1">
+                                <label className="field-label">Type</label>
+                                <input
+                                  type="text"
+                                  value={linkedCase.caseType}
+                                  onChange={(e) => {
+                                    const updated = currentRecordData.linkedCases.map(c =>
+                                      c.id === linkedCase.id ? {...c, caseType: e.target.value} : c
+                                    );
+                                    setCurrentRecordData({...currentRecordData, linkedCases: updated});
+                                  }}
+                                  className="field field-sm field-danger"
+                                  placeholder="Type..."
+                                />
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCurrentRecordData({
+                                    ...currentRecordData,
+                                    linkedCases: currentRecordData.linkedCases.filter(c => c.id !== linkedCase.id)
+                                  });
+                                }}
+                                className="text-red-300 hover:text-red-200 pb-1"
+                              >
+                                <X size={16} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {/* CITATION specific fields */}
+                {activeRecordForm === 'CITATION' && (
+                  <>
+                    {/* AGENCY INFORMATION */}
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-blue-400">AGENCY INFORMATION</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div>
+                          <label className="field-label">Callsign</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.callsign || ''}
+                            readOnly
+                            className="field cursor-not-allowed"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Department</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.department || ''}
+                            readOnly
+                            className="field cursor-not-allowed"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Officer Name</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.officer || ''}
+                            readOnly
+                            className="field cursor-not-allowed"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Record#</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.recordNumber || ''}
+                            readOnly
+                            className="field cursor-not-allowed"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* GENERAL INFORMATION */}
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-green-400">GENERAL INFORMATION</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        <div>
+                          <label className="field-label">Date of Violation</label>
+                          <input
+                            type="date"
+                            value={currentRecordData.dateOfViolation || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, dateOfViolation: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Time of Violation</label>
+                          <input
+                            type="time"
+                            value={currentRecordData.timeOfViolation || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, timeOfViolation: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Day of Week</label>
+                          <select
+                            value={currentRecordData.dayOfWeek || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, dayOfWeek: e.target.value})}
+                            className="field"
+                          >
+                            <option value="">Select Day...</option>
+                            <option value="SUNDAY">SUNDAY</option>
+                            <option value="MONDAY">MONDAY</option>
+                            <option value="TUESDAY">TUESDAY</option>
+                            <option value="WEDNESDAY">WEDNESDAY</option>
+                            <option value="THURSDAY">THURSDAY</option>
+                            <option value="FRIDAY">FRIDAY</option>
+                            <option value="SATURDAY">SATURDAY</option>
+                          </select>
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="field-label">Location of Violation(s)</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.locationOfViolation || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, locationOfViolation: e.target.value})}
+                            className="field"
+                            placeholder="Street address or location"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Postal</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.postal || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, postal: e.target.value})}
+                            className="field"
+                            placeholder="Postal code"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* SUBJECT INFORMATION */}
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-purple-400">SUBJECT INFORMATION</h4>
+                      <div className="mb-3">
+                        <label className="field-label">Search Civilian by Name</label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={currentRecordData.civilianSearchTerm || ''}
+                            onChange={(e) => {
+                              const term = e.target.value;
+                              setCurrentRecordData({...currentRecordData, civilianSearchTerm: term});
+                              if (term.length >= 2) {
+                                const results = civilians.filter(c =>
+                                  `${c.firstName} ${c.lastName}`.toLowerCase().includes(term.toLowerCase())
+                                );
+                                setCurrentRecordData({...currentRecordData, civilianSearchTerm: term, civilianSearchResults: results});
+                              } else {
+                                setCurrentRecordData({...currentRecordData, civilianSearchTerm: term, civilianSearchResults: []});
+                              }
+                            }}
+                            className="field"
+                            placeholder="Type name to search..."
+                          />
+                          {currentRecordData.civilianSearchResults && currentRecordData.civilianSearchResults.length > 0 && (
+                            <div className="absolute z-50 w-full mt-1 max-h-48 overflow-y-auto menu-list">
+                              {currentRecordData.civilianSearchResults.map((civilian: any, idx: number) => (
+                                <div
+                                  key={idx}
+                                  onClick={() => {
+                                    setCurrentRecordData({
+                                      ...currentRecordData,
+                                      subjectName: `${civilian.firstName} ${civilian.lastName}`,
+                                      subjectDOB: civilian.dateOfBirth || '',
+                                      subjectPhone: civilian.phone || '',
+                                      subjectAddress: civilian.address || '',
+                                      civilianSearchTerm: '',
+                                      civilianSearchResults: []
+                                    });
+                                  }}
+                                  className="menu-item"
+                                >
+                                  <div className="font-semibold">{civilian.firstName} {civilian.lastName}</div>
+                                  <div className="text-xs text-gray-400">DOB: {civilian.dateOfBirth || 'N/A'} | Phone: {civilian.phone || 'N/A'}</div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="field-label">Name</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.subjectName || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, subjectName: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Date of Birth</label>
+                          <input
+                            type="date"
+                            value={currentRecordData.subjectDOB || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, subjectDOB: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Phone</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.subjectPhone || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, subjectPhone: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Address</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.subjectAddress || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, subjectAddress: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* VEHICLE INFORMATION */}
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-yellow-400">VEHICLE INFORMATION</h4>
+                      <div className="mb-3">
+                        <label className="field-label">Search Vehicle by Plate</label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={currentRecordData.vehicleSearchTerm || ''}
+                            onChange={(e) => {
+                              const term = e.target.value;
+                              setCurrentRecordData({...currentRecordData, vehicleSearchTerm: term});
+                              if (term.length >= 2) {
+                                const results: any[] = [];
+                                civilians.forEach(civilian => {
+                                  if (civilian.vehicles && civilian.vehicles.length > 0) {
+                                    civilian.vehicles.forEach((vehicle: any) => {
+                                      if (vehicle.plate && vehicle.plate.toLowerCase().includes(term.toLowerCase())) {
+                                        results.push({...vehicle, ownerName: `${civilian.firstName} ${civilian.lastName}`});
+                                      }
+                                    });
+                                  }
+                                });
+                                setCurrentRecordData({...currentRecordData, vehicleSearchTerm: term, vehicleSearchResults: results});
+                              } else {
+                                setCurrentRecordData({...currentRecordData, vehicleSearchTerm: term, vehicleSearchResults: []});
+                              }
+                            }}
+                            className="field"
+                            placeholder="Type plate to search..."
+                          />
+                          {currentRecordData.vehicleSearchResults && currentRecordData.vehicleSearchResults.length > 0 && (
+                            <div className="absolute z-50 w-full mt-1 max-h-48 overflow-y-auto menu-list">
+                              {currentRecordData.vehicleSearchResults.map((vehicle: any, idx: number) => (
+                                <div
+                                  key={idx}
+                                  onClick={() => {
+                                    setCurrentRecordData({
+                                      ...currentRecordData,
+                                      vehiclePlate: vehicle.plate || '',
+                                      vehicleMake: vehicle.make || '',
+                                      vehicleModel: vehicle.model || '',
+                                      vehicleColor: vehicle.color || '',
+                                      vehicleYear: vehicle.year || '',
+                                      vehicleSearchTerm: '',
+                                      vehicleSearchResults: []
+                                    });
+                                  }}
+                                  className="menu-item"
+                                >
+                                  <div className="font-semibold">{vehicle.plate} - {vehicle.make} {vehicle.model}</div>
+                                  <div className="text-xs text-gray-400">Owner: {vehicle.ownerName} | Color: {vehicle.color || 'N/A'}</div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        <div>
+                          <label className="field-label">Plate</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.vehiclePlate || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, vehiclePlate: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Make</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.vehicleMake || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, vehicleMake: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Model</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.vehicleModel || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, vehicleModel: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Color</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.vehicleColor || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, vehicleColor: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Year</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.vehicleYear || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, vehicleYear: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* CHARGES */}
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-red-400">CHARGES</h4>
+                      <div className="flex justify-between items-center mb-3">
+                        <span className="text-sm text-gray-300">Citation Charges</span>
+                        <button
+                          onClick={() => {
+                            const charges = currentRecordData.charges || [];
+                            setCurrentRecordData({
+                              ...currentRecordData,
+                              charges: [...charges, { id: Date.now(), charge: '', chargeType: '', counts: 1, titleCode: '', bondType: '', bondAmount: 0, jailTime: '' }]
+                            });
+                          }}
+                          className="btn btn-danger btn-sm"
+                        >
+                          <Plus size={16} /> Add Charge
+                        </button>
+                      </div>
+                      {currentRecordData.charges && currentRecordData.charges.length > 0 ? (
+                        <div className="space-y-4">
+                          {currentRecordData.charges.map((charge: any, index: number) => (
+                            <div key={charge.id} className="subcard p-3">
+                              <div className="flex justify-between items-center mb-2">
+                                <span className="text-sm font-semibold text-blue-400">Charge #{index + 1}</span>
+                                <button
+                                  onClick={() => {
+                                    const updated = currentRecordData.charges.filter((c: any) => c.id !== charge.id);
+                                    setCurrentRecordData({...currentRecordData, charges: updated});
+                                  }}
+                                  className="text-red-400 hover:text-red-300"
+                                >
+                                  <X size={16} />
+                                </button>
+                              </div>
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <label className="field-label">Charge</label>
+                                  <ChargeAutocompleteInput
+                                    value={charge.charge}
+                                    onChange={(value) => {
+                                      const updated = currentRecordData.charges.map(c =>
+                                        c.id === charge.id ? {...c, charge: value} : c
+                                      );
+                                      setCurrentRecordData({...currentRecordData, charges: updated});
+                                    }}
+                                    onSelect={(code) => {
+                                      const updated = currentRecordData.charges.map(c =>
+                                        c.id === charge.id ? {
+                                          ...c,
+                                          charge: code.title,
+                                          titleCode: code.code,
+                                          chargeType: code.chargeType || 'MISDEMEANOR',
+                                          bondType: code.bondType || 'CASH BAIL',
+                                          bondAmount: code.bondAmount || 0,
+                                          jailTime: code.jailTime || ''
+                                        } : c
+                                      );
+                                      setCurrentRecordData({...currentRecordData, charges: updated});
+                                    }}
+                                    codes={californiaCodes}
+                                    placeholder="Type to search charges..."
+                                  />
+                                </div>
+                                <div>
+                                  <label className="field-label">Charge Type</label>
+                                  <select
+                                    value={charge.chargeType}
+                                    onChange={(e) => {
+                                      const updated = currentRecordData.charges.map(c =>
+                                        c.id === charge.id ? {...c, chargeType: e.target.value} : c
+                                      );
+                                      setCurrentRecordData({...currentRecordData, charges: updated});
+                                    }}
+                                    className="field"
+                                  >
+                                    <option value="">Select Type...</option>
+                                    <option value="FELONY">FELONY</option>
+                                    <option value="MISDEMEANOR">MISDEMEANOR</option>
+                                    <option value="INFRACTION">INFRACTION</option>
+                                    <option value="WARNING">WARNING</option>
+                                    <option value="CORRECTABLE">CORRECTABLE</option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="field-label">Counts</label>
+                                  {renderCountsInput(charge.counts, (n) => { const updated = currentRecordData.charges.map(c => c.id === charge.id ? {...c, counts: n} : c); setCurrentRecordData({...currentRecordData, charges: updated}); }, false)}
+                                </div>
+                                <div>
+                                  <label className="field-label">Title/Code</label>
+                                  <input
+                                    type="text"
+                                    value={charge.titleCode}
+                                    onChange={(e) => {
+                                      const updated = currentRecordData.charges.map(c =>
+                                        c.id === charge.id ? {...c, titleCode: e.target.value} : c
+                                      );
+                                      setCurrentRecordData({...currentRecordData, charges: updated});
+                                    }}
+                                    className="field"
+                                    placeholder="PC 187"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="field-label">Bond Type</label>
+                                  <select
+                                    value={charge.bondType}
+                                    onChange={(e) => {
+                                      const updated = currentRecordData.charges.map(c =>
+                                        c.id === charge.id ? {...c, bondType: e.target.value} : c
+                                      );
+                                      setCurrentRecordData({...currentRecordData, charges: updated});
+                                    }}
+                                    className="field"
+                                  >
+                                    <option value="">Select Bond Type...</option>
+                                    <option value="CITATION RELEASE">CITATION RELEASE</option>
+                                    <option value="RECOGNIZANCE RELEASE">RECOGNIZANCE RELEASE</option>
+                                    <option value="CASH BAIL">CASH BAIL</option>
+                                    <option value="SURETY BOND">SURETY BOND</option>
+                                    <option value="PROPERTY BOND">PROPERTY BOND</option>
+                                    <option value="FEDERAL BAIL BOND">FEDERAL BAIL BOND</option>
+                                    <option value="IMMIGRATION BAIL BOND">IMMIGRATION BAIL BOND</option>
+                                    <option value="NO BAIL">NO BAIL</option>
+                                    <option value="PROBATION">PROBATION</option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="field-label">Bond/Fine Amount ($)</label>
+                                  <input
+                                    type="number"
+                                    value={charge.bondAmount}
+                                    onChange={(e) => {
+                                      const updated = currentRecordData.charges.map(c =>
+                                        c.id === charge.id ? {...c, bondAmount: parseFloat(e.target.value) || 0} : c
+                                      );
+                                      setCurrentRecordData({...currentRecordData, charges: updated});
+                                    }}
+                                    className="field"
+                                    placeholder="0.00"
+                                  />
+                                </div>
+                                <div className="col-span-2">
+                                  <label className="field-label">Jail Time</label>
+                                  <input
+                                    type="text"
+                                    value={charge.jailTime}
+                                    onChange={(e) => {
+                                      const updated = currentRecordData.charges.map(c =>
+                                        c.id === charge.id ? {...c, jailTime: e.target.value} : c
+                                      );
+                                      setCurrentRecordData({...currentRecordData, charges: updated});
+                                    }}
+                                    className="field"
+                                    placeholder="e.g., 6 months, N/A"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-400 italic">No charges added yet. Click "Add Charge" to add a charge.</p>
+                      )}
+                    </div>
+
+                    {/* SPEED INFORMATION (IF APPLICABLE) */}
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-orange-400">SPEED INFORMATION (IF APPLICABLE)</h4>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div>
+                          <label className="field-label">Speed Approx</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.speedApprox || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, speedApprox: e.target.value})}
+                            className="field"
+                            placeholder="e.g., 75 MPH"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Speed Limit</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.speedLimit || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, speedLimit: e.target.value})}
+                            className="field"
+                            placeholder="e.g., 55 MPH"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Method of Acquisition</label>
+                          <select
+                            value={currentRecordData.speedMethod || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, speedMethod: e.target.value})}
+                            className="field"
+                          >
+                            <option value="">Select Method...</option>
+                            <option value="RADAR">RADAR</option>
+                            <option value="PACE">PACE</option>
+                            <option value="VISUAL ESTIMATION">VISUAL ESTIMATION</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* SIGNATURE OF SUBJECT */}
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-cyan-400">SIGNATURE OF SUBJECT</h4>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="field-label">Signature</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.subjectSignature || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, subjectSignature: e.target.value})}
+                            className="field"
+                            placeholder="Subject signature"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Date</label>
+                          <input
+                            type="date"
+                            value={currentRecordData.subjectSignatureDate || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, subjectSignatureDate: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* ADMINISTRATIVE */}
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-indigo-400">ADMINISTRATIVE</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        <div>
+                          <label className="field-label">Arresting/Citing Officer Signature</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.officerSignature || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, officerSignature: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Badge #</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.officerBadge || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, officerBadge: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Date</label>
+                          <input
+                            type="date"
+                            value={currentRecordData.officerSignatureDate || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, officerSignatureDate: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Supervisor Signature</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.supervisorSignature || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, supervisorSignature: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Badge #</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.supervisorBadge || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, supervisorBadge: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Date</label>
+                          <input
+                            type="date"
+                            value={currentRecordData.supervisorSignatureDate || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, supervisorSignatureDate: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Status</label>
+                          <select
+                            value={currentRecordData.adminStatus || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, adminStatus: e.target.value})}
+                            className="field"
+                          >
+                            <option value="">Select Status...</option>
+                            <option value="CLOSED/APPROVED">CLOSED/APPROVED</option>
+                            <option value="FORWARD TO DETECTIVE DIVISION">FORWARD TO DETECTIVE DIVISION</option>
+                            <option value="DETECTIVES IN PROGRESS">DETECTIVES IN PROGRESS</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="field-label">Court Date</label>
+                          <input
+                            type="date"
+                            value={currentRecordData.courtDate || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, courtDate: e.target.value})}
+                            className="field"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* CORRECTABLE SIGN-OFF (DEPARTMENT ADMIN ONLY) */}
+                    <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 mb-4">
+                      <h4 className="text-md font-semibold text-yellow-300 mb-3 border-b border-yellow-600 pb-2">CORRECTABLE SIGN-OFF (DEPARTMENT ADMIN ONLY)</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        <div>
+                          <label className="field-label text-yellow-200/90">Date of Inspection</label>
+                          <input
+                            type="date"
+                            value={currentRecordData.inspectionDate || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, inspectionDate: e.target.value})}
+                            className="field field-warn"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label text-yellow-200/90">Time of Inspection</label>
+                          <input
+                            type="time"
+                            value={currentRecordData.inspectionTime || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, inspectionTime: e.target.value})}
+                            className="field field-warn"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label text-yellow-200/90">Department Inspection Completed By</label>
+                          <select
+                            value={currentRecordData.inspectionDepartment || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, inspectionDepartment: e.target.value})}
+                            className="field field-warn"
+                          >
+                            <option value="">Select Department...</option>
+                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                            <option value="DNR">DNR</option>
+                          </select>
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="field-label text-yellow-200/90">Location of Inspection</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.inspectionLocation || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, inspectionLocation: e.target.value})}
+                            className="field field-warn"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label text-yellow-200/90">Issue Has Been Fully Corrected</label>
+                          <select
+                            value={currentRecordData.issueCorrected || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, issueCorrected: e.target.value})}
+                            className="field field-warn"
+                          >
+                            <option value="">Select...</option>
+                            <option value="YES">YES</option>
+                            <option value="NO- NO LONGER CORRECTABLE">NO- NO LONGER CORRECTABLE</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="field-label text-yellow-200/90">Was Fine Money Returned</label>
+                          <select
+                            value={currentRecordData.fineReturned || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, fineReturned: e.target.value})}
+                            className="field field-warn"
+                          >
+                            <option value="">Select...</option>
+                            <option value="YES">YES</option>
+                            <option value="NO">NO</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="field-label text-yellow-200/90">Total Amount Returned</label>
+                          <input
+                            type="number"
+                            value={currentRecordData.amountReturned || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, amountReturned: e.target.value})}
+                            className="field field-warn"
+                            placeholder="$0.00"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label text-yellow-200/90">Administrator Signature</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.adminSignature || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, adminSignature: e.target.value})}
+                            className="field field-warn"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label text-yellow-200/90">Administrator Badge #</label>
+                          <input
+                            type="text"
+                            value={currentRecordData.adminBadge || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, adminBadge: e.target.value})}
+                            className="field field-warn"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* OFFICER NOTES/NARRATIVE AREA (NOT REQUIRED) */}
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-gray-300">OFFICER NOTES/NARRATIVE AREA (NOT REQUIRED)</h4>
+                      <div>
+                        <label className="field-label">Narrative</label>
+                        <textarea
+                          value={currentRecordData.narrative || ''}
+                          onChange={(e) => setCurrentRecordData({...currentRecordData, narrative: e.target.value})}
+                          className="field h-32"
+                          placeholder="Optional officer notes..."
+                        />
+                      </div>
+                    </div>
+
+                    {/* CITATION COPY */}
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-blue-400">CITATION COPY</h4>
+                      <div>
+                        <label className="field-label">Upload Citation Copy Image</label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onloadend = () => {
+                                setCurrentRecordData({...currentRecordData, citationCopyImage: reader.result as string});
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                          className="field mb-2"
+                        />
+                        {currentRecordData.citationCopyImage && (
+                          <div className="mb-2">
+                            <img src={currentRecordData.citationCopyImage} alt="Citation Copy" className="max-h-64 rounded border border-gray-500" />
+                            <button
+                              onClick={() => setCurrentRecordData({...currentRecordData, citationCopyImage: ''})}
+                              className="mt-1 text-xs text-red-400 hover:text-red-300"
+                            >
+                              Remove Image
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* EVIDENCE (CLERICAL PURPOSES) */}
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-purple-400">EVIDENCE (CLERICAL PURPOSES)</h4>
+                      <div className="space-y-3">
+                        <div>
+                          <label className="field-label">Did You Book Evidence in Regards to This Citation?</label>
+                          <select
+                            value={currentRecordData.evidenceBooked || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, evidenceBooked: e.target.value})}
+                            className="field"
+                          >
+                            <option value="">Select...</option>
+                            <option value="YES">YES</option>
+                            <option value="NO">NO</option>
+                          </select>
+                        </div>
+                        {currentRecordData.evidenceBooked === 'YES' && (
+                          <>
+                            <div>
+                              <label className="field-label">If YES - What Evidence Locker # Was Evidence Booked Into</label>
+                              <input
+                                type="text"
+                                value={currentRecordData.evidenceLockerNumber || ''}
+                                onChange={(e) => setCurrentRecordData({...currentRecordData, evidenceLockerNumber: e.target.value})}
+                                className="field"
+                              />
+                            </div>
+                            <div>
+                              <label className="field-label">List Item(s) Description Booked</label>
+                              <textarea
+                                value={currentRecordData.evidenceItemsBooked || ''}
+                                onChange={(e) => setCurrentRecordData({...currentRecordData, evidenceItemsBooked: e.target.value})}
+                                className="field h-24"
+                                placeholder="List all evidence items booked..."
+                              />
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* PHOTO EVIDENCE */}
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-green-400">PHOTO EVIDENCE</h4>
+                      <div>
+                        <label className="field-label">Upload Photo Evidence</label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onloadend = () => {
+                                setCurrentRecordData({...currentRecordData, photoEvidenceImage: reader.result as string});
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                          className="field mb-2"
+                        />
+                        {currentRecordData.photoEvidenceImage && (
+                          <div className="mb-2">
+                            <img src={currentRecordData.photoEvidenceImage} alt="Photo Evidence" className="max-h-64 rounded border border-gray-500" />
+                            <button
+                              onClick={() => setCurrentRecordData({...currentRecordData, photoEvidenceImage: ''})}
+                              className="mt-1 text-xs text-red-400 hover:text-red-300"
+                            >
+                              Remove Image
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* COURT RECORDS (FOR COURT STAFF USE ONLY) */}
+                    <div className="bg-indigo-500/10 border border-indigo-500/30 rounded-lg p-4 mb-4">
+                      <h4 className="text-md font-semibold text-indigo-300 mb-3 border-b border-indigo-600 pb-2">COURT RECORDS (FOR COURT STAFF USE ONLY)</h4>
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-xs text-indigo-200 mb-1">Status</label>
+                          <select
+                            value={currentRecordData.courtStatus || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, courtStatus: e.target.value})}
+                            className="w-full bg-indigo-800 text-white rounded px-3 py-2 text-sm border border-indigo-600"
+                          >
+                            <option value="">Select Status...</option>
+                            <option value="PENDING">PENDING</option>
+                            <option value="PAID">PAID</option>
+                            <option value="DISMISSED/ACQUITTAL">DISMISSED/ACQUITTAL</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-indigo-200 mb-1">Court Notes</label>
+                          <textarea
+                            value={currentRecordData.courtNotes || ''}
+                            onChange={(e) => setCurrentRecordData({...currentRecordData, courtNotes: e.target.value})}
+                            className="w-full bg-indigo-800 text-white rounded px-3 py-2 text-sm h-24 border border-indigo-600"
+                            placeholder="Court staff notes..."
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* LINKED RECORDS */}
+                    <div className="panel-card mb-4">
+                      <h4 className="section-title text-cyan-400">LINKED RECORDS</h4>
+                      <div className="flex justify-between items-center mb-3">
+                        <span className="text-sm text-gray-300">Linked Cases/Citations/Reports</span>
+                        <button
+                          onClick={() => {
+                            const linkedRecords = currentRecordData.linkedRecords || [];
+                            setCurrentRecordData({
+                              ...currentRecordData,
+                              linkedRecords: [...linkedRecords, { id: Date.now(), recordNumber: '', recordType: '' }]
+                            });
+                          }}
+                          className="px-3 py-1 bg-cyan-600 text-white rounded text-sm hover:bg-cyan-500 flex items-center gap-1"
+                        >
+                          <Plus size={16} /> Add Linked Record
+                        </button>
+                      </div>
+                      {currentRecordData.linkedRecords && currentRecordData.linkedRecords.length > 0 ? (
+                        <div className="space-y-2">
+                          {currentRecordData.linkedRecords.map((record: any, index: number) => (
+                            <div key={record.id} className="subcard flex gap-2 items-center px-3 py-2">
+                              <input
+                                type="text"
+                                value={record.recordNumber}
+                                onChange={(e) => {
+                                  const updated = currentRecordData.linkedRecords.map((r: any) =>
+                                    r.id === record.id ? {...r, recordNumber: e.target.value} : r
+                                  );
+                                  setCurrentRecordData({...currentRecordData, linkedRecords: updated});
+                                }}
+                                className="field flex-1 min-w-0"
+                                placeholder="Record Number"
+                              />
+                              <input
+                                type="text"
+                                value={record.recordType}
+                                onChange={(e) => {
+                                  const updated = currentRecordData.linkedRecords.map((r: any) =>
+                                    r.id === record.id ? {...r, recordType: e.target.value} : r
+                                  );
+                                  setCurrentRecordData({...currentRecordData, linkedRecords: updated});
+                                }}
+                                className="field flex-1 min-w-0"
+                                placeholder="Type (ARREST, WARRANT, etc.)"
+                              />
+                              <button
+                                onClick={() => {
+                                  const updated = currentRecordData.linkedRecords.filter((r: any) => r.id !== record.id);
+                                  setCurrentRecordData({...currentRecordData, linkedRecords: updated});
+                                }}
+                                className="text-red-400 hover:text-red-300"
+                              >
+                                <X size={16} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-400 italic">No linked records added yet.</p>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                <div className="flex gap-2 justify-end pt-4 border-t border-white/[0.06]">
+                  {activeRecordForm === 'BOLO' && editingRecordId && (
+                    <button
+                      onClick={() => {
+                        const active = !isBoloActive(currentRecordData);
+                        if (!active && !window.confirm('Deactivate this BOLO? It will be removed from the BOLO panel.')) return;
+                        // Keeps any edits made in the form, then changes the status
+                        setRecordActive({ ...currentRecordData, id: editingRecordId }, active);
+                        setActiveRecordForm(null);
+                        setCurrentRecordData({});
+                        setEditingRecordId(null);
+                      }}
+                      className={`btn mr-auto ${isBoloActive(currentRecordData) ? 'btn-danger' : 'btn-success'}`}
+                    >
+                      {isBoloActive(currentRecordData) ? <><Power size={16} /> Deactivate BOLO</> : <><RotateCcw size={16} /> Reactivate BOLO</>}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      setActiveRecordForm(null);
+                      setCurrentRecordData({});
+                      setEditingRecordId(null);
+                    }}
+                    className="btn btn-secondary"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={saveRecord}
+                    className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-500"
+                  >
+                    {editingRecordId ? 'Save' : 'Add Record'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+  ) : null;
+
   // Records Panel JSX - Rendered inline to prevent re-render issues with form inputs
   const recordsPanelJSX = (
     <div className="modal-backdrop z-50">
@@ -4704,7 +7895,7 @@ const CADSystem = () => {
                           <span className={`px-2 py-1 rounded text-xs ${
                             record.status === 'ACTIVE' ? 'bg-green-600' :
                             record.status === 'PENDING' ? 'bg-yellow-600' :
-                            record.status === 'CLOSED' ? 'bg-gray-600' : 'bg-blue-600'
+                            record.status === 'CLOSED' || record.status === 'INACTIVE' ? 'bg-gray-600' : 'bg-blue-600'
                           }`}>
                             {record.status}
                           </span>
@@ -8304,18 +11495,7 @@ const CADSystem = () => {
                                 </div>
                                 <div>
                                   <label className="field-label">Counts</label>
-                                  <input
-                                    type="number"
-                                    min="1"
-                                    value={charge.counts}
-                                    onChange={(e) => {
-                                      const updated = currentReportData.charges.map(c =>
-                                        c.id === charge.id ? {...c, counts: parseInt(e.target.value) || 1} : c
-                                      );
-                                      setCurrentReportData({...currentReportData, charges: updated});
-                                    }}
-                                    className="field field-sm"
-                                  />
+                                  {renderCountsInput(charge.counts, (n) => { const updated = currentReportData.charges.map(c => c.id === charge.id ? {...c, counts: n} : c); setCurrentReportData({...currentReportData, charges: updated}); }, true)}
                                 </div>
                               </div>
                               <div className="grid grid-cols-3 gap-2 mt-2">
@@ -8802,3161 +11982,191 @@ const CADSystem = () => {
           </div>
         )}
 
-        {/* Record Form Modal */}
-        {activeRecordForm && (
-          <div className="modal-backdrop z-[60]">
-            <div className="modal-surface w-full max-w-3xl max-h-[85vh] overflow-y-auto">
-              <div className="bg-gray-900 px-6 py-4 border-b border-white/[0.06] flex justify-between items-center sticky top-0">
-                <h3 className="text-lg font-bold text-orange-400">{editingRecordId ? '' : 'New '}{activeRecordForm}</h3>
-                <button
-                  onClick={() => {
-                    setActiveRecordForm(null);
-                    setCurrentRecordData({});
-                    setEditingRecordId(null);
-                  }}
-                  className="icon-btn"
-                >
-                  <X size={20} />
-                </button>
+        {recordFormModalJSX}
+      </div>
+  );
+
+  // ---- BOLO panel ----------------------------------------------------------
+  const boloRecords = officerRecords
+    .filter(r => r.type === 'BOLO' && (boloView === 'active' ? isBoloActive(r) : !isBoloActive(r)))
+    .filter(r => {
+      const q = boloSearch.trim().toLowerCase();
+      if (!q) return true;
+      return [r.recordNumber, r.vehiclePlate, r.vehicleMake, r.vehicleModel, r.vehicleColor, r.subjectName,
+        r.lastKnownLocation, r.briefInformation, r.officer, ...(r.charges || []).map((c: any) => `${c.charge} ${c.titleCode}`)]
+        .some(v => String(v || '').toLowerCase().includes(q));
+    })
+    .sort((a, b) => String(b.createdAt || b.date || '').localeCompare(String(a.createdAt || a.date || '')));
+  const boloCounts = {
+    active: officerRecords.filter(r => r.type === 'BOLO' && isBoloActive(r)).length,
+    inactive: officerRecords.filter(r => r.type === 'BOLO' && !isBoloActive(r)).length,
+  };
+
+  const renderBoloCard = (r: any) => {
+    const active = isBoloActive(r);
+    const reasons = BOLO_REASONS.filter(([k]) => r[k]).map(([, label]) => label);
+    const safety = BOLO_SAFETY.filter(([k]) => r[k]).map(([, label]) => label);
+    const vehicle = [r.vehicleColor, r.vehicleMake, r.vehicleModel].filter(Boolean).join(' ');
+    const issued = [r.dateIssued, r.timeIssued].filter(Boolean).join(' ') || formatRecordDateTime(r.createdAt);
+    return (
+      <div key={r.id} className={`panel-card ${active ? '' : 'opacity-75'}`}>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`rounded-md px-2 py-0.5 text-xs font-bold ${active ? 'bg-red-600 text-white' : 'bg-white/[0.08] text-gray-300'}`}>
+                {active ? 'BOLO' : 'INACTIVE'}
+              </span>
+              {r.recordNumber && <span className="font-mono text-sm text-gray-400">#{r.recordNumber}</span>}
+              {reasons.map(label => (
+                <span key={label} className="chip !py-0 text-[11px]">{label}</span>
+              ))}
+            </div>
+            {safety.length > 0 && (
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                <span className="text-xs font-semibold uppercase tracking-wide text-red-400">Officer safety:</span>
+                {safety.map(label => (
+                  <span key={label} className="rounded-md bg-red-500/15 px-2 py-0.5 text-xs font-semibold text-red-300 ring-1 ring-red-500/30">{label}</span>
+                ))}
               </div>
-              <div className="p-6 space-y-4">
-                {/* Common Fields */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="field-label">Officer Name</label>
-                    <input
-                      type="text"
-                      value={currentRecordData.officer || ''}
-                      onChange={(e) => setCurrentRecordData({...currentRecordData, officer: e.target.value})}
-                      className="field"
-                    />
-                  </div>
-                  <div>
-                    <label className="field-label">Badge Number</label>
-                    <input
-                      type="text"
-                      value={currentRecordData.badge || ''}
-                      onChange={(e) => setCurrentRecordData({...currentRecordData, badge: e.target.value})}
-                      className="field"
-                    />
-                  </div>
-                </div>
+            )}
+          </div>
+          <div className="flex flex-shrink-0 gap-2">
+            <button onClick={() => openExistingRecord(r)} className="btn btn-secondary btn-sm">
+              <Eye size={15} /> View
+            </button>
+            {active ? (
+              <button
+                onClick={() => {
+                  if (window.confirm('Deactivate this BOLO? It will be removed from the BOLO panel.')) setRecordActive(r, false);
+                }}
+                className="btn btn-danger btn-sm"
+              >
+                <Power size={15} /> Deactivate
+              </button>
+            ) : (
+              <button onClick={() => setRecordActive(r, true)} className="btn btn-success btn-sm">
+                <RotateCcw size={15} /> Reactivate
+              </button>
+            )}
+          </div>
+        </div>
 
-                {/* ARREST specific fields */}
-                {activeRecordForm === 'ARREST' && (
-                  <>
-                    {/* Agency Information Section */}
-                    <div className="panel-card mb-4">
-                      <h4 className="section-title text-blue-400">AGENCY INFORMATION</h4>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        <div>
-                          <label className="field-label">Callsign</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.callsign || ''}
-                            readOnly
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Department</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.department || ''}
-                            readOnly
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Officer Name</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.officer || ''}
-                            readOnly
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Record#</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.recordNumber || ''}
-                            readOnly
-                            className="field"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Report Reference Section */}
-                    <div className="panel-card mb-4">
-                      <h4 className="section-title text-green-400">REPORT REFERENCE</h4>
-                      <div className="grid grid-cols-3 gap-3">
-                        <div>
-                          <label className="field-label">Date of Call</label>
-                          <input
-                            type="date"
-                            value={currentRecordData.dateOfCall || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, dateOfCall: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Primary Department</label>
-                          <select
-                            value={currentRecordData.primaryDepartment || 'B.C.S.O'}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, primaryDepartment: e.target.value})}
-                            className="field"
-                          >
-                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="field-label">Arresting Officer Badge #</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.arrestingOfficerBadge || loggedInOfficer?.badgeNumber || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, arrestingOfficerBadge: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Dispatch ID #</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.dispatchId || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, dispatchId: e.target.value})}
-                            className="field"
-                            placeholder="Dispatch ID..."
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Traffic Accident Ref #</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.trafficAccidentRef || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, trafficAccidentRef: e.target.value})}
-                            className="field"
-                            placeholder="Reference number..."
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Citation Ref #</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.citationRef || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, citationRef: e.target.value})}
-                            className="field"
-                            placeholder="Citation reference..."
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Supplemental Report to be Filed?</label>
-                          <select
-                            value={currentRecordData.supplementalReportFiled || 'NO'}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, supplementalReportFiled: e.target.value})}
-                            className="field"
-                          >
-                            <option value="YES">YES</option>
-                            <option value="NO">NO</option>
-                          </select>
-                        </div>
-                        <div className="col-span-2">
-                          <label className="field-label">Additional Reference Info (Not Required)</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.additionalReferenceInfo || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, additionalReferenceInfo: e.target.value})}
-                            className="field"
-                            placeholder="Additional reference information..."
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Subject Transported by Other Officer?</label>
-                          <select
-                            value={currentRecordData.transportedByOther || 'NO'}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, transportedByOther: e.target.value})}
-                            className="field"
-                          >
-                            <option value="YES">YES</option>
-                            <option value="NO">NO</option>
-                          </select>
-                        </div>
-                        <div className="col-span-2">
-                          <label className="field-label">Badge # and Name of Transporting Agent (If Applicable)</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.transportingAgent || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, transportingAgent: e.target.value})}
-                            className="field"
-                            placeholder="Badge # and Name..."
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Subject Treated by EMS?</label>
-                          <select
-                            value={currentRecordData.treatedByEMS || 'NO'}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, treatedByEMS: e.target.value})}
-                            className="field"
-                          >
-                            <option value="YES">YES</option>
-                            <option value="NO">NO</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="field-label">EMS Transport Subject to Hospital?</label>
-                          <select
-                            value={currentRecordData.emsTransportToHospital || 'NO'}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, emsTransportToHospital: e.target.value})}
-                            className="field"
-                          >
-                            <option value="YES">YES</option>
-                            <option value="NO">NO</option>
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Arrestee Information Section */}
-                    <div className="panel-card mb-4">
-                      <h4 className="section-title text-red-400">ARRESTEE INFORMATION</h4>
-                      <div className="mb-3">
-                        <label className="field-label">Search by Name</label>
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={partySearchName1}
-                            onChange={(e) => setPartySearchName1(e.target.value)}
-                            placeholder="Enter name..."
-                            className="field flex-1 min-w-0"
-                          />
-                          <button
-                            onClick={() => searchPersonByName(partySearchName1, 1)}
-                            className="btn btn-primary"
-                          >
-                            Search
-                          </button>
-                        </div>
-                        {partySearchResults1.length > 0 && (
-                          <div className="mt-2 menu-list max-h-32 overflow-y-auto">
-                            {partySearchResults1.map((p, i) => (
-                              <div
-                                key={i}
-                                onClick={() => {
-                                  setCurrentRecordData({
-                                    ...currentRecordData,
-                                    arresteeName: `${p.firstName} ${p.lastName}`,
-                                    arresteeDOB: p.dob,
-                                    arresteeAddress: p.address,
-                                    arresteePhone: p.phone
-                                  });
-                                  setPartySearchResults1([]);
-                                  setPartySearchName1('');
-                                }}
-                                className="menu-item"
-                              >
-                                {p.firstName} {p.lastName} - DOB: {p.dob}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="field-label">Name</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.arresteeName || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, arresteeName: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Date of Birth</label>
-                          <input
-                            type="date"
-                            value={currentRecordData.arresteeDOB || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, arresteeDOB: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Phone</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.arresteePhone || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, arresteePhone: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Address</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.arresteeAddress || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, arresteeAddress: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Vehicles Associated Section */}
-                    <div className="panel-card mb-4">
-                      <h4 className="section-title text-purple-400">VEHICLES ASSOCIATED</h4>
-                      <div className="mb-3">
-                        <label className="field-label">Search by Plate</label>
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={vehicleSearchPlate1}
-                            onChange={(e) => setVehicleSearchPlate1(e.target.value)}
-                            placeholder="Enter plate number..."
-                            className="field flex-1 min-w-0"
-                          />
-                          <button
-                            onClick={() => searchVehicleByPlate(vehicleSearchPlate1, 1)}
-                            className="btn btn-primary"
-                          >
-                            Search
-                          </button>
-                        </div>
-                        {vehicleSearchResults1.length > 0 && (
-                          <div className="mt-2 menu-list max-h-32 overflow-y-auto">
-                            {vehicleSearchResults1.map((v, i) => (
-                              <div
-                                key={i}
-                                onClick={() => {
-                                  setCurrentRecordData({
-                                    ...currentRecordData,
-                                    vehiclePlate: v.plate,
-                                    vehicleMake: v.make,
-                                    vehicleModel: v.model,
-                                    vehicleColor: v.color
-                                  });
-                                  setVehicleSearchResults1([]);
-                                  setVehicleSearchPlate1('');
-                                }}
-                                className="menu-item"
-                              >
-                                {v.plate} - {v.make} {v.model} ({v.color})
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="field-label">Plate Number</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.vehiclePlate || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, vehiclePlate: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Make</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.vehicleMake || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, vehicleMake: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Model</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.vehicleModel || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, vehicleModel: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Color</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.vehicleColor || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, vehicleColor: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Charges Filed Section */}
-                    <div className="panel-card mb-4">
-                      <div className="flex justify-between items-center mb-3">
-                        <h4 className="text-md font-semibold text-red-400">CHARGES FILED</h4>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const newCharge = {
-                              id: Date.now(),
-                              charge: '',
-                              chargeType: 'MISDEMEANOR',
-                              counts: 1,
-                              titleCode: ''
-                            };
-                            setCurrentRecordData({
-                              ...currentRecordData,
-                              charges: [...(currentRecordData.charges || []), newCharge]
-                            });
-                          }}
-                          className="btn btn-danger btn-sm"
-                        >
-                          <Plus size={16} /> Add Charge
-                        </button>
-                      </div>
-                      {(!currentRecordData.charges || currentRecordData.charges.length === 0) ? (
-                        <p className="text-gray-500 text-center py-4">No charges added. Click "Add Charge" to add charges.</p>
-                      ) : (
-                        <div className="space-y-3">
-                          {currentRecordData.charges.map((charge, index) => (
-                            <div key={charge.id} className="subcard p-3">
-                              <div className="flex justify-between items-start mb-2">
-                                <span className="text-xs text-gray-400">Charge #{index + 1}</span>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setCurrentRecordData({
-                                      ...currentRecordData,
-                                      charges: currentRecordData.charges.filter(c => c.id !== charge.id)
-                                    });
-                                  }}
-                                  className="text-red-400 hover:text-red-300"
-                                >
-                                  <X size={16} />
-                                </button>
-                              </div>
-                              <div className="grid grid-cols-4 gap-2">
-                                <div className="col-span-2">
-                                  <label className="field-label">Charge</label>
-                                  <ChargeAutocompleteInput
-                                    value={charge.charge}
-                                    onChange={(value) => {
-                                      const updated = currentRecordData.charges.map(c =>
-                                        c.id === charge.id ? {...c, charge: value} : c
-                                      );
-                                      setCurrentRecordData({...currentRecordData, charges: updated});
-                                    }}
-                                    onSelect={(code) => {
-                                      const updated = currentRecordData.charges.map(c =>
-                                        c.id === charge.id ? {
-                                          ...c,
-                                          charge: code.title,
-                                          titleCode: code.code,
-                                          chargeType: code.chargeType || 'MISDEMEANOR',
-                                          bondType: code.bondType || 'CASH BAIL',
-                                          bondAmount: code.bondAmount || 0,
-                                          jailTime: code.jailTime || ''
-                                        } : c
-                                      );
-                                      setCurrentRecordData({...currentRecordData, charges: updated});
-                                    }}
-                                    codes={californiaCodes}
-                                    placeholder="Type to search charges..."
-                                  />
-                                </div>
-                                <div>
-                                  <label className="field-label">Charge Type</label>
-                                  <select
-                                    value={charge.chargeType}
-                                    onChange={(e) => {
-                                      const updated = currentRecordData.charges.map(c =>
-                                        c.id === charge.id ? {...c, chargeType: e.target.value} : c
-                                      );
-                                      setCurrentRecordData({...currentRecordData, charges: updated});
-                                    }}
-                                    className="field field-sm"
-                                  >
-                                    <option value="INFRACTION">INFRACTION</option>
-                                    <option value="MISDEMEANOR">MISDEMEANOR</option>
-                                    <option value="FELONY">FELONY</option>
-                                  </select>
-                                </div>
-                                <div>
-                                  <label className="field-label">Counts</label>
-                                  <input
-                                    type="number"
-                                    min="1"
-                                    value={charge.counts}
-                                    onChange={(e) => {
-                                      const updated = currentRecordData.charges.map(c =>
-                                        c.id === charge.id ? {...c, counts: parseInt(e.target.value) || 1} : c
-                                      );
-                                      setCurrentRecordData({...currentRecordData, charges: updated});
-                                    }}
-                                    className="field field-sm"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="field-label">Title/Code</label>
-                                  <input
-                                    type="text"
-                                    value={charge.titleCode}
-                                    onChange={(e) => {
-                                      const updated = currentRecordData.charges.map(c =>
-                                        c.id === charge.id ? {...c, titleCode: e.target.value} : c
-                                      );
-                                      setCurrentRecordData({...currentRecordData, charges: updated});
-                                    }}
-                                    className="field field-sm"
-                                    placeholder="e.g., PC 242"
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Evidence or Property Log Section */}
-                    <div className="panel-card mb-4">
-                      <h4 className="section-title text-yellow-400">EVIDENCE OR PROPERTY LOG</h4>
-                      <div className="grid grid-cols-1 gap-3">
-                        <div>
-                          <label className="field-label">Evidence Locker #</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.evidenceLockerNumber || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, evidenceLockerNumber: e.target.value})}
-                            className="field"
-                            placeholder="Evidence locker number..."
-                          />
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="field-label">Item A Quantity</label>
-                            <input
-                              type="text"
-                              value={currentRecordData.itemAQuantity || ''}
-                              onChange={(e) => setCurrentRecordData({...currentRecordData, itemAQuantity: e.target.value})}
-                              className="field"
-                              placeholder="Quantity..."
-                            />
-                          </div>
-                          <div>
-                            <label className="field-label">Item A Description</label>
-                            <input
-                              type="text"
-                              value={currentRecordData.itemADescription || ''}
-                              onChange={(e) => setCurrentRecordData({...currentRecordData, itemADescription: e.target.value})}
-                              className="field"
-                              placeholder="Description..."
-                            />
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="field-label">Item B Quantity</label>
-                            <input
-                              type="text"
-                              value={currentRecordData.itemBQuantity || ''}
-                              onChange={(e) => setCurrentRecordData({...currentRecordData, itemBQuantity: e.target.value})}
-                              className="field"
-                              placeholder="Quantity..."
-                            />
-                          </div>
-                          <div>
-                            <label className="field-label">Item B Description</label>
-                            <input
-                              type="text"
-                              value={currentRecordData.itemBDescription || ''}
-                              onChange={(e) => setCurrentRecordData({...currentRecordData, itemBDescription: e.target.value})}
-                              className="field"
-                              placeholder="Description..."
-                            />
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="field-label">Item C Quantity</label>
-                            <input
-                              type="text"
-                              value={currentRecordData.itemCQuantity || ''}
-                              onChange={(e) => setCurrentRecordData({...currentRecordData, itemCQuantity: e.target.value})}
-                              className="field"
-                              placeholder="Quantity..."
-                            />
-                          </div>
-                          <div>
-                            <label className="field-label">Item C Description</label>
-                            <input
-                              type="text"
-                              value={currentRecordData.itemCDescription || ''}
-                              onChange={(e) => setCurrentRecordData({...currentRecordData, itemCDescription: e.target.value})}
-                              className="field"
-                              placeholder="Description..."
-                            />
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="field-label">Item D Quantity</label>
-                            <input
-                              type="text"
-                              value={currentRecordData.itemDQuantity || ''}
-                              onChange={(e) => setCurrentRecordData({...currentRecordData, itemDQuantity: e.target.value})}
-                              className="field"
-                              placeholder="Quantity..."
-                            />
-                          </div>
-                          <div>
-                            <label className="field-label">Item D Description</label>
-                            <input
-                              type="text"
-                              value={currentRecordData.itemDDescription || ''}
-                              onChange={(e) => setCurrentRecordData({...currentRecordData, itemDDescription: e.target.value})}
-                              className="field"
-                              placeholder="Description..."
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Narrative Section */}
-                    <div className="panel-card mb-4">
-                      <h4 className="section-title text-cyan-400">NARRATIVE</h4>
-                      <div>
-                        <label className="field-label">Narrative</label>
-                        <textarea
-                          value={currentRecordData.narrative || ''}
-                          onChange={(e) => setCurrentRecordData({...currentRecordData, narrative: e.target.value})}
-                          className="field h-32"
-                          placeholder="Detailed narrative of the arrest..."
-                        />
-                      </div>
-                    </div>
-
-                    {/* Image Attachments Section */}
-                    <div className="panel-card mb-4">
-                      <h4 className="section-title text-orange-400">IMAGE ATTACHMENTS</h4>
-                      <div className="space-y-3">
-                        <div>
-                          <label className="field-label">Image File 1</label>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                const reader = new FileReader();
-                                reader.onloadend = () => {
-                                  setCurrentRecordData({...currentRecordData, imageUrl1: reader.result as string});
-                                };
-                                reader.readAsDataURL(file);
-                              }
-                            }}
-                            className="field mb-2"
-                          />
-                          {currentRecordData.imageUrl1 && (
-                            <div className="mb-2">
-                              <img src={currentRecordData.imageUrl1} alt="Attachment 1" className="max-h-32 rounded border border-gray-500" />
-                              <button
-                                type="button"
-                                onClick={() => setCurrentRecordData({...currentRecordData, imageUrl1: ''})}
-                                className="mt-1 text-xs text-red-400 hover:text-red-300"
-                              >
-                                Remove Image
-                              </button>
-                            </div>
-                          )}
-                          <label className="field-label">Image 1 Description</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.imageDesc1 || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, imageDesc1: e.target.value})}
-                            className="field"
-                            placeholder="Description..."
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Image File 2</label>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                const reader = new FileReader();
-                                reader.onloadend = () => {
-                                  setCurrentRecordData({...currentRecordData, imageUrl2: reader.result as string});
-                                };
-                                reader.readAsDataURL(file);
-                              }
-                            }}
-                            className="field mb-2"
-                          />
-                          {currentRecordData.imageUrl2 && (
-                            <div className="mb-2">
-                              <img src={currentRecordData.imageUrl2} alt="Attachment 2" className="max-h-32 rounded border border-gray-500" />
-                              <button
-                                type="button"
-                                onClick={() => setCurrentRecordData({...currentRecordData, imageUrl2: ''})}
-                                className="mt-1 text-xs text-red-400 hover:text-red-300"
-                              >
-                                Remove Image
-                              </button>
-                            </div>
-                          )}
-                          <label className="field-label">Image 2 Description</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.imageDesc2 || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, imageDesc2: e.target.value})}
-                            className="field"
-                            placeholder="Description..."
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Image File 3</label>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                const reader = new FileReader();
-                                reader.onloadend = () => {
-                                  setCurrentRecordData({...currentRecordData, imageUrl3: reader.result as string});
-                                };
-                                reader.readAsDataURL(file);
-                              }
-                            }}
-                            className="field mb-2"
-                          />
-                          {currentRecordData.imageUrl3 && (
-                            <div className="mb-2">
-                              <img src={currentRecordData.imageUrl3} alt="Attachment 3" className="max-h-32 rounded border border-gray-500" />
-                              <button
-                                type="button"
-                                onClick={() => setCurrentRecordData({...currentRecordData, imageUrl3: ''})}
-                                className="mt-1 text-xs text-red-400 hover:text-red-300"
-                              >
-                                Remove Image
-                              </button>
-                            </div>
-                          )}
-                          <label className="field-label">Image 3 Description</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.imageDesc3 || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, imageDesc3: e.target.value})}
-                            className="field"
-                            placeholder="Description..."
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Linked Reports Section */}
-                    <div className="panel-card mb-4">
-                      <div className="flex justify-between items-center mb-3">
-                        <h4 className="text-md font-semibold text-indigo-400">LINKED REPORTS</h4>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const newLinkedReport = { id: Date.now(), reportNumber: '', reportType: '' };
-                            setCurrentRecordData({
-                              ...currentRecordData,
-                              linkedReports: [...(currentRecordData.linkedReports || []), newLinkedReport]
-                            });
-                          }}
-                          className="px-3 py-1 bg-indigo-600 text-white rounded text-sm hover:bg-indigo-500 flex items-center gap-1"
-                        >
-                          <Plus size={16} /> Add Linked Report
-                        </button>
-                      </div>
-                      {(!currentRecordData.linkedReports || currentRecordData.linkedReports.length === 0) ? (
-                        <p className="text-gray-500 text-center py-4">No linked reports. Click "Add Linked Report" to link reports.</p>
-                      ) : (
-                        <div className="space-y-2">
-                          {currentRecordData.linkedReports.map((report, index) => (
-                            <div key={report.id} className="subcard p-3 flex gap-2 items-end">
-                              <div className="flex-1">
-                                <label className="field-label">Report Number</label>
-                                <input
-                                  type="text"
-                                  value={report.reportNumber}
-                                  onChange={(e) => {
-                                    const updated = currentRecordData.linkedReports.map(r =>
-                                      r.id === report.id ? {...r, reportNumber: e.target.value} : r
-                                    );
-                                    setCurrentRecordData({...currentRecordData, linkedReports: updated});
-                                  }}
-                                  className="field field-sm"
-                                  placeholder="Report #..."
-                                />
-                              </div>
-                              <div className="flex-1">
-                                <label className="field-label">Report Type</label>
-                                <input
-                                  type="text"
-                                  value={report.reportType}
-                                  onChange={(e) => {
-                                    const updated = currentRecordData.linkedReports.map(r =>
-                                      r.id === report.id ? {...r, reportType: e.target.value} : r
-                                    );
-                                    setCurrentRecordData({...currentRecordData, linkedReports: updated});
-                                  }}
-                                  className="field field-sm"
-                                  placeholder="Type..."
-                                />
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setCurrentRecordData({
-                                    ...currentRecordData,
-                                    linkedReports: currentRecordData.linkedReports.filter(r => r.id !== report.id)
-                                  });
-                                }}
-                                className="text-red-400 hover:text-red-300 pb-1"
-                              >
-                                <X size={16} />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Administrative Section */}
-                    <div className="panel-card mb-4">
-                      <h4 className="section-title text-pink-400">ADMINISTRATIVE</h4>
-                      <div className="grid grid-cols-3 gap-3">
-                        <div>
-                          <label className="field-label">Booking Officer Signature</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.bookingOfficerSignature || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, bookingOfficerSignature: e.target.value})}
-                            className="field"
-                            placeholder="Officer signature..."
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Booking Officer Badge #</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.bookingOfficerBadge || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, bookingOfficerBadge: e.target.value})}
-                            className="field"
-                            placeholder="Badge #..."
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Date</label>
-                          <input
-                            type="date"
-                            value={currentRecordData.bookingDate || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, bookingDate: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Supervisor Signature</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.supervisorSignature || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, supervisorSignature: e.target.value})}
-                            className="field"
-                            placeholder="Supervisor signature..."
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Supervisor Badge #</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.supervisorBadge || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, supervisorBadge: e.target.value})}
-                            className="field"
-                            placeholder="Badge #..."
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Date</label>
-                          <input
-                            type="date"
-                            value={currentRecordData.supervisorDate || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, supervisorDate: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Status</label>
-                          <select
-                            value={currentRecordData.adminStatus || 'CLOSED/APPROVED'}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, adminStatus: e.target.value})}
-                            className="field"
-                          >
-                            <option value="CLOSED/APPROVED">CLOSED/APPROVED</option>
-                            <option value="FORWARD TO DETECTIVE DIVISION">FORWARD TO DETECTIVE DIVISION</option>
-                            <option value="DETECTIVES IN PROGRESS">DETECTIVES IN PROGRESS</option>
-                            <option value="DENIED/NEEDS EDITS">DENIED/NEEDS EDITS</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="field-label">Case Gone to Court?</label>
-                          <select
-                            value={currentRecordData.caseGoneToCourt || 'NO'}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, caseGoneToCourt: e.target.value})}
-                            className="field"
-                          >
-                            <option value="YES">YES</option>
-                            <option value="NO">NO</option>
-                            <option value="UNDER TRIAL">UNDER TRIAL</option>
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Detective Reference Only Section */}
-                    <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-4">
-                      <h4 className="text-md font-semibold text-red-300 mb-3 border-b border-red-600 pb-2">DETECTIVE REFERENCE ONLY</h4>
-                      <div className="grid grid-cols-3 gap-3">
-                        <div>
-                          <label className="field-label">Detective Assigned</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.detectiveAssigned || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, detectiveAssigned: e.target.value})}
-                            className="field field-danger"
-                            placeholder="Detective name..."
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Detective Badge #</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.detectiveBadge || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, detectiveBadge: e.target.value})}
-                            className="field field-danger"
-                            placeholder="Badge #..."
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Detective Agency</label>
-                          <select
-                            value={currentRecordData.detectiveAgency || 'B.C.S.O'}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, detectiveAgency: e.target.value})}
-                            className="field field-danger"
-                          >
-                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                          </select>
-                        </div>
-                        <div className="col-span-2">
-                          <label className="field-label">Detective Reference Info (Case # etc)</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.detectiveReferenceInfo || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, detectiveReferenceInfo: e.target.value})}
-                            className="field field-danger"
-                            placeholder="Case #, reference info..."
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Detective Involvement</label>
-                          <select
-                            value={currentRecordData.detectiveInvolvement || 'INVOLVED AFTER ARREST'}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, detectiveInvolvement: e.target.value})}
-                            className="field field-danger"
-                          >
-                            <option value="MADE ARREST">MADE ARREST</option>
-                            <option value="INVOLVED IN INVESTIGATION PRIOR TO ARREST">INVOLVED IN INVESTIGATION PRIOR TO ARREST</option>
-                            <option value="INVOLVED AFTER ARREST">INVOLVED AFTER ARREST</option>
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                {/* BOLO specific fields */}
-                {activeRecordForm === 'BOLO' && (
-                  <>
-                    {/* Vehicle Information Section */}
-                    <div className="panel-card mb-4">
-                      <h4 className="section-title text-yellow-400">VEHICLE INFORMATION</h4>
-                      <div className="mb-3">
-                        <label className="field-label">Search by Plate</label>
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={vehicleSearchPlate1}
-                            onChange={(e) => setVehicleSearchPlate1(e.target.value)}
-                            placeholder="Enter plate number..."
-                            className="field flex-1 min-w-0"
-                          />
-                          <button
-                            onClick={() => searchVehicleByPlate(vehicleSearchPlate1, 1)}
-                            className="btn btn-primary"
-                          >
-                            Search
-                          </button>
-                        </div>
-                        {vehicleSearchResults1.length > 0 && (
-                          <div className="mt-2 menu-list max-h-32 overflow-y-auto">
-                            {vehicleSearchResults1.map((v, i) => (
-                              <div
-                                key={i}
-                                onClick={() => {
-                                  setCurrentRecordData({
-                                    ...currentRecordData,
-                                    vehiclePlate: v.plate,
-                                    vehicleMake: v.make,
-                                    vehicleModel: v.model,
-                                    vehicleColor: v.color
-                                  });
-                                  setVehicleSearchResults1([]);
-                                  setVehicleSearchPlate1('');
-                                }}
-                                className="menu-item"
-                              >
-                                {v.plate} - {v.make} {v.model} ({v.color})
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="field-label">Plate Number</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.vehiclePlate || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, vehiclePlate: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Make</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.vehicleMake || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, vehicleMake: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Model</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.vehicleModel || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, vehicleModel: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Color</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.vehicleColor || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, vehicleColor: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Subject Information Section */}
-                    <div className="panel-card mb-4">
-                      <h4 className="section-title text-yellow-400">SUBJECT INFORMATION</h4>
-                      <div className="mb-3">
-                        <label className="field-label">Search by Name</label>
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={partySearchName1}
-                            onChange={(e) => setPartySearchName1(e.target.value)}
-                            placeholder="Enter name..."
-                            className="field flex-1 min-w-0"
-                          />
-                          <button
-                            onClick={() => searchPersonByName(partySearchName1, 1)}
-                            className="btn btn-primary"
-                          >
-                            Search
-                          </button>
-                        </div>
-                        {partySearchResults1.length > 0 && (
-                          <div className="mt-2 menu-list max-h-32 overflow-y-auto">
-                            {partySearchResults1.map((p, i) => (
-                              <div
-                                key={i}
-                                onClick={() => {
-                                  setCurrentRecordData({
-                                    ...currentRecordData,
-                                    subjectName: `${p.firstName} ${p.lastName}`,
-                                    subjectDOB: p.dob,
-                                    subjectAddress: p.address,
-                                    subjectPhone: p.phone
-                                  });
-                                  setPartySearchResults1([]);
-                                  setPartySearchName1('');
-                                }}
-                                className="menu-item"
-                              >
-                                {p.firstName} {p.lastName} - DOB: {p.dob}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="field-label">Name</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.subjectName || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, subjectName: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Date of Birth</label>
-                          <input
-                            type="date"
-                            value={currentRecordData.subjectDOB || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, subjectDOB: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Phone</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.subjectPhone || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, subjectPhone: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Address</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.subjectAddress || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, subjectAddress: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Reason Section */}
-                    <div className="panel-card mb-4">
-                      <h4 className="section-title text-orange-400">REASON</h4>
-                      <div className="grid grid-cols-2 gap-2">
-                        <label className="flex items-center gap-2 text-sm text-gray-300">
-                          <input
-                            type="checkbox"
-                            checked={currentRecordData.reasonStolenVehicle || false}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, reasonStolenVehicle: e.target.checked})}
-                            className="w-4 h-4"
-                          />
-                          STOLEN VEHICLE
-                        </label>
-                        <label className="flex items-center gap-2 text-sm text-gray-300">
-                          <input
-                            type="checkbox"
-                            checked={currentRecordData.reasonWarrantSubject || false}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, reasonWarrantSubject: e.target.checked})}
-                            className="w-4 h-4"
-                          />
-                          WARRANT SUBJECT
-                        </label>
-                        <label className="flex items-center gap-2 text-sm text-gray-300">
-                          <input
-                            type="checkbox"
-                            checked={currentRecordData.reasonEvaded || false}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, reasonEvaded: e.target.checked})}
-                            className="w-4 h-4"
-                          />
-                          EVADED LAW ENFORCEMENT
-                        </label>
-                        <label className="flex items-center gap-2 text-sm text-gray-300">
-                          <input
-                            type="checkbox"
-                            checked={currentRecordData.reasonViolentCrime || false}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, reasonViolentCrime: e.target.checked})}
-                            className="w-4 h-4"
-                          />
-                          VIOLENT CRIME SUSPECT
-                        </label>
-                        <label className="flex items-center gap-2 text-sm text-gray-300">
-                          <input
-                            type="checkbox"
-                            checked={currentRecordData.reasonQuestioning || false}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, reasonQuestioning: e.target.checked})}
-                            className="w-4 h-4"
-                          />
-                          WANTED FOR QUESTIONING
-                        </label>
-                        <label className="flex items-center gap-2 text-sm text-gray-300">
-                          <input
-                            type="checkbox"
-                            checked={currentRecordData.reasonWelfareCheck || false}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, reasonWelfareCheck: e.target.checked})}
-                            className="w-4 h-4"
-                          />
-                          WELFARE CHECK
-                        </label>
-                        <label className="flex items-center gap-2 text-sm text-gray-300">
-                          <input
-                            type="checkbox"
-                            checked={currentRecordData.reasonMissingPerson || false}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, reasonMissingPerson: e.target.checked})}
-                            className="w-4 h-4"
-                          />
-                          MISSING PERSON
-                        </label>
-                        <label className="flex items-center gap-2 text-sm text-gray-300">
-                          <input
-                            type="checkbox"
-                            checked={currentRecordData.reasonRecklessDriver || false}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, reasonRecklessDriver: e.target.checked})}
-                            className="w-4 h-4"
-                          />
-                          RECKLESS DRIVER
-                        </label>
-                      </div>
-                    </div>
-
-                    {/* Officer Safety Section */}
-                    <div className="panel-card mb-4">
-                      <h4 className="section-title text-red-400">OFFICER SAFETY</h4>
-                      <div className="grid grid-cols-2 gap-2">
-                        <label className="flex items-center gap-2 text-sm text-gray-300">
-                          <input
-                            type="checkbox"
-                            checked={currentRecordData.safetyArmed || false}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, safetyArmed: e.target.checked})}
-                            className="w-4 h-4"
-                          />
-                          KNOWN TO BE ARMED
-                        </label>
-                        <label className="flex items-center gap-2 text-sm text-gray-300">
-                          <input
-                            type="checkbox"
-                            checked={currentRecordData.safetyViolent || false}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, safetyViolent: e.target.checked})}
-                            className="w-4 h-4"
-                          />
-                          KNOWN TO BE VIOLENT
-                        </label>
-                        <label className="flex items-center gap-2 text-sm text-gray-300">
-                          <input
-                            type="checkbox"
-                            checked={currentRecordData.safetySuicidal || false}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, safetySuicidal: e.target.checked})}
-                            className="w-4 h-4"
-                          />
-                          SUICIDAL
-                        </label>
-                        <label className="flex items-center gap-2 text-sm text-gray-300">
-                          <input
-                            type="checkbox"
-                            checked={currentRecordData.safetyGang || false}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, safetyGang: e.target.checked})}
-                            className="w-4 h-4"
-                          />
-                          GANG INVOLVEMENT
-                        </label>
-                        <label className="flex items-center gap-2 text-sm text-gray-300">
-                          <input
-                            type="checkbox"
-                            checked={currentRecordData.safetyMental || false}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, safetyMental: e.target.checked})}
-                            className="w-4 h-4"
-                          />
-                          MENTAL ISSUES
-                        </label>
-                      </div>
-                    </div>
-
-                    {/* Last Known Location Section */}
-                    <div className="panel-card mb-4">
-                      <h4 className="section-title text-purple-400">LAST KNOWN LOCATION</h4>
-                      <div>
-                        <label className="field-label">Area Seen</label>
-                        <input
-                          type="text"
-                          value={currentRecordData.lastKnownLocation || ''}
-                          onChange={(e) => setCurrentRecordData({...currentRecordData, lastKnownLocation: e.target.value})}
-                          className="field"
-                          placeholder="Enter last known location or area seen..."
-                        />
-                      </div>
-                    </div>
-
-                    {/* Brief Information Section */}
-                    <div className="panel-card mb-4">
-                      <h4 className="section-title text-cyan-400">BRIEF INFORMATION</h4>
-                      <textarea
-                        value={currentRecordData.briefInformation || ''}
-                        onChange={(e) => setCurrentRecordData({...currentRecordData, briefInformation: e.target.value})}
-                        className="field h-32"
-                        placeholder="ADD DETAILS AS NEEDED"
-                      />
-                    </div>
-
-                    {/* Issuing Agency Information Section */}
-                    <div className="panel-card mb-4">
-                      <h4 className="section-title text-green-400">ISSUING AGENCY INFORMATION</h4>
-                      <div className="grid grid-cols-3 gap-3">
-                        <div>
-                          <label className="field-label">Issuing Agency</label>
-                          <select
-                            value={currentRecordData.issuingAgency || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, issuingAgency: e.target.value})}
-                            className="field"
-                          >
-                            <option value="">Select Agency</option>
-                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="field-label">Date Issued</label>
-                          <input
-                            type="date"
-                            value={currentRecordData.dateIssued || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, dateIssued: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Time Issued</label>
-                          <input
-                            type="time"
-                            value={currentRecordData.timeIssued || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, timeIssued: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Report Filed Information Section */}
-                    <div className="panel-card mb-4">
-                      <h4 className="section-title text-blue-400">REPORT FILED INFORMATION</h4>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="field-label">Report Filed?</label>
-                          <select
-                            value={currentRecordData.reportFiled || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, reportFiled: e.target.value})}
-                            className="field"
-                          >
-                            <option value="">Select Option</option>
-                            <option value="YES">YES</option>
-                            <option value="NO">NO</option>
-                            <option value="UNKNOWN-DISPATCH CREATED">UNKNOWN-DISPATCH CREATED</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="field-label">Record/Report Case # Reference/Info</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.reportCaseReference || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, reportCaseReference: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Contact Information (If Found) Section */}
-                    <div className="panel-card mb-4">
-                      <h4 className="section-title text-pink-400">CONTACT INFORMATION (IF FOUND)</h4>
-                      <div className="grid grid-cols-2 gap-3 mb-3">
-                        <div>
-                          <label className="field-label">Officer Name</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.contactOfficerName || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, contactOfficerName: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Officer Badge #</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.contactOfficerBadge || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, contactOfficerBadge: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Agency</label>
-                          <select
-                            value={currentRecordData.contactAgency || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, contactAgency: e.target.value})}
-                            className="field"
-                          >
-                            <option value="">Select Agency</option>
-                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="field-label">Officer Phone Number</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.contactOfficerPhone || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, contactOfficerPhone: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="field-label">Additional Contact Info</label>
-                        <textarea
-                          value={currentRecordData.contactAdditionalInfo || ''}
-                          onChange={(e) => setCurrentRecordData({...currentRecordData, contactAdditionalInfo: e.target.value})}
-                          className="field h-20"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Possible Charges Section */}
-                    <div className="panel-card mb-4">
-                      <div className="flex justify-between items-center mb-3">
-                        <h4 className="text-md font-semibold text-red-400">POSSIBLE CHARGES</h4>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const newCharge = {
-                              id: Date.now(),
-                              charge: '',
-                              chargeType: 'MISDEMEANOR',
-                              counts: 1,
-                              titleCode: '',
-                              bondType: 'CASH',
-                              bondAmount: 0,
-                              jailTime: ''
-                            };
-                            setCurrentRecordData({
-                              ...currentRecordData,
-                              charges: [...(currentRecordData.charges || []), newCharge]
-                            });
-                          }}
-                          className="btn btn-danger btn-sm"
-                        >
-                          <Plus size={16} /> Add Charge
-                        </button>
-                      </div>
-                      {(!currentRecordData.charges || currentRecordData.charges.length === 0) ? (
-                        <p className="text-gray-500 text-center py-4">No charges added. Click "Add Charge" to add possible charges.</p>
-                      ) : (
-                        <div className="space-y-3">
-                          {currentRecordData.charges.map((charge, index) => (
-                            <div key={charge.id} className="subcard p-3">
-                              <div className="flex justify-between items-start mb-2">
-                                <span className="text-xs text-gray-400">Charge #{index + 1}</span>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setCurrentRecordData({
-                                      ...currentRecordData,
-                                      charges: currentRecordData.charges.filter(c => c.id !== charge.id)
-                                    });
-                                  }}
-                                  className="text-red-400 hover:text-red-300"
-                                >
-                                  <X size={16} />
-                                </button>
-                              </div>
-                              <div className="grid grid-cols-4 gap-2">
-                                <div className="col-span-2">
-                                  <label className="field-label">Charge</label>
-                                  <ChargeAutocompleteInput
-                                    value={charge.charge}
-                                    onChange={(value) => {
-                                      const updated = currentRecordData.charges.map(c =>
-                                        c.id === charge.id ? {...c, charge: value} : c
-                                      );
-                                      setCurrentRecordData({...currentRecordData, charges: updated});
-                                    }}
-                                    onSelect={(code) => {
-                                      const updated = currentRecordData.charges.map(c =>
-                                        c.id === charge.id ? {
-                                          ...c,
-                                          charge: code.title,
-                                          titleCode: code.code,
-                                          chargeType: code.chargeType || 'MISDEMEANOR',
-                                          bondType: code.bondType || 'CASH BAIL',
-                                          bondAmount: code.bondAmount || 0,
-                                          jailTime: code.jailTime || ''
-                                        } : c
-                                      );
-                                      setCurrentRecordData({...currentRecordData, charges: updated});
-                                    }}
-                                    codes={californiaCodes}
-                                    placeholder="Type to search charges..."
-                                  />
-                                </div>
-                                <div>
-                                  <label className="field-label">Type</label>
-                                  <select
-                                    value={charge.chargeType}
-                                    onChange={(e) => {
-                                      const updated = currentRecordData.charges.map(c =>
-                                        c.id === charge.id ? {...c, chargeType: e.target.value} : c
-                                      );
-                                      setCurrentRecordData({...currentRecordData, charges: updated});
-                                    }}
-                                    className="field field-sm"
-                                  >
-                                    <option value="INFRACTION">INFRACTION</option>
-                                    <option value="MISDEMEANOR">MISDEMEANOR</option>
-                                    <option value="FELONY">FELONY</option>
-                                  </select>
-                                </div>
-                                <div>
-                                  <label className="field-label">Title/Code</label>
-                                  <input
-                                    type="text"
-                                    value={charge.titleCode}
-                                    onChange={(e) => {
-                                      const updated = currentRecordData.charges.map(c =>
-                                        c.id === charge.id ? {...c, titleCode: e.target.value} : c
-                                      );
-                                      setCurrentRecordData({...currentRecordData, charges: updated});
-                                    }}
-                                    className="field field-sm"
-                                    placeholder="e.g., PC 242"
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Linked Reports/Records Section */}
-                    <div className="panel-card mb-4">
-                      <div className="flex justify-between items-center mb-3">
-                        <h4 className="text-md font-semibold text-purple-400">LINKED REPORTS/RECORDS</h4>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const newLink = { id: Date.now(), recordNumber: '', description: '' };
-                            setCurrentRecordData({
-                              ...currentRecordData,
-                              linkedRecords: [...(currentRecordData.linkedRecords || []), newLink]
-                            });
-                          }}
-                          className="px-3 py-1 bg-purple-600 text-white rounded text-sm hover:bg-purple-500 flex items-center gap-1"
-                        >
-                          <Plus size={16} /> Add Link
-                        </button>
-                      </div>
-                      {(!currentRecordData.linkedRecords || currentRecordData.linkedRecords.length === 0) ? (
-                        <p className="text-gray-500 text-center py-4">No linked records. Click "Add Link" to link reports or records.</p>
-                      ) : (
-                        <div className="space-y-2">
-                          {currentRecordData.linkedRecords.map((link, index) => (
-                            <div key={link.id} className="flex gap-2 items-start">
-                              <div className="flex-1 grid grid-cols-2 gap-2">
-                                <input
-                                  type="text"
-                                  value={link.recordNumber}
-                                  onChange={(e) => {
-                                    const updated = currentRecordData.linkedRecords.map(l =>
-                                      l.id === link.id ? {...l, recordNumber: e.target.value} : l
-                                    );
-                                    setCurrentRecordData({...currentRecordData, linkedRecords: updated});
-                                  }}
-                                  placeholder="Record #"
-                                  className="field"
-                                />
-                                <input
-                                  type="text"
-                                  value={link.description}
-                                  onChange={(e) => {
-                                    const updated = currentRecordData.linkedRecords.map(l =>
-                                      l.id === link.id ? {...l, description: e.target.value} : l
-                                    );
-                                    setCurrentRecordData({...currentRecordData, linkedRecords: updated});
-                                  }}
-                                  placeholder="Description"
-                                  className="field"
-                                />
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setCurrentRecordData({
-                                    ...currentRecordData,
-                                    linkedRecords: currentRecordData.linkedRecords.filter(l => l.id !== link.id)
-                                  });
-                                }}
-                                className="text-red-400 hover:text-red-300 p-2"
-                              >
-                                <X size={16} />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Agency Information Section */}
-                    <div className="panel-card mb-4">
-                      <h4 className="section-title text-blue-400">AGENCY INFORMATION</h4>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="field-label">Callsign</label>
-                          <input
-                            type="text"
-                            value={loggedInOfficer?.callsign || ''}
-                            readOnly
-                            className="field text-gray-400"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Department</label>
-                          <input
-                            type="text"
-                            value={loggedInOfficer?.department || ''}
-                            readOnly
-                            className="field text-gray-400"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Officer Name</label>
-                          <input
-                            type="text"
-                            value={loggedInOfficer?.name || ''}
-                            readOnly
-                            className="field text-gray-400"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Date</label>
-                          <input
-                            type="text"
-                            value={new Date().toLocaleDateString()}
-                            readOnly
-                            className="field text-gray-400"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Record #</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.recordId || `BOLO-${nextReportRecordId}`}
-                            readOnly
-                            className="field text-gray-400"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                {/* WARRANT specific fields */}
-                {activeRecordForm === 'WARRANT' && (
-                  <>
-                    {/* Type of Warrant Section */}
-                    <div className="panel-card mb-4">
-                      <h4 className="section-title text-red-400">TYPE OF WARRANT</h4>
-                      <div>
-                        <label className="field-label">Warrant Type</label>
-                        <select
-                          value={currentRecordData.warrantType || ''}
-                          onChange={(e) => setCurrentRecordData({...currentRecordData, warrantType: e.target.value})}
-                          className="field"
-                        >
-                          <option value="">Select Type...</option>
-                          <option value="FELONY WARRANT">FELONY WARRANT</option>
-                          <option value="MISDEMEANOR WARRANT">MISDEMEANOR WARRANT</option>
-                          <option value="SEARCH WARRANT">SEARCH WARRANT</option>
-                          <option value="FAILURE TO APPEAR">FAILURE TO APPEAR</option>
-                          <option value="FAILURE TO PAY FINES">FAILURE TO PAY FINES</option>
-                          <option value="FUGITIVE WARRANT">FUGITIVE WARRANT</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* Status Section */}
-                    <div className="panel-card mb-4">
-                      <h4 className="section-title text-green-400">STATUS</h4>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="field-label">Status</label>
-                          <select
-                            value={currentRecordData.warrantStatus || 'ACTIVE'}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, warrantStatus: e.target.value})}
-                            className="field"
-                          >
-                            <option value="ACTIVE">ACTIVE</option>
-                            <option value="CLOSED">CLOSED</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="field-label">Time of Execution</label>
-                          <select
-                            value={currentRecordData.timeOfExecution || 'DAY AND NIGHT'}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, timeOfExecution: e.target.value})}
-                            className="field"
-                          >
-                            <option value="DAY ONLY">DAY ONLY</option>
-                            <option value="DAY AND NIGHT">DAY AND NIGHT</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="field-label">Authorizing Supervisor/Judicial Signature</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.authorizingSignature || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, authorizingSignature: e.target.value})}
-                            className="field"
-                            placeholder="Signature..."
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Date</label>
-                          <input
-                            type="date"
-                            value={currentRecordData.authorizingDate || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, authorizingDate: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Warrant Subject Section */}
-                    <div className="panel-card mb-4">
-                      <h4 className="section-title text-yellow-400">WARRANT SUBJECT</h4>
-                      <div className="mb-3">
-                        <label className="field-label">Search by Name</label>
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={partySearchName1}
-                            onChange={(e) => setPartySearchName1(e.target.value)}
-                            placeholder="Enter name..."
-                            className="field flex-1 min-w-0"
-                          />
-                          <button
-                            onClick={() => searchPersonByName(partySearchName1, 1)}
-                            className="btn btn-primary"
-                          >
-                            Search
-                          </button>
-                        </div>
-                        {partySearchResults1.length > 0 && (
-                          <div className="mt-2 menu-list max-h-32 overflow-y-auto">
-                            {partySearchResults1.map((p, i) => (
-                              <div
-                                key={i}
-                                onClick={() => {
-                                  setCurrentRecordData({
-                                    ...currentRecordData,
-                                    subjectName: `${p.firstName} ${p.lastName}`,
-                                    subjectDOB: p.dob,
-                                    subjectAddress: p.address,
-                                    subjectPhone: p.phone
-                                  });
-                                  setPartySearchResults1([]);
-                                  setPartySearchName1('');
-                                }}
-                                className="menu-item"
-                              >
-                                {p.firstName} {p.lastName} - DOB: {p.dob}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="field-label">Name</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.subjectName || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, subjectName: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Date of Birth</label>
-                          <input
-                            type="date"
-                            value={currentRecordData.subjectDOB || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, subjectDOB: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Phone</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.subjectPhone || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, subjectPhone: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Address</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.subjectAddress || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, subjectAddress: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Location Authorized (If Search Warrant) Section */}
-                    <div className="panel-card mb-4">
-                      <h4 className="section-title text-purple-400">LOCATION AUTHORIZED (IF SEARCH WARRANT)</h4>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="col-span-2">
-                          <label className="field-label">Street Number and Name</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.locationStreet || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, locationStreet: e.target.value})}
-                            className="field"
-                            placeholder="Street address..."
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Postal</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.locationPostal || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, locationPostal: e.target.value})}
-                            className="field"
-                            placeholder="Postal code..."
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Type of Building</label>
-                          <select
-                            value={currentRecordData.buildingType || 'UNKNOWN'}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, buildingType: e.target.value})}
-                            className="field"
-                          >
-                            <option value="RESIDENTIAL">RESIDENTIAL</option>
-                            <option value="BUSINESS">BUSINESS</option>
-                            <option value="UNKNOWN">UNKNOWN</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="field-label">Knock and Notice Required?</label>
-                          <select
-                            value={currentRecordData.knockAndNotice || 'YES'}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, knockAndNotice: e.target.value})}
-                            className="field"
-                          >
-                            <option value="YES">YES</option>
-                            <option value="NO">NO</option>
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Charges Section */}
-                    <div className="panel-card mb-4">
-                      <div className="flex justify-between items-center mb-3">
-                        <h4 className="text-md font-semibold text-red-400">CHARGES</h4>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const newCharge = {
-                              id: Date.now(),
-                              charge: '',
-                              chargeType: 'MISDEMEANOR',
-                              counts: 1,
-                              titleCode: '',
-                              bondType: 'CASH BAIL',
-                              bondAmount: 0,
-                              jailTime: ''
-                            };
-                            setCurrentRecordData({
-                              ...currentRecordData,
-                              charges: [...(currentRecordData.charges || []), newCharge]
-                            });
-                          }}
-                          className="btn btn-danger btn-sm"
-                        >
-                          <Plus size={16} /> Add Charge
-                        </button>
-                      </div>
-                      {(!currentRecordData.charges || currentRecordData.charges.length === 0) ? (
-                        <p className="text-gray-500 text-center py-4">No charges added. Click "Add Charge" to add charges.</p>
-                      ) : (
-                        <div className="space-y-3">
-                          {currentRecordData.charges.map((charge, index) => (
-                            <div key={charge.id} className="subcard p-3">
-                              <div className="flex justify-between items-start mb-2">
-                                <span className="text-xs text-gray-400">Charge #{index + 1}</span>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setCurrentRecordData({
-                                      ...currentRecordData,
-                                      charges: currentRecordData.charges.filter(c => c.id !== charge.id)
-                                    });
-                                  }}
-                                  className="text-red-400 hover:text-red-300"
-                                >
-                                  <X size={16} />
-                                </button>
-                              </div>
-                              <div className="grid grid-cols-4 gap-2">
-                                <div className="col-span-2">
-                                  <label className="field-label">Charge</label>
-                                  <ChargeAutocompleteInput
-                                    value={charge.charge}
-                                    onChange={(value) => {
-                                      const updated = currentRecordData.charges.map(c =>
-                                        c.id === charge.id ? {...c, charge: value} : c
-                                      );
-                                      setCurrentRecordData({...currentRecordData, charges: updated});
-                                    }}
-                                    onSelect={(code) => {
-                                      const updated = currentRecordData.charges.map(c =>
-                                        c.id === charge.id ? {
-                                          ...c,
-                                          charge: code.title,
-                                          titleCode: code.code,
-                                          chargeType: code.chargeType || 'MISDEMEANOR',
-                                          bondType: code.bondType || 'CASH BAIL',
-                                          bondAmount: code.bondAmount || 0,
-                                          jailTime: code.jailTime || ''
-                                        } : c
-                                      );
-                                      setCurrentRecordData({...currentRecordData, charges: updated});
-                                    }}
-                                    codes={californiaCodes}
-                                    placeholder="Type to search charges..."
-                                  />
-                                </div>
-                                <div>
-                                  <label className="field-label">Charge Type</label>
-                                  <select
-                                    value={charge.chargeType}
-                                    onChange={(e) => {
-                                      const updated = currentRecordData.charges.map(c =>
-                                        c.id === charge.id ? {...c, chargeType: e.target.value} : c
-                                      );
-                                      setCurrentRecordData({...currentRecordData, charges: updated});
-                                    }}
-                                    className="field field-sm"
-                                  >
-                                    <option value="FELONY">FELONY</option>
-                                    <option value="MISDEMEANOR">MISDEMEANOR</option>
-                                    <option value="INFRACTION">INFRACTION</option>
-                                    <option value="WARNING">WARNING</option>
-                                    <option value="CORRECTABLE">CORRECTABLE</option>
-                                  </select>
-                                </div>
-                                <div>
-                                  <label className="field-label">Counts</label>
-                                  <input
-                                    type="number"
-                                    min="1"
-                                    value={charge.counts}
-                                    onChange={(e) => {
-                                      const updated = currentRecordData.charges.map(c =>
-                                        c.id === charge.id ? {...c, counts: parseInt(e.target.value) || 1} : c
-                                      );
-                                      setCurrentRecordData({...currentRecordData, charges: updated});
-                                    }}
-                                    className="field field-sm"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="field-label">Title/Code</label>
-                                  <input
-                                    type="text"
-                                    value={charge.titleCode}
-                                    onChange={(e) => {
-                                      const updated = currentRecordData.charges.map(c =>
-                                        c.id === charge.id ? {...c, titleCode: e.target.value} : c
-                                      );
-                                      setCurrentRecordData({...currentRecordData, charges: updated});
-                                    }}
-                                    className="field field-sm"
-                                    placeholder="e.g., PC 242"
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Warrant Narrative Section */}
-                    <div className="panel-card mb-4">
-                      <h4 className="section-title text-cyan-400">WARRANT NARRATIVE</h4>
-                      <div>
-                        <label className="field-label">Narrative</label>
-                        <textarea
-                          value={currentRecordData.narrative || ''}
-                          onChange={(e) => setCurrentRecordData({...currentRecordData, narrative: e.target.value})}
-                          className="field h-32"
-                          placeholder="Detailed narrative for the warrant..."
-                        />
-                      </div>
-                    </div>
-
-                    {/* Issuing Agency and Contact Information Section */}
-                    <div className="panel-card mb-4">
-                      <h4 className="section-title text-orange-400">ISSUING AGENCY AND CONTACT INFORMATION</h4>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="field-label">Agency</label>
-                          <select
-                            value={currentRecordData.issuingAgency || 'B.C.S.O'}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, issuingAgency: e.target.value})}
-                            className="field"
-                          >
-                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                            <option value="DISTRICT ATTORNEY">DISTRICT ATTORNEY</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="field-label">Primary Officer / D.A. Name in Case</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.primaryOfficerName || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, primaryOfficerName: e.target.value})}
-                            className="field"
-                            placeholder="Name..."
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Officer/D.A. Contact Phone Number</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.contactPhone || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, contactPhone: e.target.value})}
-                            className="field"
-                            placeholder="Phone number..."
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Main Record ID/Report Reference #</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.mainRecordId || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, mainRecordId: e.target.value})}
-                            className="field"
-                            placeholder="Record/Report #..."
-                          />
-                        </div>
-                        <div className="col-span-2">
-                          <label className="field-label">Additional Info (If Required)</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.additionalContactInfo || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, additionalContactInfo: e.target.value})}
-                            className="field"
-                            placeholder="Additional information..."
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Agency Information Section */}
-                    <div className="panel-card mb-4">
-                      <h4 className="section-title text-blue-400">AGENCY INFORMATION</h4>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        <div>
-                          <label className="field-label">Callsign</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.callsign || ''}
-                            readOnly
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Department</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.department || ''}
-                            readOnly
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Officer Name</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.officer || ''}
-                            readOnly
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Record#</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.recordNumber || ''}
-                            readOnly
-                            className="field"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Administrative Flags (Supervisor/Judicial Use Only) Section */}
-                    <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-4">
-                      <h4 className="text-md font-semibold text-red-300 mb-3 border-b border-red-600 pb-2">ADMINISTRATIVE FLAGS (SUPERVISOR/JUDICIAL USE ONLY)</h4>
-                      <div className="flex justify-between items-center mb-3">
-                        <span className="text-sm text-gray-300">Linked Cases/Citations</span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const newLinkedCase = { id: Date.now(), caseNumber: '', caseType: '' };
-                            setCurrentRecordData({
-                              ...currentRecordData,
-                              linkedCases: [...(currentRecordData.linkedCases || []), newLinkedCase]
-                            });
-                          }}
-                          className="btn btn-danger btn-sm"
-                        >
-                          <Plus size={16} /> Add Linked Case
-                        </button>
-                      </div>
-                      {(!currentRecordData.linkedCases || currentRecordData.linkedCases.length === 0) ? (
-                        <p className="text-gray-400 text-center py-4">No linked cases. Click "Add Linked Case" to link cases/citations.</p>
-                      ) : (
-                        <div className="space-y-2">
-                          {currentRecordData.linkedCases.map((linkedCase, index) => (
-                            <div key={linkedCase.id} className="bg-red-800 rounded-lg p-3 flex gap-2 items-end">
-                              <div className="flex-1">
-                                <label className="field-label">Case/Citation Number</label>
-                                <input
-                                  type="text"
-                                  value={linkedCase.caseNumber}
-                                  onChange={(e) => {
-                                    const updated = currentRecordData.linkedCases.map(c =>
-                                      c.id === linkedCase.id ? {...c, caseNumber: e.target.value} : c
-                                    );
-                                    setCurrentRecordData({...currentRecordData, linkedCases: updated});
-                                  }}
-                                  className="field field-sm field-danger"
-                                  placeholder="Case/Citation #..."
-                                />
-                              </div>
-                              <div className="flex-1">
-                                <label className="field-label">Type</label>
-                                <input
-                                  type="text"
-                                  value={linkedCase.caseType}
-                                  onChange={(e) => {
-                                    const updated = currentRecordData.linkedCases.map(c =>
-                                      c.id === linkedCase.id ? {...c, caseType: e.target.value} : c
-                                    );
-                                    setCurrentRecordData({...currentRecordData, linkedCases: updated});
-                                  }}
-                                  className="field field-sm field-danger"
-                                  placeholder="Type..."
-                                />
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setCurrentRecordData({
-                                    ...currentRecordData,
-                                    linkedCases: currentRecordData.linkedCases.filter(c => c.id !== linkedCase.id)
-                                  });
-                                }}
-                                className="text-red-300 hover:text-red-200 pb-1"
-                              >
-                                <X size={16} />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </>
-                )}
-
-                {/* CITATION specific fields */}
-                {activeRecordForm === 'CITATION' && (
-                  <>
-                    {/* AGENCY INFORMATION */}
-                    <div className="panel-card mb-4">
-                      <h4 className="section-title text-blue-400">AGENCY INFORMATION</h4>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        <div>
-                          <label className="field-label">Callsign</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.callsign || ''}
-                            readOnly
-                            className="field cursor-not-allowed"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Department</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.department || ''}
-                            readOnly
-                            className="field cursor-not-allowed"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Officer Name</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.officer || ''}
-                            readOnly
-                            className="field cursor-not-allowed"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Record#</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.recordNumber || ''}
-                            readOnly
-                            className="field cursor-not-allowed"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* GENERAL INFORMATION */}
-                    <div className="panel-card mb-4">
-                      <h4 className="section-title text-green-400">GENERAL INFORMATION</h4>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                        <div>
-                          <label className="field-label">Date of Violation</label>
-                          <input
-                            type="date"
-                            value={currentRecordData.dateOfViolation || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, dateOfViolation: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Time of Violation</label>
-                          <input
-                            type="time"
-                            value={currentRecordData.timeOfViolation || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, timeOfViolation: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Day of Week</label>
-                          <select
-                            value={currentRecordData.dayOfWeek || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, dayOfWeek: e.target.value})}
-                            className="field"
-                          >
-                            <option value="">Select Day...</option>
-                            <option value="SUNDAY">SUNDAY</option>
-                            <option value="MONDAY">MONDAY</option>
-                            <option value="TUESDAY">TUESDAY</option>
-                            <option value="WEDNESDAY">WEDNESDAY</option>
-                            <option value="THURSDAY">THURSDAY</option>
-                            <option value="FRIDAY">FRIDAY</option>
-                            <option value="SATURDAY">SATURDAY</option>
-                          </select>
-                        </div>
-                        <div className="md:col-span-2">
-                          <label className="field-label">Location of Violation(s)</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.locationOfViolation || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, locationOfViolation: e.target.value})}
-                            className="field"
-                            placeholder="Street address or location"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Postal</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.postal || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, postal: e.target.value})}
-                            className="field"
-                            placeholder="Postal code"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* SUBJECT INFORMATION */}
-                    <div className="panel-card mb-4">
-                      <h4 className="section-title text-purple-400">SUBJECT INFORMATION</h4>
-                      <div className="mb-3">
-                        <label className="field-label">Search Civilian by Name</label>
-                        <div className="relative">
-                          <input
-                            type="text"
-                            value={currentRecordData.civilianSearchTerm || ''}
-                            onChange={(e) => {
-                              const term = e.target.value;
-                              setCurrentRecordData({...currentRecordData, civilianSearchTerm: term});
-                              if (term.length >= 2) {
-                                const results = civilians.filter(c =>
-                                  `${c.firstName} ${c.lastName}`.toLowerCase().includes(term.toLowerCase())
-                                );
-                                setCurrentRecordData({...currentRecordData, civilianSearchTerm: term, civilianSearchResults: results});
-                              } else {
-                                setCurrentRecordData({...currentRecordData, civilianSearchTerm: term, civilianSearchResults: []});
-                              }
-                            }}
-                            className="field"
-                            placeholder="Type name to search..."
-                          />
-                          {currentRecordData.civilianSearchResults && currentRecordData.civilianSearchResults.length > 0 && (
-                            <div className="absolute z-50 w-full mt-1 max-h-48 overflow-y-auto menu-list">
-                              {currentRecordData.civilianSearchResults.map((civilian: any, idx: number) => (
-                                <div
-                                  key={idx}
-                                  onClick={() => {
-                                    setCurrentRecordData({
-                                      ...currentRecordData,
-                                      subjectName: `${civilian.firstName} ${civilian.lastName}`,
-                                      subjectDOB: civilian.dateOfBirth || '',
-                                      subjectPhone: civilian.phone || '',
-                                      subjectAddress: civilian.address || '',
-                                      civilianSearchTerm: '',
-                                      civilianSearchResults: []
-                                    });
-                                  }}
-                                  className="menu-item"
-                                >
-                                  <div className="font-semibold">{civilian.firstName} {civilian.lastName}</div>
-                                  <div className="text-xs text-gray-400">DOB: {civilian.dateOfBirth || 'N/A'} | Phone: {civilian.phone || 'N/A'}</div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="field-label">Name</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.subjectName || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, subjectName: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Date of Birth</label>
-                          <input
-                            type="date"
-                            value={currentRecordData.subjectDOB || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, subjectDOB: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Phone</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.subjectPhone || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, subjectPhone: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Address</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.subjectAddress || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, subjectAddress: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* VEHICLE INFORMATION */}
-                    <div className="panel-card mb-4">
-                      <h4 className="section-title text-yellow-400">VEHICLE INFORMATION</h4>
-                      <div className="mb-3">
-                        <label className="field-label">Search Vehicle by Plate</label>
-                        <div className="relative">
-                          <input
-                            type="text"
-                            value={currentRecordData.vehicleSearchTerm || ''}
-                            onChange={(e) => {
-                              const term = e.target.value;
-                              setCurrentRecordData({...currentRecordData, vehicleSearchTerm: term});
-                              if (term.length >= 2) {
-                                const results: any[] = [];
-                                civilians.forEach(civilian => {
-                                  if (civilian.vehicles && civilian.vehicles.length > 0) {
-                                    civilian.vehicles.forEach((vehicle: any) => {
-                                      if (vehicle.plate && vehicle.plate.toLowerCase().includes(term.toLowerCase())) {
-                                        results.push({...vehicle, ownerName: `${civilian.firstName} ${civilian.lastName}`});
-                                      }
-                                    });
-                                  }
-                                });
-                                setCurrentRecordData({...currentRecordData, vehicleSearchTerm: term, vehicleSearchResults: results});
-                              } else {
-                                setCurrentRecordData({...currentRecordData, vehicleSearchTerm: term, vehicleSearchResults: []});
-                              }
-                            }}
-                            className="field"
-                            placeholder="Type plate to search..."
-                          />
-                          {currentRecordData.vehicleSearchResults && currentRecordData.vehicleSearchResults.length > 0 && (
-                            <div className="absolute z-50 w-full mt-1 max-h-48 overflow-y-auto menu-list">
-                              {currentRecordData.vehicleSearchResults.map((vehicle: any, idx: number) => (
-                                <div
-                                  key={idx}
-                                  onClick={() => {
-                                    setCurrentRecordData({
-                                      ...currentRecordData,
-                                      vehiclePlate: vehicle.plate || '',
-                                      vehicleMake: vehicle.make || '',
-                                      vehicleModel: vehicle.model || '',
-                                      vehicleColor: vehicle.color || '',
-                                      vehicleYear: vehicle.year || '',
-                                      vehicleSearchTerm: '',
-                                      vehicleSearchResults: []
-                                    });
-                                  }}
-                                  className="menu-item"
-                                >
-                                  <div className="font-semibold">{vehicle.plate} - {vehicle.make} {vehicle.model}</div>
-                                  <div className="text-xs text-gray-400">Owner: {vehicle.ownerName} | Color: {vehicle.color || 'N/A'}</div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                        <div>
-                          <label className="field-label">Plate</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.vehiclePlate || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, vehiclePlate: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Make</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.vehicleMake || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, vehicleMake: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Model</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.vehicleModel || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, vehicleModel: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Color</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.vehicleColor || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, vehicleColor: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Year</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.vehicleYear || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, vehicleYear: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* CHARGES */}
-                    <div className="panel-card mb-4">
-                      <h4 className="section-title text-red-400">CHARGES</h4>
-                      <div className="flex justify-between items-center mb-3">
-                        <span className="text-sm text-gray-300">Citation Charges</span>
-                        <button
-                          onClick={() => {
-                            const charges = currentRecordData.charges || [];
-                            setCurrentRecordData({
-                              ...currentRecordData,
-                              charges: [...charges, { id: Date.now(), charge: '', chargeType: '', counts: 1, titleCode: '', bondType: '', bondAmount: 0, jailTime: '' }]
-                            });
-                          }}
-                          className="btn btn-danger btn-sm"
-                        >
-                          <Plus size={16} /> Add Charge
-                        </button>
-                      </div>
-                      {currentRecordData.charges && currentRecordData.charges.length > 0 ? (
-                        <div className="space-y-4">
-                          {currentRecordData.charges.map((charge: any, index: number) => (
-                            <div key={charge.id} className="subcard p-3">
-                              <div className="flex justify-between items-center mb-2">
-                                <span className="text-sm font-semibold text-blue-400">Charge #{index + 1}</span>
-                                <button
-                                  onClick={() => {
-                                    const updated = currentRecordData.charges.filter((c: any) => c.id !== charge.id);
-                                    setCurrentRecordData({...currentRecordData, charges: updated});
-                                  }}
-                                  className="text-red-400 hover:text-red-300"
-                                >
-                                  <X size={16} />
-                                </button>
-                              </div>
-                              <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                  <label className="field-label">Charge</label>
-                                  <ChargeAutocompleteInput
-                                    value={charge.charge}
-                                    onChange={(value) => {
-                                      const updated = currentRecordData.charges.map(c =>
-                                        c.id === charge.id ? {...c, charge: value} : c
-                                      );
-                                      setCurrentRecordData({...currentRecordData, charges: updated});
-                                    }}
-                                    onSelect={(code) => {
-                                      const updated = currentRecordData.charges.map(c =>
-                                        c.id === charge.id ? {
-                                          ...c,
-                                          charge: code.title,
-                                          titleCode: code.code,
-                                          chargeType: code.chargeType || 'MISDEMEANOR',
-                                          bondType: code.bondType || 'CASH BAIL',
-                                          bondAmount: code.bondAmount || 0,
-                                          jailTime: code.jailTime || ''
-                                        } : c
-                                      );
-                                      setCurrentRecordData({...currentRecordData, charges: updated});
-                                    }}
-                                    codes={californiaCodes}
-                                    placeholder="Type to search charges..."
-                                  />
-                                </div>
-                                <div>
-                                  <label className="field-label">Charge Type</label>
-                                  <select
-                                    value={charge.chargeType}
-                                    onChange={(e) => {
-                                      const updated = currentRecordData.charges.map(c =>
-                                        c.id === charge.id ? {...c, chargeType: e.target.value} : c
-                                      );
-                                      setCurrentRecordData({...currentRecordData, charges: updated});
-                                    }}
-                                    className="field"
-                                  >
-                                    <option value="">Select Type...</option>
-                                    <option value="FELONY">FELONY</option>
-                                    <option value="MISDEMEANOR">MISDEMEANOR</option>
-                                    <option value="INFRACTION">INFRACTION</option>
-                                    <option value="WARNING">WARNING</option>
-                                    <option value="CORRECTABLE">CORRECTABLE</option>
-                                  </select>
-                                </div>
-                                <div>
-                                  <label className="field-label">Counts</label>
-                                  <input
-                                    type="number"
-                                    value={charge.counts}
-                                    onChange={(e) => {
-                                      const updated = currentRecordData.charges.map(c =>
-                                        c.id === charge.id ? {...c, counts: parseInt(e.target.value) || 1} : c
-                                      );
-                                      setCurrentRecordData({...currentRecordData, charges: updated});
-                                    }}
-                                    className="field"
-                                    min="1"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="field-label">Title/Code</label>
-                                  <input
-                                    type="text"
-                                    value={charge.titleCode}
-                                    onChange={(e) => {
-                                      const updated = currentRecordData.charges.map(c =>
-                                        c.id === charge.id ? {...c, titleCode: e.target.value} : c
-                                      );
-                                      setCurrentRecordData({...currentRecordData, charges: updated});
-                                    }}
-                                    className="field"
-                                    placeholder="PC 187"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="field-label">Bond Type</label>
-                                  <select
-                                    value={charge.bondType}
-                                    onChange={(e) => {
-                                      const updated = currentRecordData.charges.map(c =>
-                                        c.id === charge.id ? {...c, bondType: e.target.value} : c
-                                      );
-                                      setCurrentRecordData({...currentRecordData, charges: updated});
-                                    }}
-                                    className="field"
-                                  >
-                                    <option value="">Select Bond Type...</option>
-                                    <option value="CITATION RELEASE">CITATION RELEASE</option>
-                                    <option value="RECOGNIZANCE RELEASE">RECOGNIZANCE RELEASE</option>
-                                    <option value="CASH BAIL">CASH BAIL</option>
-                                    <option value="SURETY BOND">SURETY BOND</option>
-                                    <option value="PROPERTY BOND">PROPERTY BOND</option>
-                                    <option value="FEDERAL BAIL BOND">FEDERAL BAIL BOND</option>
-                                    <option value="IMMIGRATION BAIL BOND">IMMIGRATION BAIL BOND</option>
-                                    <option value="NO BAIL">NO BAIL</option>
-                                    <option value="PROBATION">PROBATION</option>
-                                  </select>
-                                </div>
-                                <div>
-                                  <label className="field-label">Bond/Fine Amount ($)</label>
-                                  <input
-                                    type="number"
-                                    value={charge.bondAmount}
-                                    onChange={(e) => {
-                                      const updated = currentRecordData.charges.map(c =>
-                                        c.id === charge.id ? {...c, bondAmount: parseFloat(e.target.value) || 0} : c
-                                      );
-                                      setCurrentRecordData({...currentRecordData, charges: updated});
-                                    }}
-                                    className="field"
-                                    placeholder="0.00"
-                                  />
-                                </div>
-                                <div className="col-span-2">
-                                  <label className="field-label">Jail Time</label>
-                                  <input
-                                    type="text"
-                                    value={charge.jailTime}
-                                    onChange={(e) => {
-                                      const updated = currentRecordData.charges.map(c =>
-                                        c.id === charge.id ? {...c, jailTime: e.target.value} : c
-                                      );
-                                      setCurrentRecordData({...currentRecordData, charges: updated});
-                                    }}
-                                    className="field"
-                                    placeholder="e.g., 6 months, N/A"
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-sm text-gray-400 italic">No charges added yet. Click "Add Charge" to add a charge.</p>
-                      )}
-                    </div>
-
-                    {/* SPEED INFORMATION (IF APPLICABLE) */}
-                    <div className="panel-card mb-4">
-                      <h4 className="section-title text-orange-400">SPEED INFORMATION (IF APPLICABLE)</h4>
-                      <div className="grid grid-cols-3 gap-3">
-                        <div>
-                          <label className="field-label">Speed Approx</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.speedApprox || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, speedApprox: e.target.value})}
-                            className="field"
-                            placeholder="e.g., 75 MPH"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Speed Limit</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.speedLimit || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, speedLimit: e.target.value})}
-                            className="field"
-                            placeholder="e.g., 55 MPH"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Method of Acquisition</label>
-                          <select
-                            value={currentRecordData.speedMethod || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, speedMethod: e.target.value})}
-                            className="field"
-                          >
-                            <option value="">Select Method...</option>
-                            <option value="RADAR">RADAR</option>
-                            <option value="PACE">PACE</option>
-                            <option value="VISUAL ESTIMATION">VISUAL ESTIMATION</option>
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* SIGNATURE OF SUBJECT */}
-                    <div className="panel-card mb-4">
-                      <h4 className="section-title text-cyan-400">SIGNATURE OF SUBJECT</h4>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="field-label">Signature</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.subjectSignature || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, subjectSignature: e.target.value})}
-                            className="field"
-                            placeholder="Subject signature"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Date</label>
-                          <input
-                            type="date"
-                            value={currentRecordData.subjectSignatureDate || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, subjectSignatureDate: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* ADMINISTRATIVE */}
-                    <div className="panel-card mb-4">
-                      <h4 className="section-title text-indigo-400">ADMINISTRATIVE</h4>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                        <div>
-                          <label className="field-label">Arresting/Citing Officer Signature</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.officerSignature || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, officerSignature: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Badge #</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.officerBadge || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, officerBadge: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Date</label>
-                          <input
-                            type="date"
-                            value={currentRecordData.officerSignatureDate || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, officerSignatureDate: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Supervisor Signature</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.supervisorSignature || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, supervisorSignature: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Badge #</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.supervisorBadge || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, supervisorBadge: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Date</label>
-                          <input
-                            type="date"
-                            value={currentRecordData.supervisorSignatureDate || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, supervisorSignatureDate: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Status</label>
-                          <select
-                            value={currentRecordData.adminStatus || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, adminStatus: e.target.value})}
-                            className="field"
-                          >
-                            <option value="">Select Status...</option>
-                            <option value="CLOSED/APPROVED">CLOSED/APPROVED</option>
-                            <option value="FORWARD TO DETECTIVE DIVISION">FORWARD TO DETECTIVE DIVISION</option>
-                            <option value="DETECTIVES IN PROGRESS">DETECTIVES IN PROGRESS</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="field-label">Court Date</label>
-                          <input
-                            type="date"
-                            value={currentRecordData.courtDate || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, courtDate: e.target.value})}
-                            className="field"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* CORRECTABLE SIGN-OFF (DEPARTMENT ADMIN ONLY) */}
-                    <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 mb-4">
-                      <h4 className="text-md font-semibold text-yellow-300 mb-3 border-b border-yellow-600 pb-2">CORRECTABLE SIGN-OFF (DEPARTMENT ADMIN ONLY)</h4>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                        <div>
-                          <label className="field-label text-yellow-200/90">Date of Inspection</label>
-                          <input
-                            type="date"
-                            value={currentRecordData.inspectionDate || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, inspectionDate: e.target.value})}
-                            className="field field-warn"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label text-yellow-200/90">Time of Inspection</label>
-                          <input
-                            type="time"
-                            value={currentRecordData.inspectionTime || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, inspectionTime: e.target.value})}
-                            className="field field-warn"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label text-yellow-200/90">Department Inspection Completed By</label>
-                          <select
-                            value={currentRecordData.inspectionDepartment || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, inspectionDepartment: e.target.value})}
-                            className="field field-warn"
-                          >
-                            <option value="">Select Department...</option>
-                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                            <option value="DNR">DNR</option>
-                          </select>
-                        </div>
-                        <div className="md:col-span-2">
-                          <label className="field-label text-yellow-200/90">Location of Inspection</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.inspectionLocation || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, inspectionLocation: e.target.value})}
-                            className="field field-warn"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label text-yellow-200/90">Issue Has Been Fully Corrected</label>
-                          <select
-                            value={currentRecordData.issueCorrected || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, issueCorrected: e.target.value})}
-                            className="field field-warn"
-                          >
-                            <option value="">Select...</option>
-                            <option value="YES">YES</option>
-                            <option value="NO- NO LONGER CORRECTABLE">NO- NO LONGER CORRECTABLE</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="field-label text-yellow-200/90">Was Fine Money Returned</label>
-                          <select
-                            value={currentRecordData.fineReturned || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, fineReturned: e.target.value})}
-                            className="field field-warn"
-                          >
-                            <option value="">Select...</option>
-                            <option value="YES">YES</option>
-                            <option value="NO">NO</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="field-label text-yellow-200/90">Total Amount Returned</label>
-                          <input
-                            type="number"
-                            value={currentRecordData.amountReturned || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, amountReturned: e.target.value})}
-                            className="field field-warn"
-                            placeholder="$0.00"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label text-yellow-200/90">Administrator Signature</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.adminSignature || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, adminSignature: e.target.value})}
-                            className="field field-warn"
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label text-yellow-200/90">Administrator Badge #</label>
-                          <input
-                            type="text"
-                            value={currentRecordData.adminBadge || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, adminBadge: e.target.value})}
-                            className="field field-warn"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* OFFICER NOTES/NARRATIVE AREA (NOT REQUIRED) */}
-                    <div className="panel-card mb-4">
-                      <h4 className="section-title text-gray-300">OFFICER NOTES/NARRATIVE AREA (NOT REQUIRED)</h4>
-                      <div>
-                        <label className="field-label">Narrative</label>
-                        <textarea
-                          value={currentRecordData.narrative || ''}
-                          onChange={(e) => setCurrentRecordData({...currentRecordData, narrative: e.target.value})}
-                          className="field h-32"
-                          placeholder="Optional officer notes..."
-                        />
-                      </div>
-                    </div>
-
-                    {/* CITATION COPY */}
-                    <div className="panel-card mb-4">
-                      <h4 className="section-title text-blue-400">CITATION COPY</h4>
-                      <div>
-                        <label className="field-label">Upload Citation Copy Image</label>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              const reader = new FileReader();
-                              reader.onloadend = () => {
-                                setCurrentRecordData({...currentRecordData, citationCopyImage: reader.result as string});
-                              };
-                              reader.readAsDataURL(file);
-                            }
-                          }}
-                          className="field mb-2"
-                        />
-                        {currentRecordData.citationCopyImage && (
-                          <div className="mb-2">
-                            <img src={currentRecordData.citationCopyImage} alt="Citation Copy" className="max-h-64 rounded border border-gray-500" />
-                            <button
-                              onClick={() => setCurrentRecordData({...currentRecordData, citationCopyImage: ''})}
-                              className="mt-1 text-xs text-red-400 hover:text-red-300"
-                            >
-                              Remove Image
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* EVIDENCE (CLERICAL PURPOSES) */}
-                    <div className="panel-card mb-4">
-                      <h4 className="section-title text-purple-400">EVIDENCE (CLERICAL PURPOSES)</h4>
-                      <div className="space-y-3">
-                        <div>
-                          <label className="field-label">Did You Book Evidence in Regards to This Citation?</label>
-                          <select
-                            value={currentRecordData.evidenceBooked || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, evidenceBooked: e.target.value})}
-                            className="field"
-                          >
-                            <option value="">Select...</option>
-                            <option value="YES">YES</option>
-                            <option value="NO">NO</option>
-                          </select>
-                        </div>
-                        {currentRecordData.evidenceBooked === 'YES' && (
-                          <>
-                            <div>
-                              <label className="field-label">If YES - What Evidence Locker # Was Evidence Booked Into</label>
-                              <input
-                                type="text"
-                                value={currentRecordData.evidenceLockerNumber || ''}
-                                onChange={(e) => setCurrentRecordData({...currentRecordData, evidenceLockerNumber: e.target.value})}
-                                className="field"
-                              />
-                            </div>
-                            <div>
-                              <label className="field-label">List Item(s) Description Booked</label>
-                              <textarea
-                                value={currentRecordData.evidenceItemsBooked || ''}
-                                onChange={(e) => setCurrentRecordData({...currentRecordData, evidenceItemsBooked: e.target.value})}
-                                className="field h-24"
-                                placeholder="List all evidence items booked..."
-                              />
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* PHOTO EVIDENCE */}
-                    <div className="panel-card mb-4">
-                      <h4 className="section-title text-green-400">PHOTO EVIDENCE</h4>
-                      <div>
-                        <label className="field-label">Upload Photo Evidence</label>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              const reader = new FileReader();
-                              reader.onloadend = () => {
-                                setCurrentRecordData({...currentRecordData, photoEvidenceImage: reader.result as string});
-                              };
-                              reader.readAsDataURL(file);
-                            }
-                          }}
-                          className="field mb-2"
-                        />
-                        {currentRecordData.photoEvidenceImage && (
-                          <div className="mb-2">
-                            <img src={currentRecordData.photoEvidenceImage} alt="Photo Evidence" className="max-h-64 rounded border border-gray-500" />
-                            <button
-                              onClick={() => setCurrentRecordData({...currentRecordData, photoEvidenceImage: ''})}
-                              className="mt-1 text-xs text-red-400 hover:text-red-300"
-                            >
-                              Remove Image
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* COURT RECORDS (FOR COURT STAFF USE ONLY) */}
-                    <div className="bg-indigo-500/10 border border-indigo-500/30 rounded-lg p-4 mb-4">
-                      <h4 className="text-md font-semibold text-indigo-300 mb-3 border-b border-indigo-600 pb-2">COURT RECORDS (FOR COURT STAFF USE ONLY)</h4>
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-xs text-indigo-200 mb-1">Status</label>
-                          <select
-                            value={currentRecordData.courtStatus || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, courtStatus: e.target.value})}
-                            className="w-full bg-indigo-800 text-white rounded px-3 py-2 text-sm border border-indigo-600"
-                          >
-                            <option value="">Select Status...</option>
-                            <option value="PENDING">PENDING</option>
-                            <option value="PAID">PAID</option>
-                            <option value="DISMISSED/ACQUITTAL">DISMISSED/ACQUITTAL</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-xs text-indigo-200 mb-1">Court Notes</label>
-                          <textarea
-                            value={currentRecordData.courtNotes || ''}
-                            onChange={(e) => setCurrentRecordData({...currentRecordData, courtNotes: e.target.value})}
-                            className="w-full bg-indigo-800 text-white rounded px-3 py-2 text-sm h-24 border border-indigo-600"
-                            placeholder="Court staff notes..."
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* LINKED RECORDS */}
-                    <div className="panel-card mb-4">
-                      <h4 className="section-title text-cyan-400">LINKED RECORDS</h4>
-                      <div className="flex justify-between items-center mb-3">
-                        <span className="text-sm text-gray-300">Linked Cases/Citations/Reports</span>
-                        <button
-                          onClick={() => {
-                            const linkedRecords = currentRecordData.linkedRecords || [];
-                            setCurrentRecordData({
-                              ...currentRecordData,
-                              linkedRecords: [...linkedRecords, { id: Date.now(), recordNumber: '', recordType: '' }]
-                            });
-                          }}
-                          className="px-3 py-1 bg-cyan-600 text-white rounded text-sm hover:bg-cyan-500 flex items-center gap-1"
-                        >
-                          <Plus size={16} /> Add Linked Record
-                        </button>
-                      </div>
-                      {currentRecordData.linkedRecords && currentRecordData.linkedRecords.length > 0 ? (
-                        <div className="space-y-2">
-                          {currentRecordData.linkedRecords.map((record: any, index: number) => (
-                            <div key={record.id} className="subcard flex gap-2 items-center px-3 py-2">
-                              <input
-                                type="text"
-                                value={record.recordNumber}
-                                onChange={(e) => {
-                                  const updated = currentRecordData.linkedRecords.map((r: any) =>
-                                    r.id === record.id ? {...r, recordNumber: e.target.value} : r
-                                  );
-                                  setCurrentRecordData({...currentRecordData, linkedRecords: updated});
-                                }}
-                                className="field flex-1 min-w-0"
-                                placeholder="Record Number"
-                              />
-                              <input
-                                type="text"
-                                value={record.recordType}
-                                onChange={(e) => {
-                                  const updated = currentRecordData.linkedRecords.map((r: any) =>
-                                    r.id === record.id ? {...r, recordType: e.target.value} : r
-                                  );
-                                  setCurrentRecordData({...currentRecordData, linkedRecords: updated});
-                                }}
-                                className="field flex-1 min-w-0"
-                                placeholder="Type (ARREST, WARRANT, etc.)"
-                              />
-                              <button
-                                onClick={() => {
-                                  const updated = currentRecordData.linkedRecords.filter((r: any) => r.id !== record.id);
-                                  setCurrentRecordData({...currentRecordData, linkedRecords: updated});
-                                }}
-                                className="text-red-400 hover:text-red-300"
-                              >
-                                <X size={16} />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-sm text-gray-400 italic">No linked records added yet.</p>
-                      )}
-                    </div>
-                  </>
-                )}
-
-                <div className="flex gap-2 justify-end pt-4 border-t border-white/[0.06]">
-                  <button
-                    onClick={() => {
-                      setActiveRecordForm(null);
-                      setCurrentRecordData({});
-                      setEditingRecordId(null);
-                    }}
-                    className="btn btn-secondary"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={saveRecord}
-                    className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-500"
-                  >
-                    {editingRecordId ? 'Save' : 'Add Record'}
-                  </button>
-                </div>
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          {(r.vehiclePlate || vehicle) && (
+            <div className="well p-3">
+              <div className="eyebrow mb-1 flex items-center gap-1.5"><Car size={12} /> Vehicle</div>
+              {r.vehiclePlate && <div className="font-mono text-base font-semibold text-white">{r.vehiclePlate}</div>}
+              {vehicle && <div className="text-sm text-gray-300">{vehicle}</div>}
+            </div>
+          )}
+          {(r.subjectName || r.subjectDOB) && (
+            <div className="well p-3">
+              <div className="eyebrow mb-1 flex items-center gap-1.5"><User size={12} /> Subject</div>
+              {r.subjectName && <div className="font-semibold text-white">{r.subjectName}</div>}
+              <div className="text-sm text-gray-300">
+                {[r.subjectDOB && `DOB ${r.subjectDOB}`, r.subjectPhone, r.subjectAddress].filter(Boolean).join(' · ')}
               </div>
+            </div>
+          )}
+        </div>
+
+        {r.lastKnownLocation && (
+          <p className="mt-3 flex items-start gap-1.5 text-sm text-gray-300">
+            <MapPin size={14} className="mt-0.5 flex-shrink-0 text-purple-400" />
+            <span><span className="text-gray-500">Last seen:</span> {r.lastKnownLocation}</span>
+          </p>
+        )}
+        {r.briefInformation && <p className="mt-2 whitespace-pre-wrap text-sm text-gray-200">{r.briefInformation}</p>}
+
+        {r.charges && r.charges.filter((c: any) => c.charge || c.titleCode).length > 0 && (
+          <div className="mt-3">
+            <div className="eyebrow mb-1">Possible charges</div>
+            <div className="flex flex-wrap gap-1.5">
+              {r.charges.filter((c: any) => c.charge || c.titleCode).map((c: any) => (
+                <span key={c.id} className="rounded-md bg-white/[0.05] px-2 py-1 text-xs text-gray-200 ring-1 ring-white/[0.08]">
+                  {c.titleCode && <span className="font-mono text-gray-400 mr-1">{c.titleCode}</span>}
+                  {c.charge}
+                  {chargeCount(c) > 1 && <span className="ml-1 font-semibold text-yellow-300">x{chargeCount(c)}</span>}
+                </span>
+              ))}
             </div>
           </div>
         )}
+
+        <div className="mt-3 flex flex-wrap justify-between gap-2 border-t border-white/[0.06] pt-2 text-xs text-gray-500">
+          <span>
+            Issued by {r.officer || 'Unknown'}{r.badge ? ` (#${r.badge})` : ''}{r.issuingAgency ? ` · ${r.issuingAgency}` : ''} · {issued}
+          </span>
+          {!active && r.deactivatedAt && (
+            <span>Deactivated {formatRecordDateTime(r.deactivatedAt)}{r.deactivatedBy ? ` by ${r.deactivatedBy}` : ''}</span>
+          )}
+        </div>
       </div>
+    );
+  };
+
+  const boloPanelJSX = (
+    <div className="modal-backdrop z-50">
+      <div className="modal-surface w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="modal-header">
+          <div className="flex items-center gap-3">
+            {renderBackButton('Records Management')}
+            <h2 className="text-lg font-semibold text-white flex items-center gap-2.5 [&>svg]:text-red-400">
+              <AlertTriangle size={24} />
+              BOLO
+            </h2>
+          </div>
+          <button
+            onClick={() => { setActiveRecordsPanel(null); setBoloSearch(''); }}
+            className="icon-btn"
+            aria-label="Close"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 border-b border-white/[0.06] bg-gray-850 px-6 py-3">
+          <div className="seg">
+            <button onClick={() => setBoloView('active')} className={`seg-item ${boloView === 'active' ? 'seg-item-active' : ''}`}>
+              Active <span className="font-mono text-xs opacity-70">{boloCounts.active}</span>
+            </button>
+            <button onClick={() => setBoloView('inactive')} className={`seg-item ${boloView === 'inactive' ? 'seg-item-active' : ''}`}>
+              Inactive <span className="font-mono text-xs opacity-70">{boloCounts.inactive}</span>
+            </button>
+          </div>
+          <div className="relative min-w-[200px] flex-1">
+            <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+            <input
+              type="text"
+              value={boloSearch}
+              onChange={(e) => setBoloSearch(e.target.value)}
+              placeholder="Search plate, name, location, charge..."
+              className="field field-sm !pl-9"
+            />
+          </div>
+          <button onClick={() => handleNewRecord('BOLO')} className="btn btn-danger">
+            <Plus size={16} /> New BOLO
+          </button>
+        </div>
+
+        <div className="flex-1 space-y-3 overflow-y-auto p-6">
+          {boloRecords.length === 0 ? (
+            <div className="py-14 text-center">
+              <AlertTriangle size={40} className="mx-auto mb-3 text-gray-600" />
+              <p className="text-sm text-gray-400">
+                {boloSearch.trim()
+                  ? 'No BOLOs match your search.'
+                  : boloView === 'active' ? 'No active BOLOs.' : 'No deactivated BOLOs.'}
+              </p>
+            </div>
+          ) : (
+            boloRecords.map(renderBoloCard)
+          )}
+        </div>
+      </div>
+
+      {recordFormModalJSX}
+    </div>
   );
 
   // Lookup Panel functions
@@ -13578,6 +13788,7 @@ const CADSystem = () => {
       {showRecordsMenu && renderRecordsManagementMenu()}
       {activeRecordsPanel === 'records' && recordsPanelJSX}
       {activeRecordsPanel === 'lookup' && lookupPanelJSX}
+      {activeRecordsPanel === 'bolo' && boloPanelJSX}
       {showNewCall && <NewCallForm />}
       {selectedCall && <CallDetail call={selectedCall} />}
       {showUnitInfo && selectedUnit && units.find(u => u.id === selectedUnit) && <UnitInfoModal unit={units.find(u => u.id === selectedUnit)} />}
