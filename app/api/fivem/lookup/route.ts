@@ -2,23 +2,36 @@ import { NextRequest, NextResponse } from 'next/server';
 import { readDataFile } from '@/lib/dataStore';
 import { requireGameServer } from '@/lib/fivem/auth';
 import { markSeen } from '@/lib/fivem/store';
+import { cadToday, liveDmvRecord } from '@/lib/cadDate';
 
 export const dynamic = 'force-dynamic';
 
 const readData = async () => (await readDataFile()) || {};
 
 const fullName = (c: any) => `${c.firstName || ''} ${c.lastName || ''}`.trim();
+const normName = (n: unknown) =>
+  String(n || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').split(/\s+/).filter(w => w.length > 1).join(' ');
 
-/** Open records (warrant/BOLO etc.) whose suspect name matches, same rule as the CAD lookup screen. */
-const flagsFor = (records: any[], name: string) =>
+/** Active warrants and BOLOs on this civilian (stored civilian id, else exact name), like the CAD's Lookup. */
+const flagsFor = (records: any[], civ: any) =>
   records
-    .filter(r => name && r.suspectName?.toLowerCase().includes(name.toLowerCase()) && r.status !== 'CLOSED')
+    .filter(r => {
+      const isOpen = r.type === 'WARRANT'
+        ? (r.warrantStatus || 'ACTIVE') !== 'CLOSED' && !['CLOSED', 'INACTIVE', 'SERVED'].includes(String(r.status || '').toUpperCase())
+        : r.type === 'BOLO' && r.status !== 'INACTIVE';
+      if (!isOpen) return false;
+      if (r.subjectId) return r.subjectId === civ.id;
+      const n = normName(r.subjectName);
+      return !!n && n === normName(fullName(civ));
+    })
     .map(r => ({ id: r.id, type: r.type, status: r.status, charges: r.charges }));
 
 /**
  * Game server lookups for in-game commands such as /runplate and /runname.
  *   GET /api/fivem/lookup?plate=ABC123
  *   GET /api/fivem/lookup?name=John%20Smith
+ * Registration, insurance and license statuses read EXPIRED once their date
+ * is before today's CAD date.
  */
 export async function GET(request: NextRequest) {
   const denied = requireGameServer(request);
@@ -34,22 +47,30 @@ export async function GET(request: NextRequest) {
   const data = await readData();
   const civilians: any[] = data.civilians || [];
   const records: any[] = data.officerRecords || [];
+  const today = cadToday();
 
   if (plate) {
     const vehicles = civilians.flatMap(c =>
       (c.dmvRecords || [])
         .filter((r: any) => r.type === 'VEHICLE REGISTRATION' && String(r.data?.plateNumber || '').toUpperCase() === plate)
-        .map((r: any) => ({
-          plate: r.data.plateNumber,
-          year: r.data.year,
-          make: r.data.make,
-          model: r.data.model,
-          color: r.data.color,
-          status: r.data.status,
-          owner: fullName(c),
-          ownerId: c.id,
-          flags: flagsFor(records, fullName(c)),
-        }))
+        .map((raw: any) => {
+          const r = liveDmvRecord(raw, today);
+          return {
+            plate: r.data.plateNumber,
+            year: r.data.year,
+            make: r.data.make,
+            model: r.data.model,
+            color: r.data.color,
+            status: r.data.registrationStatus || null,
+            registrationStatus: r.data.registrationStatus || null,
+            registrationExpiration: r.data.registrationExpiration || null,
+            insuranceStatus: r.data.insuranceStatus || null,
+            insuranceExpiration: r.data.insuranceExpiration || null,
+            owner: fullName(c),
+            ownerId: c.id,
+            flags: flagsFor(records, c),
+          };
+        })
     );
     return NextResponse.json({ ok: true, query: { plate }, results: vehicles });
   }
@@ -65,8 +86,12 @@ export async function GET(request: NextRequest) {
       address: c.streetResidence || c.address,
       licenses: (c.dmvRecords || [])
         .filter((r: any) => r.type === 'LICENSE')
-        .map((r: any) => ({ type: r.data?.licenseType, number: r.data?.licenseNumber, status: r.data?.status })),
-      flags: flagsFor(records, fullName(c)),
+        .map((raw: any) => {
+          const r = liveDmvRecord(raw, today);
+          return { type: r.data?.licenseType, number: r.data?.licenseNumber, status: r.data?.status, expires: r.data?.expirationDate || null };
+        }),
+      citations: records.filter(r => r.type === 'CITATION' && (r.subjectId ? r.subjectId === c.id : normName(r.subjectName) === normName(fullName(c)))).length,
+      flags: flagsFor(records, c),
     }));
   return NextResponse.json({ ok: true, query: { name }, results: people });
 }

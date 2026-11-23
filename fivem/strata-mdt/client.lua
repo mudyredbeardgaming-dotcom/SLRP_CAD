@@ -120,6 +120,9 @@ suggest('runname', 'Run a name through the CAD', { { name = 'name', help = 'Firs
 suggest('aop', 'Set the area of play', { { name = 'area', help = 'e.g. Blaine County' } })
 suggest('linkcad', 'Link your CAD account', { { name = 'code', help = 'Code from the CAD civilian portal' } })
 suggest('cadsync', 'Send your current character, licenses and vehicles to the CAD')
+suggest('cite', 'Write a citation (filed in the CAD)', { { name = 'player id', help = 'Server id of the person' }, { name = 'fine', help = 'Amount' }, { name = 'offense', help = 'e.g. Speeding 45 in a 35' } })
+suggest('dlexpiry', 'Set your driver license expiration date', { { name = 'date', help = 'YYYY-MM-DD, or "auto" for one year from today' } })
+suggest('regexpiry', 'Set a vehicle registration expiration date', { { name = 'plate', help = 'Plate number' }, { name = 'date', help = 'YYYY-MM-DD, or "auto" for one year from today' } })
 
 -- ---------------------------------------------------------------------------
 -- CAD -> player
@@ -135,6 +138,44 @@ RegisterNetEvent('strata:callAssigned', function(call)
   if call.postal and call.postal ~= '' then where = ('%s (Postal %s)'):format(where, call.postal) end
   notify(('~b~CAD~s~ Assigned to #%s: ~y~%s~s~ %s'):format(call.id or '?', call.code or 'CALL', where))
   PlaySoundFrontend(-1, 'Event_Start_Text', 'GTAO_FM_Events_Soundset', false)
+end)
+
+-- New license / registration: let the player keep the automatic date or pick one.
+-- Uses ox_lib's date picker when available, otherwise explains the chat command.
+local expiryQueue, expiryBusy = {}, false
+
+local function askExpiry(c)
+  if c.useOxLib and GetResourceState('ox_lib') == 'started' then
+    local ok, input = pcall(function()
+      return exports.ox_lib:inputDialog(('%s expiration'):format(c.title or 'Record'), {
+        { type = 'checkbox', label = ('Use automatic date (%s, one year from today)'):format(c.current or 'one year'), checked = true },
+        { type = 'date', label = 'Or pick your own date', icon = 'calendar', format = 'YYYY-MM-DD', returnString = true, default = c.current },
+      })
+    end)
+    if ok then
+      -- Closed / cancelled: keep the automatic date
+      if input and input[1] == false and input[2] then
+        TriggerServerEvent('strata:setExpiry', c.kind, c.key, input[2])
+      end
+      return
+    end
+  end
+  TriggerEvent('chat:addMessage', { color = { 56, 195, 248 }, args = { Config.ChatPrefix,
+    ('%s added to the CAD, expiring %s (one year from today). To pick your own date: %s'):format(c.title or 'Record', c.current or '?', c.command or '') } })
+end
+
+RegisterNetEvent('strata:chooseExpiry', function(c)
+  if type(c) ~= 'table' then return end
+  expiryQueue[#expiryQueue + 1] = c
+  if expiryBusy then return end
+  expiryBusy = true
+  CreateThread(function()
+    while #expiryQueue > 0 do
+      askExpiry(table.remove(expiryQueue, 1))
+      Wait(250)
+    end
+    expiryBusy = false
+  end)
 end)
 
 RegisterNetEvent('strata:aop', function(aop)

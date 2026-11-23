@@ -3,7 +3,8 @@ import { AlertCircle, Radio, MapPin, Clock, User, Phone, FileText, Plus, X, Chec
 import { BRAND, BrandMark, BrandLockup } from './Brand';
 import { useFiveMBridge, formatGameLocation } from '@/lib/fivem/useFiveMBridge';
 import LiveMap from './LiveMap';
-import { canSelfDispatch } from '@/lib/permissions';
+import { canSelfDispatch, canGroupUnits } from '@/lib/permissions';
+import { cadDatePlusYears, cadToday, isPastCadDate, liveDmvRecord, liveDmvRecords } from '@/lib/cadDate';
 
 // App version - increment this to force re-login after updates
 const APP_VERSION = '2.0.0';
@@ -238,6 +239,7 @@ const CADSystem = () => {
   const [currentReportData, setCurrentReportData] = useState<any>({});
   const [currentRecordData, setCurrentRecordData] = useState<any>({});
   const [nextReportRecordId, setNextReportRecordId] = useState(10000);
+  const [recordsScope, setRecordsScope] = useState<'mine' | 'all'>('mine');
   const [editingReportId, setEditingReportId] = useState<string | null>(null);
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
 
@@ -429,6 +431,13 @@ const CADSystem = () => {
     setPartySearchResults2([]);
   };
 
+  // Keep new report/record numbers above every number already saved
+  useEffect(() => {
+    const nums = [...officerReports, ...officerRecords].map((r: any) => Number(r?.recordNumber)).filter(n => Number.isFinite(n));
+    const max = nums.length ? Math.max(...nums) : 0;
+    if (max >= nextReportRecordId) setNextReportRecordId(max + 1);
+  }, [officerReports, officerRecords]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleNewRecord = (recordType: string) => {
     const recordId = nextReportRecordId;
     setNextReportRecordId(prev => prev + 1);
@@ -438,6 +447,7 @@ const CADSystem = () => {
       type: recordType,
       recordNumber: recordId,
       officer: loggedInOfficer?.displayName || '',
+      officerUsername: loggedInOfficer?.username || null,
       badge: loggedInOfficer?.badge || '',
       date: new Date().toISOString(),
       status: 'ACTIVE'
@@ -459,6 +469,13 @@ const CADSystem = () => {
     setPartySearchResults1([]);
     setPartySearchResults2([]);
   };
+
+  /** Records written by the signed-in officer (CAD or in game), newest first; or every record. */
+  const isMyRecord = (r: any) => r.officerUsername
+    ? r.officerUsername === loggedInOfficer?.username
+    : !!r.officer && r.officer === loggedInOfficer?.displayName;
+  const shownRecords = (recordsScope === 'all' ? officerRecords : officerRecords.filter(isMyRecord))
+    .slice().sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
 
   const openExistingRecord = (record: any) => {
     setEditingRecordId(record.id);
@@ -535,7 +552,7 @@ const CADSystem = () => {
     // Search through all civilians' DMV records for vehicle registrations
     const results: any[] = [];
     civilians.forEach(civilian => {
-      civilian.dmvRecords?.forEach((record: any) => {
+      liveDmvRecords(civilian.dmvRecords).forEach((record: any) => {
         if (record.type === 'VEHICLE REGISTRATION' &&
             record.data?.plateNumber?.toLowerCase().includes(plateNumber.toLowerCase())) {
           results.push({
@@ -616,7 +633,7 @@ const CADSystem = () => {
   const selectParty = (person: any, partyNumber: 1 | 2) => {
     const partyKey = partyNumber === 1 ? 'party1' : 'party2';
     // Find license info from DMV records if available
-    const licenseRecord = person.dmvRecords?.find((r: any) => r.type === 'LICENSE');
+    const licenseRecord = liveDmvRecords(person.dmvRecords).find((r: any) => r.type === 'LICENSE');
     const licenseData = licenseRecord?.data || {};
 
     setCurrentReportData((prev: any) => ({
@@ -959,6 +976,8 @@ const CADSystem = () => {
   // Dispatch: grouping units that ride together
   const [groupSelect, setGroupSelect] = useState<string[] | null>(null); // null = not selecting
   const [groupNameDraft, setGroupNameDraft] = useState('');
+  // Law Enforcement / Fire-EMS: 'mine' = unit dashboard, 'units' = unit groups (supervisors)
+  const [unitScreen, setUnitScreen] = useState<'mine' | 'units'>('mine');
   const [fivemLinkCode, setFivemLinkCode] = useState<any>(null);
   const fivemPaused = showLogin || showNewCall || !!selectedCall || showUnitInfo || showComModal ||
     civilianView === 'add' || civilianView === 'edit' || !!activeReportForm || !!activeRecordForm;
@@ -992,6 +1011,7 @@ const CADSystem = () => {
     setUnitLayoutState(valid ? { ...DEFAULT_UNIT_LAYOUT, ...saved } : DEFAULT_UNIT_LAYOUT);
     setCallPanelTab('mine');
     setGroupSelect(null);
+    setUnitScreen('mine');
   }, [selectedRole]); // eslint-disable-line react-hooks/exhaustive-deps
   // Tiled windows need a wide screen; narrow screens stack them.
   useEffect(() => {
@@ -1893,6 +1913,42 @@ const CADSystem = () => {
     );
   };
 
+  /** Date input with an "Auto 1 yr" button (one year from today's CAD date). Blank = auto on save. */
+  const renderExpiryInput = (label: string, value: string, onChange: (v: string) => void) => {
+    const auto = cadDatePlusYears(1);
+    const expired = isPastCadDate(value);
+    return (
+      <div>
+        <label className="field-label">{label}</label>
+        <div className="flex gap-2">
+          <input
+            type="date"
+            value={value || ''}
+            onChange={(e) => onChange(e.target.value)}
+            className={`field min-w-0 flex-1 ${expired ? 'field-warn' : ''}`}
+            aria-label={label}
+          />
+          <button
+            type="button"
+            onClick={() => onChange(auto)}
+            className="btn btn-secondary btn-sm whitespace-nowrap"
+            title={`Set to ${auto}, one year from today's CAD date`}
+          >
+            Auto 1 yr
+          </button>
+        </div>
+        <p className={`mt-1 text-[11px] ${expired ? 'text-yellow-400' : 'text-gray-500'}`}>
+          {!value ? `Leave blank to auto-set ${auto}.` : expired ? 'This date has passed, so it will show as EXPIRED.' : '\u00a0'}
+        </p>
+      </div>
+    );
+  };
+
+  /** Citations on a character (officer records whose subject is this person). */
+  const citationsFor = (person: any) => officerRecords
+    .filter(r => r.type === 'CITATION' && personMatches(person, r.subjectName, r.subjectId))
+    .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+
   const renderCivilianInterface = () => {
     const emptyCharacter = {
       id: null,
@@ -1968,10 +2024,30 @@ const CADSystem = () => {
     const addDMVRecord = () => {
       if (!selectedDMVType || !selectedCivilian) return;
 
+      // Save what the form's selects show by default, and auto-set blank
+      // expiration dates to one year from today's CAD date.
+      const data: any = { ...dmvRecordData };
+      if (selectedDMVType === 'LICENSE') {
+        data.status = data.status || 'VALID';
+        data.licenseType = data.licenseType || 'DRIVER LICENSE';
+        data.licenseClass = data.licenseClass || 'C';
+        data.motorcycleEndorsement = data.motorcycleEndorsement || 'NONE';
+        data.issuedDate = data.issuedDate || cadToday();
+        if (!data.expirationDate) data.expirationDate = cadDatePlusYears(1);
+      }
+      if (selectedDMVType === 'VEHICLE REGISTRATION') {
+        data.registrationStatus = data.registrationStatus || 'VALID';
+        data.insuranceStatus = data.insuranceStatus || 'VALID';
+        data.vehicleType = data.vehicleType || 'SEDAN';
+        data.registrationDate = data.registrationDate || cadToday();
+        if (!data.registrationExpiration) data.registrationExpiration = cadDatePlusYears(1);
+        if (!data.insuranceExpiration) data.insuranceExpiration = cadDatePlusYears(1);
+      }
+
       const newRecord = {
         id: `DMV-${Date.now()}`,
         type: selectedDMVType,
-        data: dmvRecordData,
+        data,
         createdAt: new Date().toISOString(),
         // Link to character
         characterId: selectedCivilian.id,
@@ -2641,7 +2717,7 @@ const CADSystem = () => {
 
             {char.dmvRecords && char.dmvRecords.length > 0 ? (
               <div className="space-y-3">
-                {char.dmvRecords.map(record => (
+                {liveDmvRecords(char.dmvRecords).map(record => (
                   <div key={record.id} className="panel-card">
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
@@ -2659,7 +2735,7 @@ const CADSystem = () => {
                             <span className={`px-2 py-1 rounded text-xs font-semibold ${
                               record.data.status === 'VALID' ? 'bg-green-600 text-white' :
                               record.data.status === 'PENDING' ? 'bg-yellow-600 text-white' :
-                              record.data.status === 'EXPIRED' ? 'bg-gray-600 text-white' :
+                              record.data.status === 'EXPIRED' ? 'bg-orange-600 text-white' :
                               'bg-red-600 text-white'
                             }`}>
                               {record.data.status}
@@ -2696,6 +2772,7 @@ const CADSystem = () => {
                                   record.data.registrationStatus === 'PENDING' ? 'bg-yellow-600 text-white' :
                                   record.data.registrationStatus === 'TAGS STOLEN' ? 'bg-red-600 text-white' :
                                   record.data.registrationStatus === 'SUSPENDED' ? 'bg-red-600 text-white' :
+                                  record.data.registrationStatus === 'EXPIRED' ? 'bg-orange-600 text-white' :
                                   'bg-gray-600 text-white'
                                 }`}>
                                   REG: {record.data.registrationStatus}
@@ -2706,6 +2783,7 @@ const CADSystem = () => {
                                   record.data.insuranceStatus === 'VALID' ? 'bg-green-600 text-white' :
                                   record.data.insuranceStatus === 'PENDING' ? 'bg-yellow-600 text-white' :
                                   record.data.insuranceStatus === 'NONE ON FILE' ? 'bg-red-600 text-white' :
+                                  record.data.insuranceStatus === 'EXPIRED' ? 'bg-orange-600 text-white' :
                                   'bg-gray-600 text-white'
                                 }`}>
                                   INS: {record.data.insuranceStatus}
@@ -3146,6 +3224,43 @@ const CADSystem = () => {
               </div>
             )}
           </div>
+
+          {/* Citations written on this character (in the CAD or in game) */}
+          {(() => {
+            const cites = citationsFor(char);
+            return (
+              <div className="panel p-6" data-section="citations">
+                <h3 className="text-xl font-bold text-white mb-4">Citations ({cites.length})</h3>
+                {cites.length === 0 ? (
+                  <p className="text-sm text-gray-500">No citations on file.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {cites.map(c => {
+                      const total = (c.charges || []).reduce((sum: number, x: any) => sum + (parseFloat(x.bondAmount) || 0) * chargeCount(x), 0);
+                      return (
+                        <div key={c.id} className="panel-card">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="rounded bg-orange-600 px-2 py-1 text-sm font-semibold text-white">CITATION</span>
+                            {c.recordNumber && <span className="font-mono text-xs text-gray-400">#{c.recordNumber}</span>}
+                            {c.source === 'FIVEM' && <span className="chip !py-0 text-[10px]">Issued in game</span>}
+                            <span className="ml-auto text-sm text-gray-400">{c.dateOfViolation || formatPSTDate(c.createdAt)}{c.timeOfViolation ? ` ${c.timeOfViolation}` : ''}</span>
+                          </div>
+                          <p className="mt-2 text-sm text-gray-200">{formatCharges(c.charges) || 'No charges listed'}</p>
+                          <div className="mt-1 flex flex-wrap gap-x-4 text-xs text-gray-400">
+                            {c.officer && <span>Officer: {c.officer}{c.callsign ? ` (${c.callsign})` : ''}</span>}
+                            {c.locationOfViolation && <span>Location: {c.locationOfViolation}{c.postal ? ` · ${c.postal}` : ''}</span>}
+                            {c.vehiclePlate && <span>Vehicle: {c.vehiclePlate}</span>}
+                            {total > 0 && <span className="text-green-400">Fine: ${total.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>}
+                          </div>
+                          {c.notes && <p className="mt-2 text-sm italic text-gray-300">{c.notes}</p>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
       );
     };
@@ -3184,15 +3299,7 @@ const CADSystem = () => {
                         <option value="EXEMPT">EXEMPT</option>
                       </select>
                     </div>
-                    <div>
-                      <label className="field-label">Registration Expiration</label>
-                      <input
-                        type="date"
-                        value={dmvRecordData.registrationExpiration || ''}
-                        onChange={(e) => setDmvRecordData({...dmvRecordData, registrationExpiration: e.target.value})}
-                        className="field"
-                      />
-                    </div>
+                    {renderExpiryInput('Registration Expiration', dmvRecordData.registrationExpiration, (v) => setDmvRecordData({...dmvRecordData, registrationExpiration: v}))}
                     <div>
                       <label className="field-label">Insurance Status</label>
                       <select
@@ -3206,15 +3313,7 @@ const CADSystem = () => {
                         <option value="NONE ON FILE">NONE ON FILE</option>
                       </select>
                     </div>
-                    <div>
-                      <label className="field-label">Insurance Expiration</label>
-                      <input
-                        type="date"
-                        value={dmvRecordData.insuranceExpiration || ''}
-                        onChange={(e) => setDmvRecordData({...dmvRecordData, insuranceExpiration: e.target.value})}
-                        className="field"
-                      />
-                    </div>
+                    {renderExpiryInput('Insurance Expiration', dmvRecordData.insuranceExpiration, (v) => setDmvRecordData({...dmvRecordData, insuranceExpiration: v}))}
                   </div>
                 </div>
 
@@ -3367,15 +3466,7 @@ const CADSystem = () => {
                     </select>
                   </div>
                 </div>
-                <div>
-                  <label className="field-label">Expiration Date</label>
-                  <input
-                    type="date"
-                    value={dmvRecordData.expirationDate || ''}
-                    onChange={(e) => setDmvRecordData({...dmvRecordData, expirationDate: e.target.value})}
-                    className="field"
-                  />
-                </div>
+                {renderExpiryInput('Expiration Date', dmvRecordData.expirationDate, (v) => setDmvRecordData({...dmvRecordData, expirationDate: v}))}
                 <div>
                   <label className="field-label">License Restrictions</label>
                   <input
@@ -12250,19 +12341,25 @@ const CADSystem = () => {
 
               {/* Records Section */}
               <div className="panel-card">
-                <h3 className="text-lg font-semibold text-orange-400 mb-4 flex items-center gap-2">
-                  <Database size={20} />
-                  My Records
-                </h3>
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <h3 className="text-lg font-semibold text-orange-400 flex items-center gap-2">
+                    <Database size={20} />
+                    {recordsScope === 'mine' ? 'My Records' : 'All Records'}
+                  </h3>
+                  <div className="seg !p-0.5" role="group" aria-label="Records shown">
+                    <button onClick={() => setRecordsScope('mine')} className={`seg-item !px-2.5 !py-1 !text-xs ${recordsScope === 'mine' ? 'seg-item-active' : ''}`}>Mine</button>
+                    <button onClick={() => setRecordsScope('all')} className={`seg-item !px-2.5 !py-1 !text-xs ${recordsScope === 'all' ? 'seg-item-active' : ''}`}>All</button>
+                  </div>
+                </div>
                 <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {officerRecords.length === 0 ? (
+                  {shownRecords.length === 0 ? (
                     <div className="text-gray-400 text-center py-8">
                       <Database size={48} className="mx-auto mb-2 opacity-50" />
-                      <p>No records yet</p>
+                      <p>{recordsScope === 'mine' && officerRecords.length > 0 ? 'None of your records yet' : 'No records yet'}</p>
                       <p className="text-sm">Click "New Record" to create one</p>
                     </div>
                   ) : (
-                    officerRecords.map(record => (
+                    shownRecords.map(record => (
                       <div
                         key={record.id}
                         onClick={() => openExistingRecord(record)}
@@ -12275,8 +12372,11 @@ const CADSystem = () => {
                             {record.recordNumber && (
                               <div className="text-blue-400 text-sm">Record# {record.recordNumber}</div>
                             )}
-                            {record.subject && (
-                              <div className="text-gray-300 text-sm mt-1">Subject: {record.subject}</div>
+                            {(record.subject || record.subjectName) && (
+                              <div className="text-gray-300 text-sm mt-1">Subject: {record.subject || record.subjectName}</div>
+                            )}
+                            {record.source === 'FIVEM' && (
+                              <span className="chip mt-1 !py-0 text-[10px]">Issued in game{record.callsign ? ` · ${record.callsign}` : ''}</span>
                             )}
                           </div>
                           <span className={`px-2 py-1 rounded text-xs ${
@@ -12506,7 +12606,7 @@ const CADSystem = () => {
     if (query.trim().length > 0) {
       const results: any[] = [];
       civilians.forEach(civilian => {
-        civilian.dmvRecords?.forEach((record: any) => {
+        liveDmvRecords(civilian.dmvRecords).forEach((record: any) => {
           if (record.type === 'VEHICLE REGISTRATION' &&
               record.data?.plateNumber?.toLowerCase().includes(query.toLowerCase())) {
             results.push({
@@ -12647,8 +12747,9 @@ const CADSystem = () => {
           {selectedLookupPerson && (() => {
             const person = selectedLookupPerson;
             const h = getPersonHistory(person);
-            const license = (person.dmvRecords || []).find((r: any) => r.type === 'LICENSE' && /driver/i.test(r.data?.licenseType || ''))
-              || (person.dmvRecords || []).find((r: any) => r.type === 'LICENSE');
+            const liveDmv = liveDmvRecords(person.dmvRecords);
+            const license = liveDmv.find((r: any) => r.type === 'LICENSE' && /driver/i.test(r.data?.licenseType || ''))
+              || liveDmv.find((r: any) => r.type === 'LICENSE');
             const age = (() => {
               const d = new Date(civDob(person));
               if (isNaN(d.getTime())) return null;
@@ -12863,7 +12964,7 @@ const CADSystem = () => {
 
                 {selectedLookupPerson.dmvRecords && selectedLookupPerson.dmvRecords.length > 0 ? (
                   <div className="space-y-3 max-h-96 overflow-y-auto">
-                    {selectedLookupPerson.dmvRecords.map((record: any, idx: number) => (
+                    {liveDmvRecords(selectedLookupPerson.dmvRecords).map((record: any, idx: number) => (
                       <div key={idx} className={`bg-gray-800 rounded-lg p-4 border-l-4 ${
                         record.type === 'VEHICLE REGISTRATION' ? 'border-blue-500' :
                         record.type === 'LICENSE' ? 'border-green-500' :
@@ -13019,6 +13120,13 @@ const CADSystem = () => {
   const myCredentialRecord = officerCredentials.find((c: any) => c.username === loggedInOfficer?.username);
   const selfDispatchUnit = selectedUnit ? units.find(u => u.id === selectedUnit) : null;
   const selfDispatchAllowed = canSelfDispatch({
+    view: selectedRole,
+    accountRole: loggedInOfficer?.role,
+    unit: selfDispatchUnit,
+    credential: myCredentialRecord,
+  });
+  // Dispatch and admins can always group units; LE / Fire supervisors per lib/permissions.ts (GROUP_UNITS)
+  const groupUnitsAllowed = canGroupUnits({
     view: selectedRole,
     accountRole: loggedInOfficer?.role,
     unit: selfDispatchUnit,
@@ -14112,7 +14220,19 @@ const CADSystem = () => {
       </button>
     ) : null;
   };
+  const allUnits = units;
+  /** Which role a unit belongs to: its account's role, else a guess from the department. */
+  const unitRoleOf = (u: any) => {
+    const role = officerCredentials.find((c: any) => c.unitId === u.id)?.role;
+    if (role && role !== 'admin') return role;
+    if (DEPARTMENTS.includes(u.department)) return 'police';
+    if (/\b(FD|FIRE|EMS)\b|LSFD|FIRE|EMS/i.test(String(u.department || ''))) return 'fire';
+    return role || 'other';
+  };
   const renderDispatchUnits = () => {
+    const isDispatch = selectedRole === 'dispatch';
+    // Supervisors manage units of their own service; dispatch sees everyone
+    const units = isDispatch ? allUnits : allUnits.filter(u => unitRoleOf(u) === selectedRole);
     const selecting = groupSelect !== null;
     const toggleSelect = (id: string) => setGroupSelect(sel => (sel || []).includes(id) ? (sel || []).filter(x => x !== id) : [...(sel || []), id]);
     const groupIds = Array.from(new Set(units.filter(u => u.groupId).map(u => u.groupId)));
@@ -14123,10 +14243,10 @@ const CADSystem = () => {
       <div className="space-y-5">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <div className="eyebrow mb-1.5">Dispatch</div>
+            <div className="eyebrow mb-1.5">{isDispatch ? 'Dispatch' : selectedRole === 'fire' ? 'Fire/EMS supervisor' : 'Law Enforcement supervisor'}</div>
             <h2 className="text-2xl font-semibold tracking-tight">Units</h2>
           </div>
-          {!selecting ? (
+          {!selecting && groupUnitsAllowed ? (
             <button onClick={() => { setGroupSelect([]); setGroupNameDraft(''); }} className="btn btn-primary">
               <Users size={16} /> Group units
             </button>
@@ -14160,7 +14280,7 @@ const CADSystem = () => {
           </div>
         )}
 
-        {!selecting && (
+        {!selecting && isDispatch && (
           <div className="flex gap-2 flex-wrap items-center">
             <span className="text-gray-400 text-sm mr-1">Select unit:</span>
             {units.map(u => (
@@ -14205,16 +14325,18 @@ const CADSystem = () => {
                             <span className="ml-2 text-xs text-gray-400">{u.officer}</span>
                             {u.status === 'panic' && <span className="ml-2 text-[10px] font-bold text-red-400">PANIC</span>}
                           </div>
-                          <button onClick={() => removeFromGroup(u.id)} className="icon-btn !h-6 !w-6 text-gray-500 hover:text-red-400" title={`Remove ${u.callsign} from group`} aria-label={`Remove ${u.callsign} from group`} disabled={selecting}>
-                            <X size={13} />
-                          </button>
+                          {groupUnitsAllowed && (
+                            <button onClick={() => removeFromGroup(u.id)} className="icon-btn !h-6 !w-6 text-gray-500 hover:text-red-400" title={`Remove ${u.callsign} from group`} aria-label={`Remove ${u.callsign} from group`} disabled={selecting}>
+                              <X size={13} />
+                            </button>
+                          )}
                         </div>
                       ))}
                     </div>
                     <div className="mt-2">{renderUnitStatusLine(members[0])}</div>
                     {renderOnCallLine(members.map(u => u.id))}
                     {renderLiveLine(members)}
-                    {!selecting && (
+                    {!selecting && groupUnitsAllowed && (
                       <div className="mt-3 flex flex-wrap gap-2">
                         <select
                           value=""
@@ -14295,7 +14417,8 @@ const CADSystem = () => {
   const priorityStripe = (p) => (p === '1' ? 'before:bg-red-500' : p === '2' ? 'before:bg-yellow-500' : p === '3' ? 'before:bg-blue-500' : 'before:bg-gray-500');
 
   // The unit dashboard and the dispatch map fill the screen between header and taskbar.
-  const fullHeightView = selectedRole === 'police' || selectedRole === 'fire' || (selectedRole === 'dispatch' && activeTab === 'map');
+  const showUnitGroups = (selectedRole === 'police' || selectedRole === 'fire') && unitScreen === 'units' && groupUnitsAllowed;
+  const fullHeightView = ((selectedRole === 'police' || selectedRole === 'fire') && !showUnitGroups) || (selectedRole === 'dispatch' && activeTab === 'map');
 
   return (
     <div className={`text-white flex flex-col ${fullHeightView ? 'min-h-screen lg:h-screen lg:overflow-hidden' : 'min-h-screen'}`}>
@@ -14333,9 +14456,16 @@ const CADSystem = () => {
               </>
             )}
             {(selectedRole === 'police' || selectedRole === 'fire') && (
-              <button className="seg-item seg-item-active">
-                {selectedRole === 'fire' ? <Flame size={15} /> : <Shield size={15} />} My Unit
-              </button>
+              <>
+                <button onClick={() => setUnitScreen('mine')} className={`seg-item ${unitScreen === 'mine' || !groupUnitsAllowed ? 'seg-item-active' : ''}`}>
+                  {selectedRole === 'fire' ? <Flame size={15} /> : <Shield size={15} />} My Unit
+                </button>
+                {groupUnitsAllowed && (
+                  <button onClick={() => setUnitScreen('units')} className={`seg-item ${unitScreen === 'units' ? 'seg-item-active' : ''}`}>
+                    <Users size={15} /> Units
+                  </button>
+                )}
+              </>
             )}
             {selectedRole === 'tow' && (
               <button className="seg-item seg-item-active">
@@ -14436,7 +14566,7 @@ const CADSystem = () => {
 
       <main className={fullHeightView ? 'flex-1 px-3 md:px-4 pt-4 pb-[88px] lg:min-h-0' : 'flex-1 px-4 md:px-6 py-6 pb-28'}>
         <div className={fullHeightView ? 'h-full animate-fade-in' : 'max-w-7xl mx-auto animate-fade-in'}>
-        {(selectedRole === 'police' || selectedRole === 'fire') && renderUnitDashboard()}
+        {(selectedRole === 'police' || selectedRole === 'fire') && (showUnitGroups ? renderDispatchUnits() : renderUnitDashboard())}
         {selectedRole === 'dispatch' && activeTab === 'map' && (
           <div className="flex h-full min-h-[70vh] flex-col gap-3 lg:min-h-0">
             <div className="flex flex-wrap items-end justify-between gap-3">

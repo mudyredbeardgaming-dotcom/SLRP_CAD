@@ -74,9 +74,10 @@ export interface GameLicense {
   number?: string;
   class?: string;
   motorcycle?: string;
+  /** Expiration date (YYYY-MM-DD) or "auto" = one year from the CAD date. */
   expires?: string;
   restrictions?: string;
-  /** Years until expiry for a new license (default 4). */
+  /** Years until expiry for a new license (default 1). */
   validYears?: number;
 }
 
@@ -91,6 +92,9 @@ export interface GameVehicle {
   vehicleType?: string;
   registrationStatus?: string;
   insuranceStatus?: string;
+  /** Registration / insurance expiration (YYYY-MM-DD) or "auto" = one year from the CAD date. */
+  registrationExpires?: string;
+  insuranceExpires?: string;
   /** Years until registration/insurance expiry for a new vehicle (default 1). */
   validYears?: number;
 }
@@ -126,10 +130,40 @@ export type FiveMInboundEvent =
   | { type: 'account_link'; code: string; owner: FiveMOwner; playerName?: string }
   | { type: 'character_upsert'; owner: FiveMOwner; character: GameCharacter }
   | { type: 'license_set'; characterId: string; license: GameLicense }
-  | { type: 'vehicle_register'; characterId: string; vehicle: GameVehicle };
+  | { type: 'vehicle_register'; characterId: string; vehicle: GameVehicle }
+  // Officer records written in game (persisted; see lib/fivem/records.ts)
+  | { type: 'citation_issued'; citation: GameCitation };
 
-/** Event types handled by lib/fivem/characters.ts instead of the in-memory store. */
-export const PERSISTED_EVENT_TYPES = ['account_link', 'character_upsert', 'license_set', 'vehicle_register'] as const;
+/** Event types written to data/cad-data.json instead of the in-memory store. */
+export const PERSISTED_EVENT_TYPES = ['account_link', 'character_upsert', 'license_set', 'vehicle_register', 'citation_issued'] as const;
+
+/** One offense on a citation. */
+export interface GameCitationCharge {
+  charge: string;
+  /** e.g. "VC 22350" */
+  code?: string;
+  /** INFRACTION (default), MISDEMEANOR, FELONY, WARNING, CORRECTABLE */
+  type?: string;
+  fine?: number;
+  counts?: number;
+}
+
+/**
+ * A citation an officer wrote in game. It becomes a CITATION record in the CAD,
+ * listed under that officer's records and on the cited civilian's record.
+ */
+export interface GameCitation {
+  /** The officer who wrote it. Matched to a CAD account by linked identifier, then by callsign. */
+  officer: { callsign?: string; name?: string; identifier?: string; badge?: string };
+  /** The cited person. `characterId` (framework id) links it to the synced civilian. */
+  subject: { characterId?: string; name?: string; dob?: string; phone?: string; address?: string };
+  charges: GameCitationCharge[];
+  vehicle?: { plate?: string; make?: string; model?: string; color?: string; year?: string };
+  location?: GameLocation;
+  notes?: string;
+  /** The game's own citation id, so re-sending the same citation does not duplicate it. */
+  externalId?: string;
+}
 
 /**
  * Events re-broadcast to CAD browsers. Every connected CAD applies these

@@ -141,13 +141,134 @@ local function adapter()
 end
 
 -- ---------------------------------------------------------------------------
--- Sync
+-- Expiration dates players choose (Config.ExpiryChoice)
 -- ---------------------------------------------------------------------------
+
+local EC = Config.ExpiryChoice or {}
+local lastExpiry = {} -- [src] = GetGameTimer()
 
 local function stateFor(id)
   synced[id] = synced[id] or { licenses = {}, vehicles = {} }
   return synced[id]
 end
+
+local function isChoiceLicense(t)
+  t = tostring(t or ''):upper()
+  for _, l in ipairs(EC.licenses or {}) do
+    if tostring(l):upper() == t then return true end
+  end
+  return false
+end
+
+--- "auto", "2027-06-30", "06/30/2027" or a date-picker timestamp (ms) -> "auto" / "YYYY-MM-DD", or nil.
+local function parseExpiry(value)
+  if type(value) == 'number' then
+    -- ox_lib returns local midnight in ms; noon UTC of that instant lands on the picked day for UTC-12..+12
+    return os.date('!%Y-%m-%d', math.floor(value / 1000) + 43200)
+  end
+  local s = tostring(value or ''):gsub('^%s+', ''):gsub('%s+$', ''):lower()
+  if s == 'auto' then return 'auto' end
+  local y, m, d = s:match('^(%d%d%d%d)[-/.](%d%d?)[-/.](%d%d?)$')
+  if not y then m, d, y = s:match('^(%d%d?)[-/.](%d%d?)[-/.](%d%d%d%d)$') end
+  y, m, d = tonumber(y), tonumber(m), tonumber(d)
+  if not y or y < 1900 or y > 2200 or m < 1 or m > 12 or d < 1 or d > 31 then return nil end
+  return ('%04d-%02d-%02d'):format(y, m, d)
+end
+
+--- After the CAD answers a sync: ask the player to pick dates for new licenses / registrations.
+local function promptExpiry(src, response)
+  if not EC.enabled or not src or src == 0 or type(response) ~= 'table' or type(response.results) ~= 'table' then return end
+  for _, r in ipairs(response.results) do
+    local res = r.result
+    if type(res) == 'table' and res.created then
+      local choice = nil
+      if res.licenseType and isChoiceLicense(res.licenseType) then
+        choice = { kind = 'license', key = res.licenseType, title = res.licenseType, current = res.expirationDate,
+                   command = ('%s YYYY-MM-DD | auto'):format(Strata.Cmd('dlexpiry')) }
+      elseif res.plate and EC.vehicles then
+        choice = { kind = 'vehicle', key = res.plate, title = ('Vehicle registration %s'):format(res.plate), current = res.registrationExpiration,
+                   command = ('%s %s YYYY-MM-DD | auto'):format(Strata.Cmd('regexpiry'), res.plate) }
+      end
+      if choice then
+        choice.useOxLib = EC.useOxLib ~= false
+        TriggerClientEvent('strata:chooseExpiry', src, choice)
+      end
+    end
+  end
+end
+
+--- Set a license or registration expiration for the player's own character.
+--- kind 'license' (key = CAD license type) or 'vehicle' (key = plate); value = date or 'auto'.
+local function setExpiry(src, kind, key, value)
+  src = tonumber(src)
+  local a = src and active[src]
+  if not a then return Strata.Chat(src, 'No active character. Try again once your character has loaded.') end
+  local now = GetGameTimer()
+  if lastExpiry[src] and now - lastExpiry[src] < 2000 then return end
+  lastExpiry[src] = now
+
+  local date = parseExpiry(value)
+  if not date then return Strata.Chat(src, 'Use a date like 2027-06-30, or "auto" for one year from today.') end
+  local st = stateFor(a.id)
+  local event, what
+  if kind == 'license' then
+    local t = tostring(key or ''):upper()
+    if not isChoiceLicense(t) then return end
+    if not st.licenses[t] or st.licenses[t] == 'REVOKED' then
+      return Strata.Chat(src, ('You do not hold a %s.'):format(t:lower()))
+    end
+    event = { type = 'license_set', characterId = a.id, license = { type = t, expires = date } }
+    what = t:lower()
+  elseif kind == 'vehicle' then
+    if not EC.vehicles then return end
+    local plate = tostring(key or ''):gsub('%s+', ''):upper()
+    if plate == '' or not st.vehicles[plate] then
+      return Strata.Chat(src, ('%s is not registered to your character.'):format(plate ~= '' and plate or 'That vehicle'))
+    end
+    event = { type = 'vehicle_register', characterId = a.id, vehicle = { plate = plate, registrationExpires = date } }
+    what = ('registration for %s'):format(plate)
+  else
+    return
+  end
+
+  Strata.SendEvents({ event }, function(status, data)
+    local res = status == 200 and data and data.results and data.results[1] and data.results[1].result
+    if res then
+      Strata.Chat(src, ('Your %s now expires %s.'):format(what, res.expirationDate or res.registrationExpiration or date))
+    else
+      local err = data and data.errors and data.errors[1] and data.errors[1].error or 'Could not reach the CAD.'
+      Strata.Chat(src, err, { 239, 68, 68 })
+    end
+  end)
+end
+
+-- From the date picker on the player's screen. Only their own character is affected.
+RegisterNetEvent('strata:setExpiry', function(kind, key, value)
+  if not EC.enabled then return end
+  setExpiry(source, kind, key, value)
+end)
+
+Strata.RegisterCommand('dlexpiry', function(src, args)
+  if src == 0 or not Strata.Allowed(src, 'dlexpiry') or not EC.enabled then return end
+  local t = (EC.licenses or {})[1]
+  if not t then return end
+  if not args[1] then
+    return Strata.Chat(src, ('Usage: %s YYYY-MM-DD  (or "auto" for one year from today)'):format(Strata.Cmd('dlexpiry')))
+  end
+  setExpiry(src, 'license', t, args[1])
+end)
+
+Strata.RegisterCommand('regexpiry', function(src, args)
+  if src == 0 or not Strata.Allowed(src, 'regexpiry') or not EC.enabled then return end
+  if not args[1] or not args[2] then
+    return Strata.Chat(src, ('Usage: %s <plate> YYYY-MM-DD  (or "auto" for one year from today)'):format(Strata.Cmd('regexpiry')))
+  end
+  setExpiry(src, 'vehicle', args[1], args[2])
+end)
+
+-- ---------------------------------------------------------------------------
+-- Sync
+-- ---------------------------------------------------------------------------
 
 --- Build license events: merge framework licenses that map to the same CAD type,
 --- and revoke CAD licenses the player no longer holds.
@@ -251,6 +372,7 @@ local function doSync(src, force)
     -- Anything rejected (or a failed request) is retried on the next sync
     if status ~= 200 or not data or (data.errors and #data.errors > 0) then synced[id] = nil end
     if Config.Debug then Strata.Log(('Synced %s (%d events): %s'):format(id, #events, status)) end
+    if status == 200 then promptExpiry(src, data) end
   end)
 end
 
@@ -377,7 +499,8 @@ end
 
 --- Add/update a license on the player's current character.
 --- name: a Config.LicenseMap key (e.g. 'driver') or a CAD type (e.g. 'DRIVER LICENSE').
---- opts: { status?, class?, motorcycle?, number?, expires?, restrictions? }
+--- opts: { status?, class?, motorcycle?, number?, expires? ('YYYY-MM-DD' or 'auto'), restrictions? }
+--- Without `expires` the player is asked to pick a date (Config.ExpiryChoice).
 local function SetLicense(src, name, opts)
   src = tonumber(src)
   local a = active[src]
@@ -386,13 +509,17 @@ local function SetLicense(src, name, opts)
   if not m then return false end
   local lic = { type = m.type, class = m.class, motorcycle = m.motorcycle, validYears = CS.licenseValidYears }
   for k, v in pairs(opts or {}) do lic[k] = v end
-  Strata.SendEvents({ { type = 'license_set', characterId = a.id, license = lic } })
+  Strata.SendEvents({ { type = 'license_set', characterId = a.id, license = lic } }, function(status, data)
+    -- Ask for a date only when the caller didn't pass one
+    if status == 200 and not lic.expires then promptExpiry(src, data) end
+  end)
   stateFor(a.id).licenses[lic.type] = json.encode({ lic.class or '', lic.motorcycle or '', (lic.status or 'VALID'):upper() })
   return true
 end
 
 --- Register a vehicle to the player's current character.
---- vehicle: { plate, model?, make?, color?, year?, vehicleType? }
+--- vehicle: { plate, model?, make?, color?, year?, vehicleType?, registrationExpires?, insuranceExpires? }
+--- Dates are 'YYYY-MM-DD' or 'auto'. Without registrationExpires the player is asked to pick one.
 local function RegisterVehicle(src, vehicle)
   src = tonumber(src)
   local a = active[src]
@@ -412,7 +539,9 @@ local function RegisterVehicle(src, vehicle)
     if type(v.model) == 'number' then v.model = nil end
     v.insuranceStatus = v.insuranceStatus or CS.vehicleInsuranceStatus
     v.validYears = v.validYears or CS.vehicleValidYears
-    Strata.SendEvents({ { type = 'vehicle_register', characterId = a.id, vehicle = v } })
+    Strata.SendEvents({ { type = 'vehicle_register', characterId = a.id, vehicle = v } }, function(status, data)
+      if status == 200 and not v.registrationExpires then promptExpiry(src, data) end
+    end)
   end)
   return true
 end
@@ -421,6 +550,7 @@ local function GetActiveCharacter(src)
   local a = active[tonumber(src)]
   return a and a.data or nil
 end
+Strata.GetActiveCharacter = GetActiveCharacter
 
 exports('SetCharacter', SetCharacter)
 exports('ClearCharacter', ClearCharacter)

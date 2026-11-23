@@ -54,6 +54,9 @@ These are the default names. Every one can be renamed, given aliases or turned o
 | `/aop <area>` | `strata.aop` | Sets the server AOP, which is shown in the CAD top bar and announced to players. |
 | `/linkcad CODE` | Anyone | Links your FiveM identity to your CAD account (get the code in the CAD civilian portal). |
 | `/cadsync` | Anyone | Sends your current character, licenses and vehicles to the CAD right now. |
+| `/cite <id> <fine> <offense>` | LEO | Writes a citation to player `<id>` and files it in the CAD. Example: `/cite 12 250 Speeding 45 in a 35`. See [Citations](#citations-written-in-game). |
+| `/dlexpiry <date\|auto>` | Anyone | Sets your driver license expiration, e.g. `/dlexpiry 2027-06-30`. `auto` means one year from the CAD date. |
+| `/regexpiry <plate> <date\|auto>` | Anyone | Sets a vehicle registration expiration on your own vehicle. |
 
 ### Customizing commands
 
@@ -147,6 +150,16 @@ exports['strata-mdt']:ResyncPlayer(source, true)
 
 The same calls exist as server events: `strata-mdt:setCharacter`, `strata-mdt:setLicense`, `strata-mdt:registerVehicle`, `strata-mdt:clearCharacter` and `strata-mdt:resync`. Trigger them with `TriggerEvent('strata-mdt:setLicense', source, 'driver')`. They're server-only, so players can't trigger them.
 
+### Expiration dates (licenses and registrations)
+
+- **Automatic date:** new licenses and vehicle registrations, and their insurance, expire **one year after the CAD date**. The CAD date follows the CAD clock, which runs on Pacific time. Change the default with `licenseValidYears` and `vehicleValidYears` in `Config.CharacterSync`.
+- **Players pick their own date:** when a player gets a new driver license or registration, they are asked whether to keep the automatic date or choose one (`Config.ExpiryChoice`).
+  - With **ox_lib** running, a dialog opens with a date picker and a "Use automatic date" box. Closing it keeps the automatic date.
+  - Without ox_lib, the player gets a chat message with the command to use.
+- **Changing it later:** `/dlexpiry 2027-06-30` or `/regexpiry ABC123 2027-06-30`. Use `auto` instead of a date for one year from today. Players can only change their own character's records.
+- **From your scripts:** `SetLicense(source, 'driver', { expires = '2027-06-30' })` or `RegisterVehicle(source, { plate = 'ABC123', registrationExpires = 'auto' })`. Passing a date skips the question.
+- **Expired status:** once a date is before the CAD date, the CAD shows that registration, insurance or license as **EXPIRED** everywhere: Lookup, the civilian portal, reports, `/runplate` and `/runname`. Statuses such as SUSPENDED or TAGS STOLEN are left as they are. Setting a new future date makes it VALID again.
+
 ### What happens to CAD edits
 
 - **What the game controls:** name, date of birth, sex and phone come from the game, so a later sync overwrites CAD edits to those fields.
@@ -154,6 +167,36 @@ The same calls exist as server events: `strata-mdt:setCharacter`, `strata-mdt:se
 - **Deleting characters:** a synced character deleted in the CAD less than 15 minutes after a game update may come back.
   - Why: during that window the server re-adds recent game changes whenever a browser saves, so a browser holding older data can't erase them.
   - The fix: wait 15 minutes before deleting.
+
+## Citations written in game
+
+A citation written in game becomes a **CITATION** record in the CAD, filled in like one written in the CAD's Citation form.
+
+- **The officer's records:** the officer is found by their linked CAD account (`/linkcad`). If they aren't linked, the CAD uses the unit with their `/callsign`. The citation then shows under **My Records** for that officer, marked "Issued in game".
+- **The civilian's record:** the cited person is found by their synced character. If there is none, the CAD looks for an exact name match. The citation then shows in Lookup and under **Citations** on the character in the civilian portal.
+  - With no match, it is filed under the name only and doesn't appear on any character's record.
+
+**Built-in command:** `/cite <player id> <fine> <offense>`. It writes one offense and tells the officer the CAD record number. The cited player gets a chat message unless `Config.Citations.notifySubject = false`.
+
+**From a ticket or billing script** (server side):
+
+```lua
+exports['strata-mdt']:IssueCitation(officerSource, targetSource, {
+  charges = {
+    { charge = 'Speeding', code = 'VC 22350', fine = 250, counts = 1, type = 'INFRACTION' },
+    { charge = 'No seatbelt', fine = 100 },
+  },
+  vehicle = { plate = 'ABC123', make = 'Karin', model = 'Sultan', color = 'Black' },  -- optional
+  notes = 'Clocked at 85 in a 45',                                                       -- optional
+  externalId = ticketId,  -- optional: your own id, so sending the same ticket twice files it once
+}, function(ok, result)
+  -- result.recordNumber, result.total, result.linkedCivilian (nil if the person wasn't found)
+end)
+```
+
+- **Who is cited:** `targetSource` is the cited player's server id, and their active character is used. To cite someone not in game, pass a table instead: `{ characterId = 'ABC123', name = 'Jamie Rivera', dob = '1994-03-14' }`.
+- **Location:** taken from the officer's last reported position when they have a callsign. Pass `location` to override it.
+- **Server events:** the same call is available as `TriggerEvent('strata-mdt:issueCitation', officerSource, targetSource, citation)`. After the CAD files a citation, `strata-mdt:citationFiled` fires with `(officerSource, targetSource, result)`, so a billing script can charge the fine.
 
 ## Live map (Law Enforcement → Live Map)
 
@@ -203,7 +246,23 @@ Character sync events. These are saved to `data/cad-data.json` and return a resu
   "character": { "id": "ABC12345", "firstName": "Jamie", "lastName": "Rivera", "dob": "1994-03-14", "gender": 1, "phone": "555-0199" } }
 { "type": "license_set", "characterId": "ABC12345", "license": { "type": "DRIVER LICENSE", "class": "C", "status": "VALID" } }
 { "type": "vehicle_register", "characterId": "ABC12345", "vehicle": { "plate": "8JR123", "model": "Sultan", "make": "Karin", "vehicleType": "SEDAN" } }
+// Expiration dates: "YYYY-MM-DD" or "auto" (one year from the CAD date)
+{ "type": "license_set", "characterId": "ABC12345", "license": { "type": "DRIVER LICENSE", "expires": "2027-06-30" } }
+{ "type": "vehicle_register", "characterId": "ABC12345", "vehicle": { "plate": "8JR123", "registrationExpires": "auto", "insuranceExpires": "2027-01-01" } }
 ```
+
+Officer records (saved to `data/cad-data.json`):
+
+```jsonc
+{ "type": "citation_issued", "citation": {
+    "officer": { "callsign": "A-101", "name": "John", "identifier": "license:abc" },
+    "subject": { "characterId": "ABC12345", "name": "Jamie Rivera", "dob": "1994-03-14" },
+    "charges": [ { "charge": "Speeding", "code": "VC 22350", "fine": 250, "counts": 1, "type": "INFRACTION" } ],
+    "vehicle": { "plate": "8JR123" }, "location": { "street": "Route 68", "postal": "2034" },
+    "notes": "...", "externalId": "ticket-991" } }
+```
+
+The citation result is `{ recordId, recordNumber, officer, officerLinked, linkedCivilian, subjectName, total }`, or `{ duplicate: true, ... }` when the same `externalId` was already filed. A new license or vehicle result includes `created`, plus its `expirationDate` or `registrationExpiration`.
 
 The response is `{ ok, accepted, errors: [{ index, error }], results: [{ index, result }] }`. Events in a batch are applied in order, so send a character before its licenses and vehicles.
 

@@ -28,7 +28,49 @@ export const SELF_DISPATCH: Record<'police' | 'fire', { enabled: boolean; ranks:
   },
 };
 
+/**
+ * Grouping units (two officers riding in one vehicle): Dispatch → Units, or the
+ * "Units" tab Law Enforcement / Fire-EMS supervisors get.
+ *
+ * Dispatchers and admins can always group units. A Law Enforcement or Fire/EMS
+ * unit can when its rank is in `ranks` or its subdivision is in `subdivisions`
+ * (ignoring case). Unlike SELF_DISPATCH, empty lists mean nobody in that role.
+ * Supervisors only see and group units of their own service.
+ *
+ * Per-account override: `groupUnits: true` / `false` on an officerCredentials entry.
+ */
+export const GROUP_UNITS: Record<'police' | 'fire', { ranks: string[]; subdivisions: string[] }> = {
+  police: {
+    ranks: ['Corporal', 'Sergeant', 'Lieutenant', 'Captain', 'Major', 'Commander', 'Undersheriff', 'Sheriff', 'Deputy Chief', 'Chief'],
+    subdivisions: ['BCSO-SUPV', 'LSPD-SUPV'],
+  },
+  fire: {
+    ranks: ['Lieutenant', 'Captain', 'Battalion Chief', 'Deputy Chief', 'Chief', 'EMS Supervisor'],
+    subdivisions: [],
+  },
+};
+
 const norm = (v: unknown) => String(v ?? '').trim().toUpperCase();
+
+export function canGroupUnits(opts: {
+  view: string | null | undefined;
+  accountRole?: string | null;
+  unit?: { rank?: string; subdivision?: string } | null;
+  credential?: { groupUnits?: boolean } | null;
+}): boolean {
+  const { view, accountRole, unit, credential } = opts;
+  if (view === 'dispatch') return true;
+  if (view !== 'police' && view !== 'fire') return false;
+  if (accountRole === 'admin') return true;
+  if (credential?.groupUnits === true) return true;
+  if (credential?.groupUnits === false) return false;
+  if (!unit) return false;
+  const policy = GROUP_UNITS[view];
+  return (
+    policy.ranks.some(r => norm(r) === norm(unit.rank)) ||
+    policy.subdivisions.some(s => norm(s) === norm(unit.subdivision))
+  );
+}
 
 export function canSelfDispatch(opts: {
   /** The role the user is working as (selected role card). */
