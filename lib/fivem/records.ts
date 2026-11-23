@@ -91,6 +91,9 @@ export async function issueCitation(c: GameCitation) {
       type: 'CITATION',
       recordNumber: nextRecordNumber(data),
       status: 'ACTIVE',
+      // Goes to the Supervisor Panel like a citation submitted in the CAD
+      reviewStatus: 'PENDING',
+      submittedAt: now.toISOString(),
       source: 'FIVEM',
       externalId: externalId || undefined,
       // Officer

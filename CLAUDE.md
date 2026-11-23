@@ -29,7 +29,7 @@ StrataMDT/
 │   ├── LiveMap.tsx     # FiveM live unit map (Law Enforcement → Live Map)
 │   └── CADSystem.tsx   # Main application component (monolithic)
 ├── lib/dataStore.ts    # Locked, atomic access to data/cad-data.json (server)
-├── lib/permissions.ts  # SELF_DISPATCH / GROUP_UNITS policies (ranks/subdivisions lists)
+├── lib/permissions.ts  # SELF_DISPATCH / SUPERVISORS policies; canSelfDispatch, isSupervisor, canGroupUnits, canReviewRecords
 ├── lib/cadDate.ts      # CAD date (Pacific time), +1 year, EXPIRED status helpers (browser + server)
 ├── lib/fivem/          # FiveM bridge: protocol types, in-memory store, API-key auth, character sync, useFiveMBridge hook
 ├── fivem/strata-mdt/   # Sample FiveM resource (Lua) + fivem/README.md protocol docs
@@ -181,15 +181,32 @@ The Active Call window has an **Open Calls** tab (`renderOpenCalls`). It shows t
 - `officerCredentials[].selfDispatch` true/false overrides it per account. Admins always can.
 
 ### Unit groups (two officers in one vehicle)
-Dispatch → Units → **Group units**. LE / Fire supervisors get a **Units** nav tab with the same screen (`renderDispatchUnits`), limited to their own service (`unitRoleOf`). `canGroupUnits` in `lib/permissions.ts` (`GROUP_UNITS` ranks/subdivisions, default `*-SUPV` subdivisions and supervisor ranks; empty lists = nobody; `officerCredentials[].groupUnits` overrides; dispatch and admins always). Stored on units as `groupId` / `groupName`.
+Dispatch → Units → **Group units**. LE / Fire supervisors get a **Units** nav tab with the same screen (`renderDispatchUnits`), limited to their own service (`unitRoleOf`). `canGroupUnits` in `lib/permissions.ts`:
+- Dispatch and admins can always group units.
+- Otherwise the unit must be a supervisor: a rank or subdivision in the `SUPERVISORS` lists. The defaults are the `*-SUPV` subdivisions plus supervisor ranks. Empty lists mean nobody.
+- Per-account overrides: `officerCredentials[].supervisor` or `.groupUnits`. Stored on units as `groupId` / `groupName`.
 - A group moves as one: `assignUnit`, `unassignUnit`, `createCall` auto-assign and `updateUnitStatus` apply to every member through `groupIdsOf`. PANIC stays with the unit that pressed it.
 - Groups with fewer than 2 members dissolve (`dissolveSmallGroups`). Grouping units that are on different active calls is refused.
 - The live map draws group members within about 30 m as one marker. The unit list and status strip show "Riding with". Dispatch has its own **Live Map** tab.
+
+### Supervisor review (LE reports and records)
+Every report and record has a `reviewStatus` (`reviewOf(item)`). Older items take a value from their `status`: DRAFT, APPROVED, or otherwise PENDING.
+- **DRAFT:** saved with "Save as Draft". Only the author sees it (`visibleToMe`): it is hidden from supervisors, other officers' lists, Lookup and the BOLO panel.
+- **PENDING:** set by "Submit for Review".
+- **DENIED:** `denialReason` is required. The author sees it under "Returned by a supervisor" in the Records panel and in the form banner, and can "Resubmit for Review".
+- **APPROVED:** the item leaves the queue. If the author edits and resubmits it, it goes back to PENDING.
+- `report.status` mirrors the review state (DRAFT, SUBMITTED, DENIED, APPROVED). `record.status` keeps its own meaning (ACTIVE, INACTIVE...).
+- Each review adds to `reviewHistory`, along with `reviewedBy` and `reviewedAt`.
+- The Supervisor Panel is `activeRecordsPanel === 'supervisor'` (`supervisorPanelJSX`), with Pending, Denied and Approved tabs. Only `canReviewRecords` users see it (police supervisors and admins).
+- Supervisors can't review their own items; admins can.
+- The form banner `renderReviewBanner` also has Approve and Deny.
+- Citations from FiveM arrive PENDING.
 
 ### DMV expiration dates
 - "Today" is the CAD date in Pacific time (`cadToday()` in `lib/cadDate.ts`), not the browser's or server's date.
 - `liveDmvRecord(s)` shows a registration, insurance or license as **EXPIRED** once its date is before today, for VALID, ACTIVE or empty statuses. It only changes what is displayed; the stored record is untouched.
 - Use these helpers everywhere a status is shown: Lookup, the civilian portal, report vehicle and party searches, and `/api/fivem/lookup`.
+- Civilian DMV records can be edited after saving: the pencil button reuses the add modal and sets `editingDmvId`.
 - New licenses and registrations default to one year from the CAD date:
   - in the civilian portal, `renderExpiryInput` has an "Auto 1 yr" button, and blank dates are filled on save;
   - from FiveM, through `lib/fivem/characters.ts`.
