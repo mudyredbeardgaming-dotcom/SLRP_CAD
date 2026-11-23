@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AlertCircle, Radio, MapPin, Clock, User, Phone, FileText, Plus, X, Check, Shield, AlertTriangle, Lock, LogOut, Search, Database, Pin, PinOff, Car, Flame, Truck, ArrowRight, Eye, EyeOff, LayoutGrid, ChevronRight, ArrowLeft, Minus, Power, RotateCcw, LayoutPanelLeft, LayoutPanelTop, Columns, GripVertical, Maximize2, Minimize2, Users, LogIn, Unlink, Pencil, ShieldCheck, ThumbsUp, ThumbsDown, Send } from 'lucide-react';
+import { AlertCircle, Radio, MapPin, Clock, User, Phone, FileText, Plus, X, Check, Shield, AlertTriangle, Lock, LogOut, Search, Database, Pin, PinOff, Car, Flame, Truck, ArrowRight, Eye, EyeOff, LayoutGrid, ChevronRight, ArrowLeft, Minus, Power, RotateCcw, LayoutPanelLeft, LayoutPanelTop, Columns, GripVertical, Maximize2, Minimize2, Users, LogIn, Unlink, Pencil, ShieldCheck, ThumbsUp, ThumbsDown, Send, Info } from 'lucide-react';
 import { BRAND, BrandMark, BrandLockup } from './Brand';
 import { useFiveMBridge, formatGameLocation } from '@/lib/fivem/useFiveMBridge';
 import LiveMap from './LiveMap';
@@ -1990,7 +1990,7 @@ const CADSystem = () => {
 
         <div className="relative w-full max-w-sm animate-scale-in">
           <div className="mb-8 flex flex-col items-center text-center">
-            <BrandMark size={56} />
+            <BrandMark size={120} className="drop-shadow-[0_8px_30px_rgba(56,195,248,0.25)]" />
             <h1 className="mt-5 text-2xl font-semibold tracking-tight text-white">
               Strata<span className="text-accent-400">MDT</span>
             </h1>
@@ -14012,34 +14012,8 @@ const CADSystem = () => {
           )}
     </>);
 
-    const PresetIcon = (k: string) => { const I = UNIT_LAYOUT_PRESETS[k].icon; return <I size={15} />; };
-
     return (
       <div className="flex h-full flex-col gap-3">
-        {isWide && (
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <span className="text-xs text-gray-500">Drag a title bar onto another window to swap · drag the gaps to resize · double-click a title bar to maximize</span>
-            <div className="flex items-center gap-2">
-              <div className="seg" role="group" aria-label="Window layout">
-                {Object.keys(UNIT_LAYOUT_PRESETS).map(k => (
-                  <button
-                    key={k}
-                    onClick={() => applyPreset(k)}
-                    className={`seg-item !px-2.5 ${unitLayout.preset === k && !unitLayout.maximized ? 'seg-item-active' : ''}`}
-                    title={UNIT_LAYOUT_PRESETS[k].label}
-                    aria-label={UNIT_LAYOUT_PRESETS[k].label}
-                  >
-                    {PresetIcon(k)}
-                  </button>
-                ))}
-              </div>
-              <button onClick={() => setUnitLayout(DEFAULT_UNIT_LAYOUT)} className="btn btn-ghost btn-sm" title="Reset window layout">
-                <RotateCcw size={14} /> Reset
-              </button>
-            </div>
-        </div>
-        )}
-
         <div
           ref={layoutRef}
           className={isWide ? 'relative -m-1.5 min-h-0 flex-1' : 'flex flex-col gap-3'}
@@ -14844,6 +14818,38 @@ const CADSystem = () => {
     setActiveRecordForm(null);
     setSelectedRole(null);
   };
+  // Window layout controls for the unit dashboard (taskbar, middle)
+  const renderLayoutControls = () => (
+    <div className="flex items-center gap-1.5" data-taskbar="layout">
+      <span className="hidden xl:inline eyebrow mr-1">Layout</span>
+      <div className="seg" role="group" aria-label="Window layout">
+        {Object.keys(UNIT_LAYOUT_PRESETS).map(k => {
+          const I = UNIT_LAYOUT_PRESETS[k].icon;
+          return (
+            <button
+              key={k}
+              onClick={() => applyPreset(k)}
+              className={`seg-item !px-2.5 ${unitLayout.preset === k && !unitLayout.maximized ? 'seg-item-active' : ''}`}
+              title={UNIT_LAYOUT_PRESETS[k].label}
+              aria-label={UNIT_LAYOUT_PRESETS[k].label}
+            >
+              <I size={15} />
+            </button>
+          );
+        })}
+      </div>
+      <button onClick={() => setUnitLayout(DEFAULT_UNIT_LAYOUT)} className="icon-btn" title="Reset window layout" aria-label="Reset window layout">
+        <RotateCcw size={15} />
+      </button>
+      <span
+        className="icon-btn cursor-help"
+        title="Drag a window's title bar onto another to swap them. Drag the gaps to resize. Double-click a title bar to maximize."
+        aria-label="Layout help"
+      >
+        <Info size={15} />
+      </span>
+    </div>
+  );
   const renderTaskbarButton = (panel: string, label: string, icon: any, count = 0, countLabel = '', tone: 'alert' | 'neutral' = 'alert') => (
     <button
       key={panel}
@@ -14863,6 +14869,7 @@ const CADSystem = () => {
   // The unit dashboard and the dispatch map fill the screen between header and taskbar.
   const showUnitGroups = (selectedRole === 'police' || selectedRole === 'fire') && unitScreen === 'units' && groupUnitsAllowed;
   const fullHeightView = ((selectedRole === 'police' || selectedRole === 'fire') && !showUnitGroups) || (selectedRole === 'dispatch' && activeTab === 'map');
+  const showLayoutControls = unitRole && !showUnitGroups && isWide && !!myUnitRecord;
 
   return (
     <div className={`text-white flex flex-col ${fullHeightView ? 'min-h-screen lg:h-screen lg:overflow-hidden' : 'min-h-screen'}`}>
@@ -14910,8 +14917,8 @@ const CADSystem = () => {
                 <Users size={15} /> {unitScreen === 'units' ? 'Back to My Unit' : 'Units'}
               </button>
             )}
-            <div className="ml-auto flex items-center gap-2">
-              {renderFiveMChip()}
+            {/* PANIC sits alone on the right, away from other buttons, so it isn't pressed by accident */}
+            <div className="ml-auto flex items-center pl-8">
               {selectedRole === 'police' && (
                 <button
                   onClick={() => updateUnitStatus(selectedUnit, 'panic')}
@@ -15244,7 +15251,7 @@ const CADSystem = () => {
 
       {/* Taskbar */}
       <footer className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.06] bg-gray-900/85 backdrop-blur-xl">
-        <div className="px-4 md:px-6 h-[72px] flex justify-between items-center gap-3">
+        <div className="px-4 md:px-6 h-[72px] grid grid-cols-[1fr_auto_1fr] items-center gap-3">
           {unitRole ? (
             /* Law Enforcement / Fire-EMS: Records Management buttons (LE), no Menu */
             <div className="flex items-center gap-2 min-w-0 overflow-x-auto" data-taskbar="unit">
@@ -15274,7 +15281,11 @@ const CADSystem = () => {
 
           </div>
           )}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-center">
+            {showLayoutControls && renderLayoutControls()}
+          </div>
+          <div className="flex items-center justify-end gap-2 min-w-0">
+            {unitRole && renderFiveMChip()}
             {unitRole && (
               <button onClick={changeRole} className="btn btn-secondary h-[52px]" title="Return to role selection">
                 <LayoutGrid size={16} />

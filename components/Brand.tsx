@@ -3,17 +3,16 @@ import React from 'react';
 /**
  * StrataMDT branding.
  *
- * Swapping in real logos later:
- *   1. Drop the image files into /public.
- *   2. Set `logo` and/or the entries in `roleLogos` below to their paths
- *      (e.g. '/StrataLogo.png'). Anything left as null falls back to the
- *      built-in SVG mark / icon.
+ * Logo: /public/strata-logo.png (the badge trimmed from StrataMDT.png in the
+ * repo root, 256px). The favicon is app/icon.png, made from the same artwork.
+ * To change it, replace those files. Set `logo` to null to fall back to the
+ * built-in SVG mark. `roleLogos` entries left as null use the Lucide icons.
  */
 export const BRAND = {
   name: 'StrataMDT',
   shortName: 'Strata',
   tagline: 'Mobile Data Terminal & Computer-Aided Dispatch',
-  logo: null as string | null,
+  logo: '/strata-logo.png' as string | null,
   roleLogos: {
     dispatch: null,
     civilian: null,
@@ -26,12 +25,18 @@ export const BRAND = {
 /** Layered "strata" mark used until real logo artwork is provided. */
 export const BrandMark = ({ size = 32, className = '' }: { size?: number; className?: string }) => {
   if (BRAND.logo) {
+    // The badge is detailed, so draw it a little larger than the SVG mark's box
+    const px = Math.round(size * 1.3);
     return (
+      // eslint-disable-next-line @next/next/no-img-element
       <img
         src={BRAND.logo}
         alt={BRAND.name}
-        style={{ height: size, width: 'auto' }}
-        className={className}
+        width={px}
+        height={px}
+        style={{ height: px, width: px, objectFit: 'contain' }}
+        className={`flex-shrink-0 ${className}`}
+        draggable={false}
       />
     );
   }
