@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { AlertCircle, Radio, MapPin, Clock, User, Phone, FileText, Plus, X, Check, Shield, AlertTriangle, Lock, LogOut, Search, Database, Pin, PinOff, Car, Flame, Truck, ArrowRight, Eye, EyeOff, LayoutGrid, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { AlertCircle, Radio, MapPin, Clock, User, Phone, FileText, Plus, X, Check, Shield, AlertTriangle, Lock, LogOut, Search, Database, Pin, PinOff, Car, Flame, Truck, ArrowRight, Eye, EyeOff, LayoutGrid, ChevronRight, ArrowLeft } from 'lucide-react';
 import { BRAND, BrandMark, BrandLockup } from './Brand';
 import { useFiveMBridge, formatGameLocation } from '@/lib/fivem/useFiveMBridge';
 import LiveMap from './LiveMap';
@@ -895,14 +895,15 @@ const CADSystem = () => {
   // are open, for the same reason the clock and data refresh pause: a
   // re-render would remount the nested form components and drop typed input.
   const [newCallPrefill, setNewCallPrefill] = useState<any>(null);
-  const [policeView, setPoliceView] = useState<'unit' | 'map'>('unit');
+  // Police and Fire/EMS: 'unit' (My Unit) or 'map' (Live Map)
+  const [unitView, setUnitView] = useState<'unit' | 'map'>('unit');
   const [fivemLinkCode, setFivemLinkCode] = useState<any>(null);
   const fivemPaused = showLogin || showNewCall || !!selectedCall || showUnitInfo || showComModal ||
     civilianView === 'add' || civilianView === 'edit' || !!activeReportForm || !!activeRecordForm;
   const fivem = useFiveMBridge({
     active: isClient && isAuthenticated && !!selectedRole,
     paused: fivemPaused,
-    fastPollMs: selectedRole === 'civilian' ? 15000 : selectedRole === 'police' && policeView === 'map' ? 1500 : undefined,
+    fastPollMs: selectedRole === 'civilian' ? 15000 : (selectedRole === 'police' || selectedRole === 'fire') && unitView === 'map' ? 1500 : undefined,
     onEvent: (event) => {
       // Game-originated changes: apply locally only (don't echo back to the game)
       if (event.type === 'unit_status' || event.type === 'panic') {
@@ -917,6 +918,59 @@ const CADSystem = () => {
     }
   });
   const callsignOf = (unitId) => units.find(u => u.id === unitId)?.callsign;
+
+  // Each role opens on "My Unit", not on whatever tab the last role was using.
+  useEffect(() => { setUnitView('unit'); }, [selectedRole]);
+
+  // ---- Records Management back navigation ---------------------------------
+  // Menu -> Records Management menu -> Lookup / Records panel. Back (the arrow
+  // button, or Backspace while not typing in a field) steps up one level
+  // instead of closing everything. Report/record forms keep their own Cancel.
+  const resetLookup = () => {
+    setSelectedLookupPerson(null);
+    setLookupSearchQuery('');
+    setLookupSearchResults([]);
+    setLookupVehicleQuery('');
+    setLookupVehicleResults([]);
+  };
+  const goBackInRecords = () => {
+    if (activeReportForm || activeRecordForm) return false;
+    if (activeRecordsPanel === 'lookup' && selectedLookupPerson) {
+      setSelectedLookupPerson(null);
+      return true;
+    }
+    if (activeRecordsPanel) {
+      if (activeRecordsPanel === 'lookup') resetLookup();
+      setShowNewReportDropdown(false);
+      setShowNewRecordDropdown(false);
+      setActiveRecordsPanel(null);
+      setShowRecordsMenu(true);
+      return true;
+    }
+    if (showRecordsMenu) {
+      setShowRecordsMenu(false);
+      setShowRoleMenu(true);
+      return true;
+    }
+    return false;
+  };
+  const goBackRef = useRef(goBackInRecords);
+  goBackRef.current = goBackInRecords;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Backspace' || e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey) return;
+      const el = e.target as HTMLElement | null;
+      if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
+      if (goBackRef.current()) e.preventDefault();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+  const renderBackButton = (label: string) => (
+    <button onClick={() => goBackInRecords()} className="icon-btn" title={`Back to ${label} (Backspace)`} aria-label={`Back to ${label}`}>
+      <ArrowLeft size={18} />
+    </button>
+  );
   const callForGame = (call) => ({
     id: call.id, code: call.code, priority: call.priority,
     address: call.address, postal: call.postal, description: call.description
@@ -4298,7 +4352,10 @@ const CADSystem = () => {
     );
   };
 
-  const MenuRow = ({ onClick, Icon, title, subtitle, tone = 'default' }: any) => (
+  // Render functions, not components: a nested component remounts on every
+  // re-render (the clock ticks each second), which replayed the menu's pop-in
+  // animation and made it blink.
+  const renderMenuRow = ({ onClick, Icon, title, subtitle, tone = 'default' }: any) => (
     <button
       onClick={onClick}
       className={`group w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-white/[0.05] ${
@@ -4323,7 +4380,7 @@ const CADSystem = () => {
     </button>
   );
 
-  const RoleMenu = () => {
+  const renderRoleMenu = () => {
     return (
       <div className="fixed bottom-24 left-4 z-50 w-72 animate-scale-in rounded-xl border border-white/[0.08] bg-gray-850/95 p-2 shadow-modal backdrop-blur-xl">
         <div className="flex justify-between items-center px-2 pt-1 pb-2">
@@ -4347,47 +4404,47 @@ const CADSystem = () => {
 
         <div className="space-y-0.5">
           {selectedRole === 'police' && loggedInOfficer && (
-            <MenuRow
-              onClick={() => {
+            renderMenuRow({
+              onClick: () => {
                 setShowRoleMenu(false);
                 setShowRecordsMenu(true);
-              }}
-              Icon={Database}
-              title="Records Management"
-              subtitle="Lookup, Records, BOLO"
-              tone="records"
-            />
+              },
+              Icon: Database,
+              title: 'Records Management',
+              subtitle: 'Lookup, Records, BOLO',
+              tone: 'records',
+            })
           )}
 
-          <MenuRow
-            onClick={() => {
+          {renderMenuRow({
+            onClick: () => {
               setShowRoleMenu(false);
               setSelectedRole(null);
-            }}
-            Icon={LayoutGrid}
-            title="Change Role"
-            subtitle="Return to role selection"
-          />
+            },
+            Icon: LayoutGrid,
+            title: 'Change Role',
+            subtitle: 'Return to role selection',
+          })}
 
           <div className="my-1 border-t border-white/[0.06]" />
 
-          <MenuRow
-            onClick={() => {
+          {renderMenuRow({
+            onClick: () => {
               setShowRoleMenu(false);
               handleLogout();
-            }}
-            Icon={LogOut}
-            title="Sign Out"
-            subtitle="Log out and return to login"
-            tone="danger"
-          />
+            },
+            Icon: LogOut,
+            title: 'Sign Out',
+            subtitle: 'Log out and return to login',
+            tone: 'danger',
+          })}
         </div>
       </div>
     );
   };
 
   // Records Management Menu Component
-  const RecordsManagementMenu = () => {
+  const renderRecordsManagementMenu = () => {
     const togglePin = (buttonName) => {
       setPinnedRecordsButtons(prev => ({
         ...prev,
@@ -4409,10 +4466,20 @@ const CADSystem = () => {
     return (
       <div className="fixed bottom-24 left-4 z-50 w-80 animate-scale-in rounded-xl border border-white/[0.08] bg-gray-850/95 p-2 shadow-modal backdrop-blur-xl">
         <div className="flex justify-between items-center px-2 pt-1 pb-2">
-          <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-            <Database size={16} className="text-emerald-400" />
-            Records Management
-          </h3>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => goBackInRecords()}
+              className="icon-btn !h-7 !w-7"
+              title="Back to Menu (Backspace)"
+              aria-label="Back to Menu"
+            >
+              <ArrowLeft size={16} />
+            </button>
+            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+              <Database size={16} className="text-emerald-400" />
+              Records Management
+            </h3>
+          </div>
           <button onClick={() => setShowRecordsMenu(false)} className="icon-btn !h-7 !w-7">
             <X size={16} />
           </button>
@@ -4463,10 +4530,13 @@ const CADSystem = () => {
         <div className="modal-surface w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
           {/* Header */}
           <div className="modal-header">
-            <h2 className="text-lg font-semibold text-white flex items-center gap-2.5 [&>svg]:text-purple-400">
-              <FileText size={24} />
-              Records Management
-            </h2>
+            <div className="flex items-center gap-3">
+              {renderBackButton('Records Management')}
+              <h2 className="text-lg font-semibold text-white flex items-center gap-2.5 [&>svg]:text-purple-400">
+                <FileText size={24} />
+                Records Management
+              </h2>
+            </div>
             <button
               onClick={() => setActiveRecordsPanel(null)}
               className="icon-btn"
@@ -11944,18 +12014,17 @@ const CADSystem = () => {
       <div className="modal-surface w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="modal-header">
-          <h2 className="text-lg font-semibold text-white flex items-center gap-2.5 [&>svg]:text-blue-400">
-            <Search size={24} />
-            Person & Vehicle Lookup
-          </h2>
+          <div className="flex items-center gap-3">
+            {renderBackButton(selectedLookupPerson ? 'search' : 'Records Management')}
+            <h2 className="text-lg font-semibold text-white flex items-center gap-2.5 [&>svg]:text-blue-400">
+              <Search size={24} />
+              Person & Vehicle Lookup
+            </h2>
+          </div>
           <button
             onClick={() => {
               setActiveRecordsPanel(null);
-              setSelectedLookupPerson(null);
-              setLookupSearchQuery('');
-              setLookupSearchResults([]);
-              setLookupVehicleQuery('');
-              setLookupVehicleResults([]);
+              resetLookup();
             }}
             className="icon-btn"
           >
@@ -13046,19 +13115,19 @@ const CADSystem = () => {
                 </button>
               </>
             )}
-            {selectedRole === 'police' && (
+            {(selectedRole === 'police' || selectedRole === 'fire') && (
               <>
-                <button onClick={() => setPoliceView('unit')} className={`seg-item ${policeView === 'unit' ? 'seg-item-active' : ''}`}>
-                  <Shield size={15} /> My Unit
+                <button onClick={() => setUnitView('unit')} className={`seg-item ${unitView === 'unit' ? 'seg-item-active' : ''}`}>
+                  {selectedRole === 'fire' ? <Flame size={15} /> : <Shield size={15} />} My Unit
                 </button>
-                <button onClick={() => setPoliceView('map')} className={`seg-item ${policeView === 'map' ? 'seg-item-active' : ''}`}>
+                <button onClick={() => setUnitView('map')} className={`seg-item ${unitView === 'map' ? 'seg-item-active' : ''}`}>
                   <MapPin size={15} /> Live Map
                 </button>
               </>
             )}
-            {(selectedRole === 'fire' || selectedRole === 'tow') && (
+            {selectedRole === 'tow' && (
               <button className="seg-item seg-item-active">
-                {selectedRole === 'fire' ? <Flame size={15} /> : <Truck size={15} />}
+                <Truck size={15} />
                 My Unit
               </button>
             )}
@@ -13153,11 +13222,11 @@ const CADSystem = () => {
 
       <main className="flex-1 px-4 md:px-6 py-6 pb-28">
         <div className="max-w-7xl mx-auto animate-fade-in">
-        {selectedRole === 'police' && policeView === 'unit' && <UnitViewMode />}
-        {selectedRole === 'police' && policeView === 'map' && (
+        {(selectedRole === 'police' || selectedRole === 'fire') && unitView === 'unit' && <UnitViewMode />}
+        {(selectedRole === 'police' || selectedRole === 'fire') && unitView === 'map' && (
           <div className="space-y-4">
             <div>
-              <div className="eyebrow mb-1.5">Law Enforcement</div>
+              <div className="eyebrow mb-1.5">{selectedRole === 'fire' ? 'Fire/EMS' : 'Law Enforcement'}</div>
               <h2 className="text-2xl font-semibold tracking-tight">Live Map</h2>
             </div>
             <LiveMap
@@ -13165,12 +13234,13 @@ const CADSystem = () => {
               connected={fivem.connected}
               telemetry={fivem.telemetry}
               units={units}
-              myCallsign={myUnitRecord?.callsign}
+              myCallsign={myUnitRecord?.callsign || (selectedRole === 'fire' ? loggedInOfficer?.unitId : undefined)}
               getStatusLabel={getStatusLabel}
+              listTitle={selectedRole === 'fire' ? 'Active units' : 'Active LEO units'}
+              listAccent={selectedRole === 'fire' ? 'text-red-400' : 'text-blue-400'}
             />
           </div>
         )}
-        {selectedRole === 'fire' && <UnitViewMode />}
         {selectedRole === 'tow' && (
           <div className="space-y-4">
             <div>
@@ -13504,8 +13574,8 @@ const CADSystem = () => {
         </div>
       </footer>
 
-      {showRoleMenu && <RoleMenu />}
-      {showRecordsMenu && <RecordsManagementMenu />}
+      {showRoleMenu && renderRoleMenu()}
+      {showRecordsMenu && renderRecordsManagementMenu()}
       {activeRecordsPanel === 'records' && recordsPanelJSX}
       {activeRecordsPanel === 'lookup' && lookupPanelJSX}
       {showNewCall && <NewCallForm />}

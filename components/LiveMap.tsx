@@ -47,6 +47,8 @@ export default function LiveMap({
   units,
   myCallsign,
   getStatusLabel,
+  listTitle = 'Active LEO units',
+  listAccent = 'text-blue-400',
 }: {
   enabled: boolean;
   connected: boolean;
@@ -55,6 +57,10 @@ export default function LiveMap({
   units: any[];
   myCallsign?: string;
   getStatusLabel?: (status: string) => string;
+  /** Heading of the unit list under the map (differs per role). */
+  listTitle?: string;
+  /** Tailwind text colour for the list heading bar (role accent). */
+  listAccent?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 800, h: 600 });
@@ -381,14 +387,14 @@ export default function LiveMap({
 
       {/* Unit list */}
       <div className="panel p-4">
-        <h3 className="section-title text-blue-400">Active LEO units ({blips.length})</h3>
+        <h3 className={`section-title ${listAccent}`}>{listTitle} ({blips.length})</h3>
         {blips.length === 0 ? (
           <div className="py-10 text-center text-sm text-gray-400">
             <Radio size={28} className="mx-auto mb-2 text-gray-600" />
             {!enabled ? (
               <>Set <span className="font-mono text-gray-300">FIVEM_API_KEY</span> on the CAD host and install the strata-mdt resource (fivem/README.md) to see units here.</>
             ) : connected ? (
-              'No units reporting. Officers appear after running /callsign in game.'
+              'No units reporting. Units appear after setting a callsign in game.'
             ) : (
               'Waiting for the FiveM server…'
             )}
