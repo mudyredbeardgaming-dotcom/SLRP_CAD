@@ -176,12 +176,16 @@ Records (BOLO, warrant, arrest, citation) show in Lookup's "Involved In Reports 
 
 ### Dispatch board
 Dispatch → Dispatch tab is `renderDispatchBoard()`, built from the same tiled windows as the unit dashboard (`renderDashWindow`, `renderSplitHandles`).
-- **Windows:**
+- **Windows (4):**
   - `calls`: Active Calls, with the FiveM incoming queue and a New Call button in the window header.
-  - `le`: LE Units (`renderUnitRoster('police')`).
-  - `fire`: Fire/EMS Units (`renderUnitRoster('fire')`).
-- **Rosters:** units are grouped by `unitRoleOf` and sorted PANIC first. Each has status-count chips, the unit's current call (click opens it), its live FiveM location and "with" partners. The window header shows "n/m available", or PANIC.
-- **Layout:** default from `defaultLayoutFor('dispatch')`, saved in `strataUnitLayout:dispatch`.
+  - `le`, `fire`, `tow`: unit rosters (`renderUnitRoster(role)`). Units are grouped by `unitRoleOf` and sorted PANIC first. Each has status-count chips, the unit's current call (click opens it), its live location and "with" partners. Tow's busy reads "Towing".
+- **Grouping:** the LE and Fire window headers have a Users button that opens the unit-grouping screen (`activeTab === 'units'`, with a back arrow to the board).
+- **Header nav:** only Dispatch and Live Map. The old Units, Tow and Fire/EMS tabs are gone.
+- **Layouts:** they support 3 windows (LE / Fire dashboard) or 4 (Dispatch). `PRESET_SPLITS[count]`, `slotRect(preset, slot, count)` and `splitHandles(preset, count)` use `--s1/--s2/--s3`. Four-window presets:
+  - side: calls left, three stacked on the right;
+  - top: calls on top, three across below;
+  - four columns.
+- Dispatch's default comes from `defaultLayoutFor('dispatch')` and is saved in `strataUnitLayout:dispatch`. A saved layout with the wrong window count falls back to the default.
 
 ### Self-dispatch
 The Active Call window has an **Open Calls** tab (`renderOpenCalls`). It shows the unit's own call type by default: LE for police, `callTitle === 'FD'` for fire.
