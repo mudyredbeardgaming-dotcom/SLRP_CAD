@@ -278,15 +278,17 @@ Role color is a highlight (pill, dot, icon chip, header underline), not a thick 
 
 - **Login**: centered card over an ambient gradient/grid background, StrataMDT mark + wordmark, inputs with leading icons, show/hide password toggle, accent sign-in button, version footer.
 - **Role selection**: top bar (lockup, user chip, Sign Out), "Where are you working today?" heading, five role cards with icon chips; unavailable roles are dimmed with a "No access" label.
-- **Operational shell (Dispatch/Law Enforcement/Fire/Tow)**: a sticky top bar and a bottom taskbar with the PST clock.
-  - Taskbar, Dispatch and Tow: a Menu button (Change Role / Sign Out).
-  - Taskbar, Law Enforcement: Lookup, Records, BOLO and, for supervisors, Supervisor Panel buttons (`renderTaskbarButton`, with count badges).
-  - Taskbar, Law Enforcement and Fire/EMS: no Menu button. The window layout controls sit in the middle (`renderLayoutControls`: presets, reset, help tooltip). The FiveM chip (`renderFiveMChip`) and Change Role sit next to the clock, and Sign Out is on role selection.
-  - Backspace and the panel back arrow close the panel.
-  - Dispatch: lockup, role pill, segmented nav and the COM button.
-  - Law Enforcement and Fire/EMS (`unitTopBar`): one row with the lockup, the unit identity (opens Unit Information), "Riding with", the status buttons, a Units toggle for supervisors, and PANIC (LE only). There is no nav label. 10-code tags hide below 1400px.
-  - **PANIC sits alone on the right with a wide gap. Keep other controls away from it** so it isn't clicked by accident.
-  - Tow: a separate status strip.
+- **Operational shell (Dispatch/Law Enforcement/Fire/Tow)**: one shared layout.
+  - **Top bar:** a single row (`data-unit-topbar`) with the lockup and role pill, then an identity card (`renderUnitIdentity`), then the role's controls.
+    - LE / Fire / Tow: the identity card opens Unit Information. Then come the status buttons (Tow: Available / Enroute / On-Scene / Towing = busy), "Riding with", and a Units toggle for supervisors.
+    - Dispatch: the identity card shows the dispatcher, opens the COM # modal, and shows `COM …` once set. Then comes the view nav (Dispatch / Units / Tow / Fire-EMS / Live Map).
+    - PANIC (LE only) sits alone on the right with a wide gap. **Keep other controls away from it.** 10-code tags hide below 1400px.
+  - **Taskbar:**
+    - Left: LE gets Lookup / Records / BOLO / Supervisor Panel buttons (`renderTaskbarButton`, with count badges).
+    - Middle: the window layout controls (`renderLayoutControls`), LE and Fire only.
+    - Right: FiveM chip (`renderFiveMChip`), Change Role and the PST clock.
+  - There is no Menu button anymore. Sign Out is on role selection.
+  - Backspace and the panel back arrow close a records panel.
 - **Civilian portal**: sticky top bar with purple role pill and Change Role button; character cards grid; dashed empty state.
 
 ## Common Issues & Solutions
