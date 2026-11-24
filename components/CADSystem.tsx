@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AlertCircle, Radio, MapPin, Clock, User, Phone, FileText, Plus, X, Check, Shield, AlertTriangle, Lock, LogOut, Search, Database, Car, Flame, Truck, ArrowRight, Eye, EyeOff, LayoutGrid, ChevronRight, ArrowLeft, Minus, Power, RotateCcw, LayoutPanelLeft, LayoutPanelTop, Columns, GripVertical, Maximize2, Minimize2, Users, LogIn, Unlink, Pencil, ShieldCheck, ThumbsUp, ThumbsDown, Send, Info } from 'lucide-react';
+import { AlertCircle, Radio, MapPin, Clock, User, Phone, FileText, Plus, X, Check, Shield, AlertTriangle, Lock, LogOut, Search, Database, Car, Flame, Truck, ArrowRight, Eye, EyeOff, LayoutGrid, ChevronRight, ArrowLeft, Minus, Power, RotateCcw, LayoutPanelLeft, LayoutPanelTop, Columns, GripVertical, Maximize2, Minimize2, Users, LogIn, Unlink, Pencil, ShieldCheck, ThumbsUp, ThumbsDown, Send, Info, Paperclip } from 'lucide-react';
 import { BRAND, BrandMark, BrandLockup } from './Brand';
 import { useFiveMBridge, formatGameLocation } from '@/lib/fivem/useFiveMBridge';
-import LiveMap from './LiveMap';
+import LiveMap, { type MapCall } from './LiveMap';
+import { postalCoords } from '@/lib/fivem/postals';
 import { canSelfDispatch, canGroupUnits, canReviewRecords } from '@/lib/permissions';
 import { cadDatePlusYears, cadToday, isPastCadDate, liveDmvRecord, liveDmvRecords } from '@/lib/cadDate';
 
@@ -240,6 +241,8 @@ const CADSystem = () => {
   const [denyReason, setDenyReason] = useState('');
   // Civilian portal: DMV record being edited (null = adding a new one)
   const [editingDmvId, setEditingDmvId] = useState<string | null>(null);
+  // Active Call window: show the records attached to the call
+  const [showAttachments, setShowAttachments] = useState(false);
   const [editingReportId, setEditingReportId] = useState<string | null>(null);
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
 
@@ -1519,6 +1522,84 @@ const CADSystem = () => {
   };
   const groupPartners = (unit) => (unit?.groupId ? units.filter(u => u.groupId === unit.groupId && u.id !== unit.id) : []);
   const activeCallOf = (unitId) => calls.find(c => c.status !== 'CLOSED' && (c.assignedUnits || []).includes(unitId));
+
+  // ---- Records attached to a call ---------------------------------------------
+  // Units on a call share people (LE Lookup -> Send to Call) and Fire/EMS
+  // reports (report form -> Send to Call) through call.attachments:
+  //   { id, kind: 'person' | 'report', civilianId?, name, dob?, reportId?, reportType?, service, addedBy, addedByUsername, addedByUnit, addedAt }
+  // Each attach/remove also adds a call note, so dispatch sees it in the call log.
+  const attachmentEntry = (att: any) => ({
+    id: `ATT-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    ...att,
+    addedBy: loggedInOfficer?.displayName || loggedInOfficer?.username || '',
+    addedByUsername: loggedInOfficer?.username || null,
+    addedByUnit: callsignOf(selectedUnit) || loggedInOfficer?.unitId || '',
+    addedAt: new Date().toISOString(),
+  });
+  const sameAttachment = (a: any, b: any) => a.kind === b.kind && (
+    b.reportId ? a.reportId === b.reportId : b.civilianId ? a.civilianId === b.civilianId : String(a.name).toLowerCase() === String(b.name).toLowerCase());
+  const describeAttachment = (a: any) => (a.kind === 'report' ? `${a.reportType || 'report'}${a.recordNumber ? ` #${a.recordNumber}` : ''}${a.name ? ` (${a.name})` : ''}` : `${a.name}${a.dob ? ` (DOB ${a.dob})` : ''}`);
+  /** Calls with `att` attached to callId (unchanged if it's already there). */
+  const withAttachment = (list: any[], callId: string, att: any) => list.map(c => {
+    if (c.id !== callId || (c.attachments || []).some((a: any) => sameAttachment(a, att))) return c;
+    const entry = attachmentEntry(att);
+    return {
+      ...c,
+      attachments: [...(c.attachments || []), entry],
+      callNotes: [...(c.callNotes || []), { text: `${entry.addedByUnit || entry.addedBy} attached ${describeAttachment(entry)} to the call`, timestamp: entry.addedAt }],
+    };
+  });
+  const attachToCall = (callId: string, att: any) => {
+    const newCalls = withAttachment(calls, callId, att);
+    setCalls(newCalls);
+    saveDataImmediately({ units, calls: newCalls, civilians, officerReports, officerRecords, officerCredentials });
+  };
+  const detachFromCall = (callId: string, attId: string) => {
+    const now = new Date().toISOString();
+    const newCalls = calls.map(c => {
+      if (c.id !== callId) return c;
+      const gone = (c.attachments || []).find((a: any) => a.id === attId);
+      if (!gone) return c;
+      return {
+        ...c,
+        attachments: c.attachments.filter((a: any) => a.id !== attId),
+        callNotes: [...(c.callNotes || []), { text: `${callsignOf(selectedUnit) || loggedInOfficer?.displayName || 'Unit'} removed ${describeAttachment(gone)} from the call`, timestamp: now }],
+      };
+    });
+    setCalls(newCalls);
+    saveDataImmediately({ units, calls: newCalls, civilians, officerReports, officerRecords, officerCredentials });
+  };
+  /** Attachments a role may see: Fire/EMS reports (patient data) stay with Fire/EMS and dispatch. */
+  const visibleAttachments = (call: any) => (call?.attachments || [])
+    .filter((a: any) => !(a.kind === 'report' && a.service === 'FIRE' && selectedRole === 'police'));
+
+  // ---- Calls on the live maps -------------------------------------------------
+  // A call is placed at its game position (calls made from an in-game 911 keep
+  // the caller's location), else at its postal code (approximate).
+  const isFireCall = (c: any) => String(c?.callTitle || '').toUpperCase() === 'FD';
+  const mapCallsFor = (keep: (c: any) => boolean): MapCall[] => calls
+    .filter(c => c.status !== 'CLOSED' && keep(c))
+    .map(c => {
+      const exact = c.location && typeof c.location.x === 'number' && typeof c.location.y === 'number' ? c.location : null;
+      const byPostal = exact ? null : postalCoords(c.postal);
+      const pos = exact || byPostal;
+      return {
+        id: String(c.id),
+        code: c.code,
+        priority: String(c.priority ?? ''),
+        address: c.address,
+        postal: c.postal,
+        x: pos ? pos.x : null,
+        y: pos ? pos.y : null,
+        approx: !exact && !!byPostal,
+        units: (c.assignedUnits || []).map(callsignOf).filter(Boolean),
+        status: c.status,
+      };
+    });
+  const openCallById = (id: string) => {
+    const c = calls.find(x => String(x.id) === String(id));
+    if (c) setSelectedCall(c);
+  };
   /** Groups left with fewer than two members are dissolved. */
   const dissolveSmallGroups = (list: any[]) => {
     const count: Record<string, number> = {};
@@ -12314,20 +12395,30 @@ const CADSystem = () => {
     setCurrentReportData({});
     setEditingReportId(null);
   };
-  const saveFireReport = (status: 'DRAFT' | 'SUBMITTED') => {
+  /** Saves the report; with `sendToCallId` it is also attached to that call (one save for both). */
+  const saveFireReport = (status: 'DRAFT' | 'SUBMITTED', sendToCallId?: string) => {
     const now = new Date().toISOString();
+    const id = editingReportId || `RPT-${Date.now()}`;
     const data = {
       ...currentReportData,
       service: 'FIRE',
       status,
       reviewStatus: status,
       ...(status === 'SUBMITTED' && !currentReportData.submittedAt ? { submittedAt: now } : {}),
+      ...(sendToCallId ? { callId: currentReportData.callId || sendToCallId } : {}),
     };
     const newReports = editingReportId
       ? officerReports.map(r => (r.id === editingReportId ? { ...data, updatedAt: now } : r))
-      : [...officerReports, { ...data, id: `RPT-${Date.now()}`, createdAt: now, updatedAt: now }];
+      : [...officerReports, { ...data, id, createdAt: now, updatedAt: now }];
+    const newCalls = sendToCallId
+      ? withAttachment(calls, sendToCallId, {
+          kind: 'report', service: 'FIRE', reportId: id, reportType: data.type, recordNumber: data.recordNumber,
+          name: data.patient?.name || '', civilianId: data.patient?.civilianId || null,
+        })
+      : calls;
     setOfficerReports(newReports);
-    saveDataImmediately({ units, calls, civilians, officerReports: newReports, officerRecords, officerCredentials });
+    if (newCalls !== calls) setCalls(newCalls);
+    saveDataImmediately({ units, calls: newCalls, civilians, officerReports: newReports, officerRecords, officerCredentials });
     closeFireReport();
   };
   const fireField = (label: string, key: string, opts: { type?: string; placeholder?: string; span?: boolean; options?: string[]; readOnly?: boolean } = {}) => (
@@ -12472,6 +12563,22 @@ const CADSystem = () => {
           </div>
 
           <div className="flex justify-end gap-2 border-t border-white/[0.06] pt-4">
+            {(() => {
+              const onCall = selectedUnit ? activeCallOf(selectedUnit) : null;
+              if (!onCall) return null;
+              const attached = editingReportId && (onCall.attachments || []).some((a: any) => a.kind === 'report' && a.reportId === editingReportId);
+              return (
+                <button
+                  onClick={() => saveFireReport((currentReportData.status as any) === 'SUBMITTED' ? 'SUBMITTED' : 'DRAFT', onCall.id)}
+                  disabled={!!attached}
+                  className="btn btn-primary mr-auto disabled:opacity-50"
+                  title={attached ? 'Already attached to the call' : 'Save and attach this report to your call for the other units'}
+                  data-send-report-to-call
+                >
+                  {attached ? <><Check size={14} /> Attached to call #{onCall.id}</> : <><Send size={14} /> Send to Call #{onCall.id}</>}
+                </button>
+              );
+            })()}
             <button onClick={closeFireReport} className="btn btn-secondary">Cancel</button>
             <button onClick={() => saveFireReport('DRAFT')} className="btn bg-yellow-600 text-white hover:bg-yellow-500">Save as Draft</button>
             <button onClick={() => saveFireReport('SUBMITTED')} className="btn btn-danger">{currentReportData.status === 'SUBMITTED' && editingReportId ? 'Save' : 'Submit Report'}</button>
@@ -13294,8 +13401,26 @@ const CADSystem = () => {
                 <div className="text-sm text-white">{value || <span className="text-gray-500">N/A</span>}</div>
               </div>
             );
+            const onCall = selectedUnit ? activeCallOf(selectedUnit) : null;
+            const alreadyAttached = !!onCall && (onCall.attachments || []).some((a: any) => a.kind === 'person' && (a.civilianId ? a.civilianId === person.id : normName(a.name) === normName(civName(person))));
             return (
             <div className="space-y-4">
+              {/* Share this person with the units on my call */}
+              {onCall && (
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-accent-500/25 bg-accent-500/[0.07] px-3 py-2" data-send-to-call>
+                  <span className="text-sm text-gray-300">
+                    On call <span className="font-mono text-white">#{onCall.id}</span> · {onCall.code}
+                  </span>
+                  <button
+                    onClick={() => attachToCall(onCall.id, { kind: 'person', service: 'LE', civilianId: person.id, name: civName(person), dob: civDob(person) })}
+                    disabled={alreadyAttached}
+                    className="btn btn-primary btn-sm disabled:opacity-50"
+                    title={alreadyAttached ? 'Already attached to the call' : 'Attach this person to your call for the other units'}
+                  >
+                    {alreadyAttached ? <><Check size={14} /> Attached to call</> : <><Send size={14} /> Send to Call #{onCall.id}</>}
+                  </button>
+                </div>
+              )}
               {/* Wanted check: shown first so the officer sees it immediately */}
               {h.wanted ? (
                 <div className="rounded-xl border border-red-500/50 bg-red-500/10 p-4 shadow-[0_0_0_1px_rgb(239_68_68/0.15)]" role="alert">
@@ -13973,16 +14098,74 @@ const CADSystem = () => {
                   <span className="bg-yellow-600 text-white px-2.5 py-0.5 rounded-full text-xs font-semibold tracking-wide">PRIMARY UNIT</span>
                 )}
                 <span className="bg-blue-600 text-white px-2.5 py-0.5 rounded-full text-xs font-semibold tracking-wide">{activeCall.callTitle}</span>
-                {selfDispatchAllowed && (
+                <div className="ml-auto flex items-center gap-2">
                   <button
-                    onClick={() => selfDetach(activeCall.id)}
-                    className="btn btn-secondary btn-sm ml-auto"
-                    title="Clear yourself from this call"
+                    onClick={() => setShowAttachments(v => !v)}
+                    className={`btn btn-secondary btn-sm ${showAttachments ? '!border-accent-500/40 !bg-accent-500/10' : ''}`}
+                    title="People and reports attached to this call"
+                    aria-expanded={showAttachments}
+                    data-attached-button
                   >
-                    <Unlink size={14} /> Clear from call
+                    <Paperclip size={14} /> Attached Records
+                    <span className="rounded-full bg-white/[0.08] px-1.5 text-xs font-bold">{visibleAttachments(activeCall).length}</span>
                   </button>
-                )}
+                  {selfDispatchAllowed && (
+                    <button
+                      onClick={() => selfDetach(activeCall.id)}
+                      className="btn btn-secondary btn-sm"
+                      title="Clear yourself from this call"
+                    >
+                      <Unlink size={14} /> Clear from call
+                    </button>
+                  )}
+                </div>
               </div>
+
+              {showAttachments && (
+                <div className="panel-card" data-attachments>
+                  <div className="eyebrow mb-2 flex items-center gap-2"><Paperclip size={14} /> Attached Records ({visibleAttachments(activeCall).length})</div>
+                  {visibleAttachments(activeCall).length === 0 ? (
+                    <p className="text-sm text-gray-500">
+                      Nothing attached yet. {selectedRole === 'police' ? 'Use "Send to Call" in Lookup to attach a person.' : 'Use "Send to Call" in a Fire/EMS report to attach it.'}
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {visibleAttachments(activeCall).map((a: any) => {
+                        const civ = a.kind === 'person' ? civilians.find(c => (a.civilianId ? c.id === a.civilianId : normName(civName(c)) === normName(a.name))) : null;
+                        const rep = a.kind === 'report' ? officerReports.find(r => r.id === a.reportId) : null;
+                        const wanted = civ && selectedRole === 'police' ? getPersonHistory(civ).wanted : false;
+                        return (
+                          <div key={a.id} className="subcard flex flex-wrap items-center justify-between gap-2 p-2.5">
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                {a.kind === 'report' ? <FileText size={14} className="text-red-300" /> : <User size={14} className="text-blue-300" />}
+                                <span className="text-sm font-semibold text-white">{a.kind === 'report' ? `${a.reportType}${a.recordNumber ? ` #${a.recordNumber}` : ''}` : a.name}</span>
+                                {a.kind === 'person' && a.dob && <span className="text-xs text-gray-400">DOB {a.dob}</span>}
+                                {a.kind === 'report' && a.name && <span className="text-xs text-gray-400">Patient: {a.name}</span>}
+                                {wanted && <span className="rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">WANTED</span>}
+                              </div>
+                              <div className="mt-0.5 text-[11px] text-gray-500">Added by {a.addedByUnit || a.addedBy}{a.addedAt ? ` · ${formatPSTTime(a.addedAt)}` : ''}</div>
+                            </div>
+                            <div className="flex gap-1.5">
+                              {selectedRole === 'police' && civ && (
+                                <button onClick={() => { setActiveRecordsPanel('lookup'); selectLookupPerson(civ); }} className="btn btn-secondary btn-sm"><Eye size={14} /> View</button>
+                              )}
+                              {selectedRole === 'fire' && rep && (
+                                <button onClick={() => { setActiveRecordsPanel('fire-reports'); openExistingReport(rep); }} className="btn btn-secondary btn-sm"><Eye size={14} /> View</button>
+                              )}
+                              {a.addedByUsername && a.addedByUsername === loggedInOfficer?.username && (
+                                <button onClick={() => detachFromCall(activeCall.id, a.id)} className="icon-btn !h-8 !w-8 text-gray-500 hover:text-red-400" title="Remove from call" aria-label={`Remove ${a.name || a.reportType} from call`}>
+                                  <X size={14} />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="panel-card">
                 <div className="eyebrow mb-1.5">Call Type</div>
@@ -14217,8 +14400,12 @@ const CADSystem = () => {
               units={units}
               myCallsign={myUnit.callsign || (selectedRole === 'fire' ? loggedInOfficer?.unitId : undefined)}
               getStatusLabel={getStatusLabel}
-              listTitle={selectedRole === 'fire' ? 'Active units' : 'Active LEO units'}
+              listTitle={selectedRole === 'fire' ? 'Active Fire/EMS units' : 'Active LEO units'}
               listAccent={accent}
+              // LE: LE calls + LE units. Fire/EMS: fire calls + Fire/EMS units.
+              calls={mapCallsFor(c => (selectedRole === 'fire' ? isFireCall(c) : !isFireCall(c)))}
+              onOpenCall={openCallById}
+              unitFilter={(u) => !!u && unitRoleOf(u) === selectedRole}
             />
           ), { flush: true })}
           {renderSplitHandles()}
@@ -14401,6 +14588,21 @@ const CADSystem = () => {
             </div>
 
             <div className="space-y-4">
+              {(call.attachments || []).length > 0 && (
+                <div className="panel-card" data-call-attachments>
+                  <h3 className="eyebrow mb-3 flex items-center gap-2"><Paperclip size={14} /> Attached Records ({call.attachments.length})</h3>
+                  <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                    {call.attachments.map((a: any) => (
+                      <div key={a.id} className="rounded-md border border-white/[0.05] bg-gray-950/40 p-2 text-sm">
+                        <span className="font-semibold text-white">{a.kind === 'report' ? `${a.reportType}${a.recordNumber ? ` #${a.recordNumber}` : ''}` : a.name}</span>
+                        {a.kind === 'person' && a.dob && <span className="ml-2 text-xs text-gray-400">DOB {a.dob}</span>}
+                        <span className="ml-2 text-xs text-gray-500">by {a.addedByUnit || a.addedBy}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="panel-card">
                 <h3 className="eyebrow mb-3">Assigned ({assigned.length})</h3>
                 <div className="space-y-2 max-h-40 overflow-y-auto">
@@ -15115,7 +15317,10 @@ const CADSystem = () => {
                                   description: alert.description || '',
                                   caller: alert.caller || '',
                                   phone: alert.phone || '',
-                                  fivemAlertId: alert.id
+                                  fivemAlertId: alert.id,
+                                  // exact position for the live map
+                                  ...(typeof alert.location?.x === 'number' && typeof alert.location?.y === 'number'
+                                    ? { location: { x: alert.location.x, y: alert.location.y, z: alert.location.z } } : {})
                                 });
                                 setShowNewCall(true);
                               }}
@@ -15384,6 +15589,10 @@ const CADSystem = () => {
                 getStatusLabel={getStatusLabel}
                 listTitle="All units"
                 listAccent="text-emerald-400"
+                calls={mapCallsFor(() => true)}
+                onOpenCall={openCallById}
+                roleOf={(u) => (u ? unitRoleOf(u) : 'other')}
+                roleToggles
               />
             </div>
           </div>
