@@ -1145,6 +1145,9 @@ const CADSystem = () => {
   // Users drag a window's title bar onto another to swap them, drag the gaps to
   // resize, pick a preset, or maximize one window. Saved per role in localStorage.
   const DEFAULT_UNIT_LAYOUT = { preset: 'side', order: ['call', 'map', 'history'], s1: 0.36, s2: 0.6, maximized: null as string | null };
+  // Dispatch board: Active Calls (large, left), LE Units, Fire/EMS Units
+  const DEFAULT_DISPATCH_LAYOUT = { preset: 'side', order: ['calls', 'le', 'fire'], s1: 0.5, s2: 0.55, maximized: null as string | null };
+  const defaultLayoutFor = (role: any) => (role === 'dispatch' ? DEFAULT_DISPATCH_LAYOUT : DEFAULT_UNIT_LAYOUT);
   const [unitLayout, setUnitLayoutState] = useState<any>(DEFAULT_UNIT_LAYOUT);
   const [dragPanel, setDragPanel] = useState<string | null>(null);
   const [dragOverPanel, setDragOverPanel] = useState<string | null>(null);
@@ -1193,9 +1196,10 @@ const CADSystem = () => {
   useEffect(() => {
     let saved: any = null;
     try { saved = JSON.parse(localStorage.getItem(`strataUnitLayout:${selectedRole}`) || 'null'); } catch {}
+    const def = defaultLayoutFor(selectedRole);
     const valid = saved && ['side', 'top', 'columns'].includes(saved.preset) && Array.isArray(saved.order)
-      && saved.order.length === 3 && ['call', 'map', 'history'].every(id => saved.order.includes(id));
-    setUnitLayoutState(valid ? { ...DEFAULT_UNIT_LAYOUT, ...saved } : DEFAULT_UNIT_LAYOUT);
+      && saved.order.length === 3 && def.order.every(id => saved.order.includes(id));
+    setUnitLayoutState(valid ? { ...def, ...saved } : def);
     setCallPanelTab('mine');
     setGroupSelect(null);
     setUnitScreen('mine');
@@ -13760,7 +13764,7 @@ const CADSystem = () => {
         key={id}
         data-window={id}
         style={style}
-        className={isWide ? 'p-1.5' : id === 'map' ? 'h-[60vh]' : id === 'history' ? 'max-h-[60vh]' : ''}
+        className={isWide ? 'p-1.5' : id === 'map' ? 'h-[60vh]' : ['history', 'le', 'fire'].includes(id) ? 'max-h-[60vh]' : ''}
         onDragOver={(e) => {
           if (!dragPanel || dragPanel === id) return;
           e.preventDefault();
@@ -13869,6 +13873,26 @@ const CADSystem = () => {
       </div>
     );
   };
+
+  /** Resize handles between the tiled windows (unit dashboard and dispatch board). */
+  const renderSplitHandles = () => (
+    <>
+      {isWide && !unitLayout.maximized && splitHandles(unitLayout.preset).map(h => (
+        <div
+          key={h.key + h.axis}
+          role="separator"
+          aria-orientation={h.axis === 'x' ? 'vertical' : 'horizontal'}
+          aria-label="Resize windows"
+          onPointerDown={(e) => startSplitDrag(e, h.key as any, h.axis as any)}
+          onDoubleClick={() => setUnitLayout((l: any) => ({ ...l, [h.key]: UNIT_LAYOUT_PRESETS[l.preset][h.key] }))}
+          className={`group absolute z-10 flex items-center justify-center ${h.axis === 'x' ? 'w-3 -ml-1.5 cursor-col-resize' : 'h-3 -mt-1.5 cursor-row-resize'}`}
+          style={h.style as any}
+        >
+          <span className={`rounded-full bg-white/[0.08] transition-colors group-hover:bg-accent-500/60 ${h.axis === 'x' ? 'h-10 w-1' : 'h-1 w-10'}`} />
+        </div>
+      ))}
+    </>
+  );
 
   const renderUnitDashboard = () => {
     const myUnit = selectedUnit ? units.find(u => u.id === selectedUnit) : null;
@@ -14171,20 +14195,7 @@ const CADSystem = () => {
               listAccent={accent}
             />
           ), { flush: true })}
-          {isWide && !unitLayout.maximized && splitHandles(unitLayout.preset).map(h => (
-            <div
-              key={h.key + h.axis}
-              role="separator"
-              aria-orientation={h.axis === 'x' ? 'vertical' : 'horizontal'}
-              aria-label="Resize windows"
-              onPointerDown={(e) => startSplitDrag(e, h.key as any, h.axis as any)}
-              onDoubleClick={() => setUnitLayout((l: any) => ({ ...l, [h.key]: UNIT_LAYOUT_PRESETS[l.preset][h.key] }))}
-              className={`group absolute z-10 flex items-center justify-center ${h.axis === 'x' ? 'w-3 -ml-1.5 cursor-col-resize' : 'h-3 -mt-1.5 cursor-row-resize'}`}
-              style={h.style as any}
-            >
-              <span className={`rounded-full bg-white/[0.08] transition-colors group-hover:bg-accent-500/60 ${h.axis === 'x' ? 'h-10 w-1' : 'h-1 w-10'}`} />
-            </div>
-          ))}
+          {renderSplitHandles()}
         </div>
       </div>
     );
@@ -14939,6 +14950,200 @@ const CADSystem = () => {
   const activeCallList = calls.filter(c => c.status !== 'CLOSED');
   const priorityStripe = (p) => (p === '1' ? 'before:bg-red-500' : p === '2' ? 'before:bg-yellow-500' : p === '3' ? 'before:bg-blue-500' : 'before:bg-gray-500');
 
+  // ---- Dispatch board: Active Calls, LE Units and Fire/EMS Units as tiled windows
+  // (same movable / resizable layout as the LE and Fire/EMS dashboards).
+  const ROSTER_STATUS_ORDER = ['panic', 'enroute', 'onscene', 'busy', 'available', 'unavailable'];
+  const renderUnitRoster = (role: 'police' | 'fire') => {
+    const list = units
+      .filter(u => unitRoleOf(u) === role)
+      .sort((a, b) => {
+        const sa = ROSTER_STATUS_ORDER.indexOf(a.status), sb = ROSTER_STATUS_ORDER.indexOf(b.status);
+        return (sa < 0 ? 99 : sa) - (sb < 0 ? 99 : sb) || String(a.callsign).localeCompare(String(b.callsign));
+      });
+    const counts = ROSTER_STATUS_ORDER.map(st => [st, list.filter(u => u.status === st).length] as const).filter(([, n]) => n > 0);
+    if (list.length === 0) {
+      return (
+        <div className="rounded-xl border border-dashed border-white/[0.1] p-8 text-center text-sm text-gray-400">
+          No {role === 'fire' ? 'Fire/EMS' : 'LE'} units.
+        </div>
+      );
+    }
+    return (
+      <div className="space-y-2">
+        <div className="mb-1 flex flex-wrap gap-1.5">
+          {counts.map(([st, n]) => (
+            <span key={st} className="chip !py-0.5 text-[11px]">
+              <span className={`mr-1.5 inline-block h-2 w-2 rounded-full ${getStatusColor(st)}`} />{getStatusLabel(st)} <span className="ml-1 font-mono">{n}</span>
+            </span>
+          ))}
+        </div>
+        {list.map(u => {
+          const call = calls.find(c => c.status !== 'CLOSED' && (c.assignedUnits || []).includes(u.id));
+          const live = formatGameLocation(fivem.telemetryFor(u.callsign)?.location);
+          const partners = groupPartners(u);
+          return (
+            <div key={u.id} className={`subcard p-2.5 ${u.status === 'panic' ? '!border-red-500/50 !bg-red-500/10' : ''}`} data-roster-unit={u.callsign}>
+              <div className="flex items-center gap-2">
+                <span className={`h-2.5 w-2.5 flex-shrink-0 rounded-full ${getStatusColor(u.status)}`} />
+                <span className="font-mono text-sm font-semibold text-white">{u.callsign}</span>
+                <span className="truncate text-xs text-gray-400">{u.officer}</span>
+                {u.subdivision && <span className="chip !py-0 text-[10px]">{u.subdivision}</span>}
+                <span className={`ml-auto flex-shrink-0 text-[11px] font-semibold uppercase tracking-wider ${u.status === 'available' ? 'text-green-400' : u.status === 'panic' ? 'text-red-400' : u.status === 'unavailable' ? 'text-gray-400' : 'text-blue-300'}`}>
+                  {getStatusLabel(u.status)}
+                </span>
+              </div>
+              {(call || live || partners.length > 0) && (
+                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 pl-[18px] text-xs">
+                  {call && (
+                    <button onClick={() => setSelectedCall(call)} className="flex items-center gap-1 text-gray-300 hover:text-white">
+                      <Radio size={11} className="text-accent-400" /> <span className="font-mono">#{call.id}</span> {call.code}
+                    </button>
+                  )}
+                  {live && <span className="flex items-center gap-1 text-emerald-300"><MapPin size={11} />{live}</span>}
+                  {partners.length > 0 && <span className="flex items-center gap-1 text-accent-300"><Users size={11} />with {partners.map(x => x.callsign).join(', ')}</span>}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+  const rosterSummary = (role: 'police' | 'fire') => {
+    const list = units.filter(u => unitRoleOf(u) === role);
+    const avail = list.filter(u => u.status === 'available').length;
+    const panic = list.some(u => u.status === 'panic');
+    return (
+      <span className={`ml-auto text-xs ${panic ? 'font-bold text-red-400 animate-pulse' : 'text-gray-400'}`}>
+        {panic ? 'PANIC' : `${avail}/${list.length} available`}
+      </span>
+    );
+  };
+  const renderDispatchBoard = () => (
+    <div className="flex h-full flex-col">
+      <div
+        ref={layoutRef}
+        className={isWide ? 'relative -m-1.5 min-h-0 flex-1' : 'flex flex-col gap-3'}
+        style={isWide ? ({ '--s1': unitLayout.s1, '--s2': unitLayout.s2 } as any) : undefined}
+      >
+        {renderDashWindow('calls', `Active Calls (${activeCallList.length})`, <Radio size={15} className="text-emerald-400" />, (
+          <>
+            {fivem.pending.length > 0 && (
+              <div className="panel-card mb-3">
+                <h3 className="section-title text-red-400">Incoming from FiveM ({fivem.pending.length})</h3>
+                <div className="grid gap-2 max-h-80 overflow-y-auto pr-1">
+                  {fivem.pending.map(alert => {
+                    const where = formatGameLocation(alert.location);
+                    const isPanic = alert.kind === 'panic';
+                    return (
+                      <div
+                        key={alert.id}
+                        className={`subcard flex flex-wrap items-center justify-between gap-3 ${isPanic ? '!border-red-500/40 !bg-red-500/10' : ''}`}
+                      >
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className={`rounded-md px-2 py-0.5 text-xs font-bold ${isPanic ? 'bg-red-600 text-white animate-pulse' : 'bg-yellow-500/20 text-yellow-300'}`}>
+                              {isPanic ? 'PANIC' : '911'}
+                            </span>
+                            <span className="font-semibold text-white">
+                              {isPanic ? `${alert.callsign}${alert.officer ? ` · ${alert.officer}` : ''}` : (alert.caller || 'Unknown caller')}
+                            </span>
+                            {alert.phone && <span className="font-mono text-xs text-gray-400">{alert.phone}</span>}
+                            <span className="font-mono text-xs text-gray-500">{formatPSTTime(new Date(alert.receivedAt).toISOString())}</span>
+                          </div>
+                          {alert.description && <p className="mt-1 text-sm text-gray-300">{alert.description}</p>}
+                          {where && (
+                            <p className="mt-1 flex items-center gap-1.5 text-xs text-gray-400"><MapPin size={12} />{where}</p>
+                          )}
+                        </div>
+                        <div className="flex gap-2 flex-shrink-0">
+                          {!isPanic && (
+                            <button
+                              onClick={() => {
+                                setNewCallPrefill({
+                                  callOrigin: 'CALLER',
+                                  address: [alert.location?.street, alert.location?.crossStreet].filter(Boolean).join(' / ') || alert.location?.zone || '',
+                                  postal: alert.location?.postal || '',
+                                  description: alert.description || '',
+                                  caller: alert.caller || '',
+                                  phone: alert.phone || '',
+                                  fivemAlertId: alert.id
+                                });
+                                setShowNewCall(true);
+                              }}
+                              className="btn btn-primary btn-sm"
+                            >
+                              <Plus size={14} /> Create Call
+                            </button>
+                          )}
+                          <button onClick={() => fivem.acknowledge(alert.id)} className="btn btn-secondary btn-sm">
+                            {isPanic ? 'Acknowledge' : 'Dismiss'}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {activeCallList.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-white/[0.1] bg-white/[0.02] px-8 py-12 text-center">
+                <Radio size={36} className="mx-auto mb-3 text-gray-600" />
+                <p className="text-white font-medium">No active calls</p>
+                <p className="text-sm text-gray-400 mt-1">New calls you create will appear here.</p>
+              </div>
+            ) : (
+              <div className="grid gap-2">
+                {activeCallList.map(call => (
+                  <div
+                    key={call.id}
+                    onClick={() => setSelectedCall(call)}
+                    className={`group panel relative overflow-hidden p-4 pl-5 cursor-pointer transition-all duration-150 hover:bg-gray-800 hover:!border-white/[0.12] before:absolute before:inset-y-0 before:left-0 before:w-1 ${priorityStripe(call.priority)}`}
+                  >
+                    <div className="flex justify-between items-start gap-4">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-mono text-xs text-gray-500">#{call.id}</span>
+                          <span className={`${getPriorityColor(call.priority)} text-white px-2 py-0.5 rounded-md text-xs font-semibold`}>
+                            {/^\d$/.test(String(call.priority)) ? `P${call.priority}` : call.priority}
+                          </span>
+                          <span className="text-white font-semibold truncate">{call.code}</span>
+                        </div>
+                        <div className="mt-1.5 flex items-center gap-1.5 text-sm text-gray-400">
+                          <MapPin size={14} className="flex-shrink-0" />
+                          <span className="truncate">{call.address}</span>
+                          {call.postal && <span className="font-mono text-xs text-gray-500">· {call.postal}</span>}
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                        <span className="font-mono text-sm text-gray-400">{formatPSTTime(call.timestamp)}</span>
+                        <span className="text-xs text-gray-500">{call.assignedUnits?.length || 0} unit{(call.assignedUnits?.length || 0) === 1 ? '' : 's'}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        ), {
+          extra: (
+            <button
+              onClick={() => { setNewCallPrefill(null); setShowNewCall(true); }}
+              onDoubleClick={(e) => e.stopPropagation()}
+              className="btn btn-primary btn-sm ml-auto"
+            >
+              <Plus size={14} /> New Call
+            </button>
+          ),
+        })}
+        {renderDashWindow('le', 'LE Units', <Shield size={15} className="text-blue-400" />, renderUnitRoster('police'), { extra: rosterSummary('police') })}
+        {renderDashWindow('fire', 'Fire/EMS Units', <Flame size={15} className="text-red-400" />, renderUnitRoster('fire'), { extra: rosterSummary('fire') })}
+        {renderSplitHandles()}
+      </div>
+    </div>
+  );
+
   // ---- Taskbar (Law Enforcement / Fire-EMS) ----------------------------------
   // LE gets Lookup, Records, BOLO and (supervisors) Supervisor Panel as buttons;
   // both roles get Change Role next to the clock. Sign Out is on role selection.
@@ -14970,7 +15175,7 @@ const CADSystem = () => {
           );
         })}
       </div>
-      <button onClick={() => setUnitLayout(DEFAULT_UNIT_LAYOUT)} className="icon-btn" title="Reset window layout" aria-label="Reset window layout">
+      <button onClick={() => setUnitLayout(defaultLayoutFor(selectedRole))} className="icon-btn" title="Reset window layout" aria-label="Reset window layout">
         <RotateCcw size={15} />
       </button>
       <span
@@ -15000,9 +15205,12 @@ const CADSystem = () => {
 
   // The unit dashboard and the dispatch map fill the screen between header and taskbar.
   const showUnitGroups = (selectedRole === 'police' || selectedRole === 'fire') && unitScreen === 'units' && groupUnitsAllowed;
-  const fullHeightView = ((selectedRole === 'police' || selectedRole === 'fire') && !showUnitGroups) || (selectedRole === 'dispatch' && activeTab === 'map');
+  const fullHeightView = ((selectedRole === 'police' || selectedRole === 'fire') && !showUnitGroups)
+    || (selectedRole === 'dispatch' && (activeTab === 'map' || activeTab === 'dispatch'));
   // Only LE / Fire-EMS have the tiled unit dashboard
-  const showLayoutControls = (selectedRole === 'police' || selectedRole === 'fire') && !showUnitGroups && isWide && !!myUnitRecord;
+  const showLayoutControls = isWide && (
+    ((selectedRole === 'police' || selectedRole === 'fire') && !showUnitGroups && !!myUnitRecord)
+    || (selectedRole === 'dispatch' && activeTab === 'dispatch'));
 
   return (
     <div className={`text-white flex flex-col ${fullHeightView ? 'min-h-screen lg:h-screen lg:overflow-hidden' : 'min-h-screen'}`}>
@@ -15174,120 +15382,7 @@ const CADSystem = () => {
           </div>
         )}
 
-        {selectedRole === 'dispatch' && activeTab === 'dispatch' && (
-          <div className="space-y-5">
-            <div className="flex flex-wrap justify-between items-end gap-4">
-              <div>
-                <div className="eyebrow mb-1.5">Dispatch Board</div>
-                <h2 className="text-2xl font-semibold tracking-tight flex items-center gap-3">
-                  Active Calls
-                  <span className="chip font-mono">{activeCallList.length}</span>
-                </h2>
-              </div>
-              <button onClick={() => { setNewCallPrefill(null); setShowNewCall(true); }} className="btn btn-primary shadow-glow">
-                <Plus size={18} /> New Call
-              </button>
-            </div>
-
-            {fivem.pending.length > 0 && (
-              <div className="panel p-4">
-                <h3 className="section-title text-red-400">Incoming from FiveM ({fivem.pending.length})</h3>
-                <div className="grid gap-2 max-h-80 overflow-y-auto pr-1">
-                  {fivem.pending.map(alert => {
-                    const where = formatGameLocation(alert.location);
-                    const isPanic = alert.kind === 'panic';
-                    return (
-                      <div
-                        key={alert.id}
-                        className={`subcard flex flex-wrap items-center justify-between gap-3 ${isPanic ? '!border-red-500/40 !bg-red-500/10' : ''}`}
-                      >
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className={`rounded-md px-2 py-0.5 text-xs font-bold ${isPanic ? 'bg-red-600 text-white animate-pulse' : 'bg-yellow-500/20 text-yellow-300'}`}>
-                              {isPanic ? 'PANIC' : '911'}
-                            </span>
-                            <span className="font-semibold text-white">
-                              {isPanic ? `${alert.callsign}${alert.officer ? ` · ${alert.officer}` : ''}` : (alert.caller || 'Unknown caller')}
-                            </span>
-                            {alert.phone && <span className="font-mono text-xs text-gray-400">{alert.phone}</span>}
-                            <span className="font-mono text-xs text-gray-500">{formatPSTTime(new Date(alert.receivedAt).toISOString())}</span>
-                          </div>
-                          {alert.description && <p className="mt-1 text-sm text-gray-300">{alert.description}</p>}
-                          {where && (
-                            <p className="mt-1 flex items-center gap-1.5 text-xs text-gray-400"><MapPin size={12} />{where}</p>
-                          )}
-                        </div>
-                        <div className="flex gap-2 flex-shrink-0">
-                          {!isPanic && (
-                            <button
-                              onClick={() => {
-                                setNewCallPrefill({
-                                  callOrigin: 'CALLER',
-                                  address: [alert.location?.street, alert.location?.crossStreet].filter(Boolean).join(' / ') || alert.location?.zone || '',
-                                  postal: alert.location?.postal || '',
-                                  description: alert.description || '',
-                                  caller: alert.caller || '',
-                                  phone: alert.phone || '',
-                                  fivemAlertId: alert.id
-                                });
-                                setShowNewCall(true);
-                              }}
-                              className="btn btn-primary btn-sm"
-                            >
-                              <Plus size={14} /> Create Call
-                            </button>
-                          )}
-                          <button onClick={() => fivem.acknowledge(alert.id)} className="btn btn-secondary btn-sm">
-                            {isPanic ? 'Acknowledge' : 'Dismiss'}
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {activeCallList.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-white/[0.1] bg-white/[0.02] px-8 py-16 text-center">
-                <Radio size={36} className="mx-auto mb-3 text-gray-600" />
-                <p className="text-white font-medium">No active calls</p>
-                <p className="text-sm text-gray-400 mt-1">New calls you create will appear here.</p>
-              </div>
-            ) : (
-              <div className="grid gap-3">
-                {activeCallList.map(call => (
-                  <div
-                    key={call.id}
-                    onClick={() => setSelectedCall(call)}
-                    className={`group panel relative overflow-hidden p-4 pl-5 cursor-pointer transition-all duration-150 hover:bg-gray-800 hover:!border-white/[0.12] before:absolute before:inset-y-0 before:left-0 before:w-1 ${priorityStripe(call.priority)}`}
-                  >
-                    <div className="flex justify-between items-start gap-4">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-mono text-xs text-gray-500">#{call.id}</span>
-                          <span className={`${getPriorityColor(call.priority)} text-white px-2 py-0.5 rounded-md text-xs font-semibold`}>
-                            {/^\d$/.test(String(call.priority)) ? `P${call.priority}` : call.priority}
-                          </span>
-                          <span className="text-white font-semibold truncate">{call.code}</span>
-                        </div>
-                        <div className="mt-1.5 flex items-center gap-1.5 text-sm text-gray-400">
-                          <MapPin size={14} className="flex-shrink-0" />
-                          <span className="truncate">{call.address}</span>
-                          {call.postal && <span className="font-mono text-xs text-gray-500">· {call.postal}</span>}
-                        </div>
-                      </div>
-                      <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-                        <span className="font-mono text-sm text-gray-400">{formatPSTTime(call.timestamp)}</span>
-                        <span className="text-xs text-gray-500">{call.assignedUnits?.length || 0} unit{(call.assignedUnits?.length || 0) === 1 ? '' : 's'}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+        {selectedRole === 'dispatch' && activeTab === 'dispatch' && renderDispatchBoard()}
 
         {selectedRole === 'dispatch' && activeTab === 'units' && renderDispatchUnits()}
 
