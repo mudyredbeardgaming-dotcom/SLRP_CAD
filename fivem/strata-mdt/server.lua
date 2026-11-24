@@ -338,6 +338,7 @@ local function handleCommand(c)
     sendToCallsigns(c.callsigns, 'strata:callAssigned', c.call)
   elseif c.type == 'call_closed' then
     sendToCallsigns(c.callsigns, 'strata:notify', ('Cleared from call #%s.'):format(c.callId))
+    sendToCallsigns(c.callsigns, 'strata:callCleared', c.callId)
   elseif c.type == 'unit_status' then
     sendToCallsigns({ c.callsign }, 'strata:notify', ('CAD status: %s'):format(c.status))
   elseif c.type == 'notify' then

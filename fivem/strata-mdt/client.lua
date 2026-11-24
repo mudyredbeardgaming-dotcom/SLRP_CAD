@@ -120,6 +120,7 @@ suggest('runname', 'Run a name through the CAD', { { name = 'name', help = 'Firs
 suggest('aop', 'Set the area of play', { { name = 'area', help = 'e.g. Blaine County' } })
 suggest('linkcad', 'Link your CAD account', { { name = 'code', help = 'Code from the CAD civilian portal' } })
 suggest('cadsync', 'Send your current character, licenses and vehicles to the CAD')
+suggest('callgps', 'Set your GPS to your assigned call again')
 suggest('cite', 'Write a citation (filed in the CAD)', { { name = 'player id', help = 'Server id of the person' }, { name = 'fine', help = 'Amount' }, { name = 'offense', help = 'e.g. Speeding 45 in a 35' } })
 suggest('dlexpiry', 'Set your driver license expiration date', { { name = 'date', help = 'YYYY-MM-DD, or "auto" for one year from today' } })
 suggest('regexpiry', 'Set a vehicle registration expiration date', { { name = 'plate', help = 'Plate number' }, { name = 'date', help = 'YYYY-MM-DD, or "auto" for one year from today' } })
@@ -132,11 +133,42 @@ RegisterNetEvent('strata:notify', function(msg)
   notify(tostring(msg))
 end)
 
+-- GPS to the assigned call (Config.Waypoints)
+local currentCall = nil
+
+local function setCallWaypoint(call, manual)
+  if type(call) ~= 'table' or type(call.x) ~= 'number' or type(call.y) ~= 'number' then
+    if manual then notify('~y~GPS~s~ This call has no map location (no postal).') end
+    return false
+  end
+  SetNewWaypoint(call.x + 0.0, call.y + 0.0)
+  if manual then
+    notify(('~b~GPS~s~ Route set to call #%s%s'):format(call.id or '?', call.gpsApprox and ' (postal)' or ''))
+  end
+  return true
+end
+
+RegisterNetEvent('strata:callCleared', function(callId)
+  if not currentCall or tostring(currentCall.id) ~= tostring(callId) then return end
+  currentCall = nil
+  if Config.Waypoints and Config.Waypoints.clearOnClose ~= false and IsWaypointActive() then
+    SetWaypointOff()
+  end
+end)
+
+Strata.RegisterCommand('callgps', function()
+  if not currentCall then return notify('You are not assigned to a call.') end
+  setCallWaypoint(currentCall, true)
+end)
+
 RegisterNetEvent('strata:callAssigned', function(call)
   if type(call) ~= 'table' then return end
+  currentCall = call
+  local gps = Config.Waypoints and Config.Waypoints.enabled ~= false and setCallWaypoint(call, false)
   local where = call.address or ''
   if call.postal and call.postal ~= '' then where = ('%s (Postal %s)'):format(where, call.postal) end
-  notify(('~b~CAD~s~ Assigned to #%s: ~y~%s~s~ %s'):format(call.id or '?', call.code or 'CALL', where))
+  notify(('~b~CAD~s~ Assigned to #%s: ~y~%s~s~ %s%s'):format(call.id or '?', call.code or 'CALL', where,
+    gps and (call.gpsApprox and ' ~g~GPS set (postal)~s~' or ' ~g~GPS set~s~') or ''))
   PlaySoundFrontend(-1, 'Event_Start_Text', 'GTAO_FM_Events_Soundset', false)
 end)
 

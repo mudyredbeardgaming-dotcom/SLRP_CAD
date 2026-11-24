@@ -46,6 +46,10 @@ export async function POST(request: NextRequest) {
               address: c.call.address,
               postal: c.call.postal,
               description: c.call.description ? String(c.call.description).slice(0, 500) : undefined,
+              // Position for the unit's GPS waypoint
+              ...(Number.isFinite(Number(c.call.x)) && Number.isFinite(Number(c.call.y)) && c.call.x !== null && c.call.y !== null
+                ? { x: Number(c.call.x), y: Number(c.call.y), gpsApprox: !!c.call.gpsApprox }
+                : {}),
             },
           };
         }

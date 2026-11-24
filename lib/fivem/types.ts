@@ -203,6 +203,10 @@ export interface OutboundCall {
   address?: string;
   postal?: string;
   description?: string;
+  /** World position for the unit's GPS: the 911 caller's position, else the postal (gpsApprox). */
+  x?: number;
+  y?: number;
+  gpsApprox?: boolean;
 }
 
 export type FiveMCommand =

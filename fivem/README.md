@@ -54,6 +54,7 @@ These are the default names. Every one can be renamed, given aliases or turned o
 | `/aop <area>` | `strata.aop` | Sets the server AOP, which is shown in the CAD top bar and announced to players. |
 | `/linkcad CODE` | Anyone | Links your FiveM identity to your CAD account (get the code in the CAD civilian portal). |
 | `/cadsync` | Anyone | Sends your current character, licenses and vehicles to the CAD right now. |
+| `/callgps` | Anyone | Sets your GPS to your assigned call again (after you cleared the waypoint). |
 | `/cite <id> <fine> <offense>` | LEO | Writes a citation to player `<id>` and files it in the CAD. Example: `/cite 12 250 Speeding 45 in a 35`. See [Citations](#citations-written-in-game). |
 | `/dlexpiry <date\|auto>` | Anyone | Sets your driver license expiration, e.g. `/dlexpiry 2027-06-30`. `auto` means one year from the CAD date. |
 | `/regexpiry <plate> <date\|auto>` | Anyone | Sets a vehicle registration expiration on your own vehicle. |
@@ -167,6 +168,25 @@ The same calls exist as server events: `strata-mdt:setCharacter`, `strata-mdt:se
 - **Deleting characters:** a synced character deleted in the CAD less than 15 minutes after a game update may come back.
   - Why: during that window the server re-adds recent game changes whenever a browser saves, so a browser holding older data can't erase them.
   - The fix: wait 15 minutes before deleting.
+
+## GPS to calls
+
+When a unit is put on a call in the CAD, that player's map gets a waypoint to the call automatically. This covers LE, Fire/EMS and Tow, and every way a unit gets put on a call:
+- dispatch assigns it;
+- the unit self-dispatches;
+- a new call auto-assigns it;
+- it rides in a group with an assigned unit.
+
+**Where the waypoint goes:**
+- A call made from an in-game `/911` routes to the caller's position.
+- Other calls route to their postal code, and the notification says "(postal)".
+- A call with neither gets no waypoint.
+
+**After the call:**
+- When the unit is cleared from the call, or the call closes, the waypoint is removed. Turn that off with `Config.Waypoints.clearOnClose = false`.
+- `/callgps` sets the waypoint again. Turn the whole feature off with `Config.Waypoints.enabled = false`.
+
+Units are matched by callsign, so Fire and Tow players also need to run `/callsign` (e.g. `/callsign ENGINE-1`, `/callsign TOW-1`). If you set `Config.LeoAce`, give those players the ACE too, or set `leo = false` on the `callsign` command.
 
 ## Citations written in game
 
@@ -283,14 +303,14 @@ The first call takes no `since` and returns only the current `cursor`, so a rest
 
 ```jsonc
 { "ok": true, "cursor": 7, "commands": [
-  { "seq": 6, "at": 1732380000000, "command": { "type": "call_assigned", "callsigns": ["A-101"], "call": { "id": "000012", "code": "ASSAULT", "priority": "1", "address": "Route 68", "postal": "1234" } } },
+  { "seq": 6, "at": 1732380000000, "command": { "type": "call_assigned", "callsigns": ["A-101"], "call": { "id": "000012", "code": "ASSAULT", "priority": "1", "address": "Route 68", "postal": "1234", "x": 1043.2, "y": 2671.4, "gpsApprox": true } } },
   { "seq": 7, "at": 1732380005000, "command": { "type": "notify", "message": "All units 10-3", "callsigns": [] } }
 ] }
 ```
 
 These are the command types:
 
-- `call_assigned`: a unit was put on a call.
+- `call_assigned`: a unit was put on a call. The resource sets a GPS waypoint to `x`/`y` (see [GPS to calls](#gps-to-calls)). `gpsApprox` is true when the position came from the postal code.
 - `call_closed`: the call was closed, or the unit was removed from it.
 - `unit_status`
 - `notify`: an empty or missing `callsigns` list means everyone.
