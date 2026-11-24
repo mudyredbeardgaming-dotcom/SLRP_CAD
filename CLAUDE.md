@@ -174,6 +174,15 @@ Records (BOLO, warrant, arrest, citation) show in Lookup's "Involved In Reports 
 - Windows keep a fixed DOM order and are only repositioned, so the map keeps its pan and zoom.
 - Below 1024px the windows stack.
 
+### Dispatch board
+Dispatch → Dispatch tab is `renderDispatchBoard()`, built from the same tiled windows as the unit dashboard (`renderDashWindow`, `renderSplitHandles`).
+- **Windows:**
+  - `calls`: Active Calls, with the FiveM incoming queue and a New Call button in the window header.
+  - `le`: LE Units (`renderUnitRoster('police')`).
+  - `fire`: Fire/EMS Units (`renderUnitRoster('fire')`).
+- **Rosters:** units are grouped by `unitRoleOf` and sorted PANIC first. Each has status-count chips, the unit's current call (click opens it), its live FiveM location and "with" partners. The window header shows "n/m available", or PANIC.
+- **Layout:** default from `defaultLayoutFor('dispatch')`, saved in `strataUnitLayout:dispatch`.
+
 ### Self-dispatch
 The Active Call window has an **Open Calls** tab (`renderOpenCalls`). It shows the unit's own call type by default: LE for police, `callTitle === 'FD'` for fire.
 - Attach (`selfAttach`) and Clear from call (`selfDetach`) add a call note.
@@ -300,7 +309,7 @@ Role color is a highlight (pill, dot, icon chip, header underline), not a thick 
     - PANIC (LE only) sits alone on the right with a wide gap. **Keep other controls away from it.** 10-code tags hide below 1400px.
   - **Taskbar:**
     - Left: LE gets Lookup / Records / BOLO / Supervisor Panel buttons (`renderTaskbarButton`, with count badges). Fire/EMS gets Reports.
-    - Middle: the window layout controls (`renderLayoutControls`), LE and Fire only.
+    - Middle: the window layout controls (`renderLayoutControls`), shown for the LE / Fire dashboards and the Dispatch board.
     - Right: FiveM chip (`renderFiveMChip`), Change Role and the PST clock.
   - There is no Menu button anymore. Sign Out is on role selection.
   - Backspace and the panel back arrow close a records panel.
