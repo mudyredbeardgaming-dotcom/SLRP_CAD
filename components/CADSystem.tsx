@@ -1146,7 +1146,7 @@ const CADSystem = () => {
   // resize, pick a preset, or maximize one window. Saved per role in localStorage.
   const DEFAULT_UNIT_LAYOUT = { preset: 'side', order: ['call', 'map', 'history'], s1: 0.36, s2: 0.6, maximized: null as string | null };
   // Dispatch board: Active Calls (large, left), LE Units, Fire/EMS Units
-  const DEFAULT_DISPATCH_LAYOUT = { preset: 'side', order: ['calls', 'le', 'fire'], s1: 0.5, s2: 0.55, maximized: null as string | null };
+  const DEFAULT_DISPATCH_LAYOUT = { preset: 'side', order: ['calls', 'le', 'fire', 'tow'], s1: 0.45, s2: 0.4, s3: 0.72, maximized: null as string | null };
   const defaultLayoutFor = (role: any) => (role === 'dispatch' ? DEFAULT_DISPATCH_LAYOUT : DEFAULT_UNIT_LAYOUT);
   const [unitLayout, setUnitLayoutState] = useState<any>(DEFAULT_UNIT_LAYOUT);
   const [dragPanel, setDragPanel] = useState<string | null>(null);
@@ -1198,7 +1198,7 @@ const CADSystem = () => {
     try { saved = JSON.parse(localStorage.getItem(`strataUnitLayout:${selectedRole}`) || 'null'); } catch {}
     const def = defaultLayoutFor(selectedRole);
     const valid = saved && ['side', 'top', 'columns'].includes(saved.preset) && Array.isArray(saved.order)
-      && saved.order.length === 3 && def.order.every(id => saved.order.includes(id));
+      && saved.order.length === def.order.length && def.order.every(id => saved.order.includes(id));
     setUnitLayoutState(valid ? { ...def, ...saved } : def);
     setCallPanelTab('mine');
     setGroupSelect(null);
@@ -13679,16 +13679,37 @@ const CADSystem = () => {
   };
 
   // ---- Unit dashboard: tiled, movable windows ---------------------------------
-  const UNIT_LAYOUT_PRESETS: Record<string, { label: string; s1: number; s2: number; icon: any }> = {
-    side: { label: 'Large window left', s1: 0.36, s2: 0.6, icon: LayoutPanelLeft },
-    top: { label: 'Large window on top', s1: 0.55, s2: 0.5, icon: LayoutPanelTop },
-    columns: { label: 'Three columns', s1: 0.34, s2: 0.67, icon: Columns },
+  // Layouts work for 3 windows (LE / Fire dashboard) or 4 (Dispatch board).
+  // --s1/--s2/--s3 are the split positions (0..1) the windows are placed by.
+  const UNIT_LAYOUT_PRESETS: Record<string, { label: string; icon: any }> = {
+    side: { label: 'Large window left', icon: LayoutPanelLeft },
+    top: { label: 'Large window on top', icon: LayoutPanelTop },
+    columns: { label: 'Columns', icon: Columns },
   };
+  const PRESET_SPLITS: Record<number, Record<string, { s1: number; s2: number; s3?: number }>> = {
+    3: { side: { s1: 0.36, s2: 0.6 }, top: { s1: 0.55, s2: 0.5 }, columns: { s1: 0.34, s2: 0.67 } },
+    4: { side: { s1: 0.45, s2: 0.34, s3: 0.67 }, top: { s1: 0.5, s2: 0.34, s3: 0.67 }, columns: { s1: 0.34, s2: 0.56, s3: 0.78 } },
+  };
+  const windowCount = (l: any = unitLayout) => (l?.order?.length === 4 ? 4 : 3);
+  const presetSplits = (preset: string, count: number) => PRESET_SPLITS[count][preset] || PRESET_SPLITS[count].side;
+  const presetLabel = (k: string, count: number) => (k === 'columns' ? (count === 4 ? 'Four columns' : 'Three columns') : UNIT_LAYOUT_PRESETS[k].label);
   const pct = (expr: string) => `calc(${expr} * 100%)`;
-  /** Position of slot 0..2 for a preset, in terms of the --s1/--s2 split variables. */
-  const slotRect = (preset: string, slot: number) => {
-    const S1 = 'var(--s1)', S2 = 'var(--s2)';
+  /** Position of a window slot for a preset, in terms of the --s1/--s2/--s3 split variables. */
+  const slotRect = (preset: string, slot: number, count = 3) => {
+    const S1 = 'var(--s1)', S2 = 'var(--s2)', S3 = 'var(--s3)';
     const r = (left, top, width, height) => ({ left, top, width, height });
+    if (count === 4) {
+      if (preset === 'top') {
+        return [r('0%', '0%', '100%', pct(S1)), r('0%', pct(S1), pct(S2), pct(`(1 - ${S1})`)),
+          r(pct(S2), pct(S1), pct(`(${S3} - ${S2})`), pct(`(1 - ${S1})`)), r(pct(S3), pct(S1), pct(`(1 - ${S3})`), pct(`(1 - ${S1})`))][slot];
+      }
+      if (preset === 'columns') {
+        return [r('0%', '0%', pct(S1), '100%'), r(pct(S1), '0%', pct(`(${S2} - ${S1})`), '100%'),
+          r(pct(S2), '0%', pct(`(${S3} - ${S2})`), '100%'), r(pct(S3), '0%', pct(`(1 - ${S3})`), '100%')][slot];
+      }
+      return [r('0%', '0%', pct(S1), '100%'), r(pct(S1), '0%', pct(`(1 - ${S1})`), pct(S2)),
+        r(pct(S1), pct(S2), pct(`(1 - ${S1})`), pct(`(${S3} - ${S2})`)), r(pct(S1), pct(S3), pct(`(1 - ${S1})`), pct(`(1 - ${S3})`))][slot];
+    }
     if (preset === 'top') {
       return [r('0%', '0%', '100%', pct(S1)), r('0%', pct(S1), pct(S2), pct(`(1 - ${S1})`)), r(pct(S2), pct(S1), pct(`(1 - ${S2})`), pct(`(1 - ${S1})`))][slot];
     }
@@ -13698,20 +13719,20 @@ const CADSystem = () => {
     return [r('0%', '0%', pct(S1), '100%'), r(pct(S1), '0%', pct(`(1 - ${S1})`), pct(S2)), r(pct(S1), pct(S2), pct(`(1 - ${S1})`), pct(`(1 - ${S2})`))][slot];
   };
   /** Resize handles: which split each one moves, along which axis, and where it sits. */
-  const splitHandles = (preset: string) => {
-    const S1 = 'var(--s1)', S2 = 'var(--s2)';
-    if (preset === 'top') return [
-      { key: 's1', axis: 'y', style: { left: '0%', width: '100%', top: pct(S1) } },
-      { key: 's2', axis: 'x', style: { top: pct(S1), height: pct(`(1 - ${S1})`), left: pct(S2) } },
-    ];
-    if (preset === 'columns') return [
-      { key: 's1', axis: 'x', style: { top: '0%', height: '100%', left: pct(S1) } },
-      { key: 's2', axis: 'x', style: { top: '0%', height: '100%', left: pct(S2) } },
-    ];
-    return [
-      { key: 's1', axis: 'x', style: { top: '0%', height: '100%', left: pct(S1) } },
-      { key: 's2', axis: 'y', style: { left: pct(S1), width: pct(`(1 - ${S1})`), top: pct(S2) } },
-    ];
+  const splitHandles = (preset: string, count = 3) => {
+    const S1 = 'var(--s1)', S2 = 'var(--s2)', S3 = 'var(--s3)';
+    const full = (k: string, at: string) => ({ key: k, axis: 'x', style: { top: '0%', height: '100%', left: pct(at) } });
+    if (preset === 'top') {
+      const bottom = (k: string, at: string) => ({ key: k, axis: 'x', style: { top: pct(S1), height: pct(`(1 - ${S1})`), left: pct(at) } });
+      return [
+        { key: 's1', axis: 'y', style: { left: '0%', width: '100%', top: pct(S1) } },
+        bottom('s2', S2),
+        ...(count === 4 ? [bottom('s3', S3)] : []),
+      ];
+    }
+    if (preset === 'columns') return [full('s1', S1), full('s2', S2), ...(count === 4 ? [full('s3', S3)] : [])];
+    const right = (k: string, at: string) => ({ key: k, axis: 'y', style: { left: pct(S1), width: pct(`(1 - ${S1})`), top: pct(at) } });
+    return [full('s1', S1), right('s2', S2), ...(count === 4 ? [right('s3', S3)] : [])];
   };
   const swapPanels = (a: string, b: string) => setUnitLayout((l: any) => {
     const order = [...l.order];
@@ -13720,22 +13741,27 @@ const CADSystem = () => {
     [order[i], order[j]] = [order[j], order[i]];
     return { ...l, order };
   });
-  const applyPreset = (preset: string) => setUnitLayout((l: any) => ({ ...l, preset, s1: UNIT_LAYOUT_PRESETS[preset].s1, s2: UNIT_LAYOUT_PRESETS[preset].s2, maximized: null }));
+  const applyPreset = (preset: string) => setUnitLayout((l: any) => ({ ...l, preset, ...presetSplits(preset, windowCount(l)), maximized: null }));
   // Resizing writes the CSS variable directly while dragging (no re-render) and commits on release.
-  const startSplitDrag = (e: React.PointerEvent, key: 's1' | 's2', axis: 'x' | 'y') => {
+  const startSplitDrag = (e: React.PointerEvent, key: 's1' | 's2' | 's3', axis: 'x' | 'y') => {
     const el = layoutRef.current;
     if (!el || e.button !== 0) return;
     e.preventDefault();
     const rect = el.getBoundingClientRect();
     const handle = e.currentTarget as HTMLElement;
     handle.setPointerCapture(e.pointerId);
-    const { preset, s1, s2 } = unitLayout;
-    let value = key === 's1' ? s1 : s2;
+    const layout = unitLayout;
+    const count = windowCount(layout);
+    let value = layout[key];
+    // Splits along the same line keep their order (and a minimum gap)
+    const chain = layout.preset === 'columns' ? (count === 4 ? ['s1', 's2', 's3'] : ['s1', 's2']) : (count === 4 ? ['s2', 's3'] : []);
+    const pos = chain.indexOf(key);
     const move = (ev: PointerEvent) => {
       const f = axis === 'x' ? (ev.clientX - rect.left) / rect.width : (ev.clientY - rect.top) / rect.height;
       let min = 0.2, max = 0.8;
-      if (preset === 'columns') {
-        if (key === 's1') { min = 0.15; max = s2 - 0.15; } else { min = s1 + 0.15; max = 0.85; }
+      if (pos >= 0) {
+        min = pos > 0 ? layout[chain[pos - 1]] + 0.12 : 0.12;
+        max = pos < chain.length - 1 ? layout[chain[pos + 1]] - 0.12 : 0.88;
       }
       value = Math.min(max, Math.max(min, f));
       el.style.setProperty(`--${key}`, String(value));
@@ -13755,7 +13781,7 @@ const CADSystem = () => {
     const slot = unitLayout.order.indexOf(id);
     const max = unitLayout.maximized;
     const visible = !max || max === id || !isWide;
-    const rect = max === id ? { left: '0%', top: '0%', width: '100%', height: '100%' } : slotRect(unitLayout.preset, slot);
+    const rect = max === id ? { left: '0%', top: '0%', width: '100%', height: '100%' } : slotRect(unitLayout.preset, slot, windowCount());
     const style: any = isWide
       ? { position: 'absolute', ...rect, display: visible ? undefined : 'none' }
       : { order: slot };
@@ -13764,7 +13790,7 @@ const CADSystem = () => {
         key={id}
         data-window={id}
         style={style}
-        className={isWide ? 'p-1.5' : id === 'map' ? 'h-[60vh]' : ['history', 'le', 'fire'].includes(id) ? 'max-h-[60vh]' : ''}
+        className={isWide ? 'p-1.5' : id === 'map' ? 'h-[60vh]' : ['history', 'le', 'fire', 'tow'].includes(id) ? 'max-h-[60vh]' : ''}
         onDragOver={(e) => {
           if (!dragPanel || dragPanel === id) return;
           e.preventDefault();
@@ -13877,14 +13903,14 @@ const CADSystem = () => {
   /** Resize handles between the tiled windows (unit dashboard and dispatch board). */
   const renderSplitHandles = () => (
     <>
-      {isWide && !unitLayout.maximized && splitHandles(unitLayout.preset).map(h => (
+      {isWide && !unitLayout.maximized && splitHandles(unitLayout.preset, windowCount()).map(h => (
         <div
           key={h.key + h.axis}
           role="separator"
           aria-orientation={h.axis === 'x' ? 'vertical' : 'horizontal'}
           aria-label="Resize windows"
           onPointerDown={(e) => startSplitDrag(e, h.key as any, h.axis as any)}
-          onDoubleClick={() => setUnitLayout((l: any) => ({ ...l, [h.key]: UNIT_LAYOUT_PRESETS[l.preset][h.key] }))}
+          onDoubleClick={() => setUnitLayout((l: any) => ({ ...l, [h.key]: (presetSplits(l.preset, windowCount(l)) as any)[h.key] }))}
           className={`group absolute z-10 flex items-center justify-center ${h.axis === 'x' ? 'w-3 -ml-1.5 cursor-col-resize' : 'h-3 -mt-1.5 cursor-row-resize'}`}
           style={h.style as any}
         >
@@ -14170,7 +14196,7 @@ const CADSystem = () => {
         <div
           ref={layoutRef}
           className={isWide ? 'relative -m-1.5 min-h-0 flex-1' : 'flex flex-col gap-3'}
-          style={isWide ? ({ '--s1': unitLayout.s1, '--s2': unitLayout.s2 } as any) : undefined}
+          style={isWide ? ({ '--s1': unitLayout.s1, '--s2': unitLayout.s2, '--s3': unitLayout.s3 ?? 0.67 } as any) : undefined}
         >
           {renderDashWindow('call', 'Active Call', <span className={`block h-2 w-2 rounded-full ${activeCall ? (selectedRole === 'fire' ? 'bg-red-400' : 'bg-blue-400') + ' animate-pulse' : 'bg-gray-600'}`} />, callWindowBody, {
             extra: selfDispatchAllowed ? (
@@ -14776,9 +14802,16 @@ const CADSystem = () => {
     return (
       <div className="space-y-5">
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <div className="eyebrow mb-1.5">{isDispatch ? 'Dispatch' : selectedRole === 'fire' ? 'Fire/EMS supervisor' : 'Law Enforcement supervisor'}</div>
-            <h2 className="text-2xl font-semibold tracking-tight">Units</h2>
+          <div className="flex items-center gap-3">
+            {isDispatch && (
+              <button onClick={() => { setGroupSelect(null); setActiveTab('dispatch'); }} className="icon-btn" title="Back to the board" aria-label="Back to the board">
+                <ArrowLeft size={18} />
+              </button>
+            )}
+            <div>
+              <div className="eyebrow mb-1.5">{isDispatch ? 'Dispatch' : selectedRole === 'fire' ? 'Fire/EMS supervisor' : 'Law Enforcement supervisor'}</div>
+              <h2 className="text-2xl font-semibold tracking-tight">Units</h2>
+            </div>
           </div>
           {!selecting && groupUnitsAllowed ? (
             <button onClick={() => { setGroupSelect([]); setGroupNameDraft(''); }} className="btn btn-primary">
@@ -14953,7 +14986,7 @@ const CADSystem = () => {
   // ---- Dispatch board: Active Calls, LE Units and Fire/EMS Units as tiled windows
   // (same movable / resizable layout as the LE and Fire/EMS dashboards).
   const ROSTER_STATUS_ORDER = ['panic', 'enroute', 'onscene', 'busy', 'available', 'unavailable'];
-  const renderUnitRoster = (role: 'police' | 'fire') => {
+  const renderUnitRoster = (role: 'police' | 'fire' | 'tow') => {
     const list = units
       .filter(u => unitRoleOf(u) === role)
       .sort((a, b) => {
@@ -14964,7 +14997,7 @@ const CADSystem = () => {
     if (list.length === 0) {
       return (
         <div className="rounded-xl border border-dashed border-white/[0.1] p-8 text-center text-sm text-gray-400">
-          No {role === 'fire' ? 'Fire/EMS' : 'LE'} units.
+          No {role === 'fire' ? 'Fire/EMS' : role === 'tow' ? 'tow' : 'LE'} units.
         </div>
       );
     }
@@ -14973,7 +15006,7 @@ const CADSystem = () => {
         <div className="mb-1 flex flex-wrap gap-1.5">
           {counts.map(([st, n]) => (
             <span key={st} className="chip !py-0.5 text-[11px]">
-              <span className={`mr-1.5 inline-block h-2 w-2 rounded-full ${getStatusColor(st)}`} />{getStatusLabel(st)} <span className="ml-1 font-mono">{n}</span>
+              <span className={`mr-1.5 inline-block h-2 w-2 rounded-full ${getStatusColor(st)}`} />{rosterStatusLabel(role, st)} <span className="ml-1 font-mono">{n}</span>
             </span>
           ))}
         </div>
@@ -14989,7 +15022,7 @@ const CADSystem = () => {
                 <span className="truncate text-xs text-gray-400">{u.officer}</span>
                 {u.subdivision && <span className="chip !py-0 text-[10px]">{u.subdivision}</span>}
                 <span className={`ml-auto flex-shrink-0 text-[11px] font-semibold uppercase tracking-wider ${u.status === 'available' ? 'text-green-400' : u.status === 'panic' ? 'text-red-400' : u.status === 'unavailable' ? 'text-gray-400' : 'text-blue-300'}`}>
-                  {getStatusLabel(u.status)}
+                  {rosterStatusLabel(role, u.status)}
                 </span>
               </div>
               {(call || live || partners.length > 0) && (
@@ -15009,13 +15042,28 @@ const CADSystem = () => {
       </div>
     );
   };
-  const rosterSummary = (role: 'police' | 'fire') => {
+  /** Tow's "busy" is Towing (same as its status button). */
+  const rosterStatusLabel = (role: string, st: string) => (role === 'tow' && st === 'busy' ? 'Towing' : getStatusLabel(st));
+  const rosterSummary = (role: 'police' | 'fire' | 'tow') => {
     const list = units.filter(u => unitRoleOf(u) === role);
     const avail = list.filter(u => u.status === 'available').length;
     const panic = list.some(u => u.status === 'panic');
     return (
-      <span className={`ml-auto text-xs ${panic ? 'font-bold text-red-400 animate-pulse' : 'text-gray-400'}`}>
-        {panic ? 'PANIC' : `${avail}/${list.length} available`}
+      <span className="ml-auto flex items-center gap-2">
+        <span className={`text-xs ${panic ? 'font-bold text-red-400 animate-pulse' : 'text-gray-400'}`}>
+          {panic ? 'PANIC' : `${avail}/${list.length} available`}
+        </span>
+        {role !== 'tow' && (
+          <button
+            onClick={() => setActiveTab('units')}
+            onDoubleClick={(e) => e.stopPropagation()}
+            className="icon-btn !h-7 !w-7"
+            title="Group units (riding together)"
+            aria-label={`Group ${role === 'fire' ? 'Fire/EMS' : 'LE'} units`}
+          >
+            <Users size={14} />
+          </button>
+        )}
       </span>
     );
   };
@@ -15024,7 +15072,7 @@ const CADSystem = () => {
       <div
         ref={layoutRef}
         className={isWide ? 'relative -m-1.5 min-h-0 flex-1' : 'flex flex-col gap-3'}
-        style={isWide ? ({ '--s1': unitLayout.s1, '--s2': unitLayout.s2 } as any) : undefined}
+        style={isWide ? ({ '--s1': unitLayout.s1, '--s2': unitLayout.s2, '--s3': unitLayout.s3 ?? 0.67 } as any) : undefined}
       >
         {renderDashWindow('calls', `Active Calls (${activeCallList.length})`, <Radio size={15} className="text-emerald-400" />, (
           <>
@@ -15139,6 +15187,7 @@ const CADSystem = () => {
         })}
         {renderDashWindow('le', 'LE Units', <Shield size={15} className="text-blue-400" />, renderUnitRoster('police'), { extra: rosterSummary('police') })}
         {renderDashWindow('fire', 'Fire/EMS Units', <Flame size={15} className="text-red-400" />, renderUnitRoster('fire'), { extra: rosterSummary('fire') })}
+        {renderDashWindow('tow', 'Tow Units', <Truck size={15} className="text-orange-400" />, renderUnitRoster('tow'), { extra: rosterSummary('tow') })}
         {renderSplitHandles()}
       </div>
     </div>
@@ -15167,8 +15216,8 @@ const CADSystem = () => {
               key={k}
               onClick={() => applyPreset(k)}
               className={`seg-item !px-2.5 ${unitLayout.preset === k && !unitLayout.maximized ? 'seg-item-active' : ''}`}
-              title={UNIT_LAYOUT_PRESETS[k].label}
-              aria-label={UNIT_LAYOUT_PRESETS[k].label}
+              title={presetLabel(k, windowCount())}
+              aria-label={presetLabel(k, windowCount())}
             >
               <I size={15} />
             </button>
@@ -15253,17 +15302,8 @@ const CADSystem = () => {
 
           {selectedRole === 'dispatch' && (
             <nav className="seg" aria-label="Dispatch views">
-              <button onClick={() => setActiveTab('dispatch')} className={`seg-item ${activeTab === 'dispatch' ? 'seg-item-active' : ''}`}>
+              <button onClick={() => setActiveTab('dispatch')} className={`seg-item ${activeTab !== 'map' ? 'seg-item-active' : ''}`}>
                 <Radio size={15} /> Dispatch
-              </button>
-              <button onClick={() => setActiveTab('units')} className={`seg-item ${activeTab === 'units' ? 'seg-item-active' : ''}`}>
-                <Shield size={15} /> Units
-              </button>
-              <button onClick={() => setActiveTab('tow')} className={`seg-item ${activeTab === 'tow' ? 'seg-item-active' : ''}`}>
-                <Truck size={15} /> Tow
-              </button>
-              <button onClick={() => setActiveTab('fire-ems')} className={`seg-item ${activeTab === 'fire-ems' ? 'seg-item-active' : ''}`}>
-                <Flame size={15} /> Fire/EMS
               </button>
               <button onClick={() => setActiveTab('map')} className={`seg-item ${activeTab === 'map' ? 'seg-item-active' : ''}`}>
                 <MapPin size={15} /> Live Map
@@ -15386,72 +15426,6 @@ const CADSystem = () => {
 
         {selectedRole === 'dispatch' && activeTab === 'units' && renderDispatchUnits()}
 
-        {selectedRole === 'dispatch' && activeTab === 'tow' && (
-          <div className="space-y-5">
-            <div>
-              <div className="eyebrow mb-1.5">Dispatch</div>
-              <h2 className="text-2xl font-semibold tracking-tight">Tow Management</h2>
-            </div>
-
-            <div className="panel p-6">
-              <h3 className="section-title text-orange-400">Active Tow Requests</h3>
-              <p className="text-gray-400 text-sm text-center py-8">No active tow requests</p>
-            </div>
-
-            <div className="panel p-6">
-              <h3 className="section-title text-orange-400">Available Tow Trucks</h3>
-              <div className="grid md:grid-cols-3 gap-3">
-                {[
-                  { id: 'TOW-1', driver: "Mike's Towing" },
-                  { id: 'TOW-2', driver: 'Quick Tow' },
-                ].map(t => (
-                  <div key={t.id} className="panel-card">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-mono font-semibold">{t.id}</h4>
-                      <div className="w-2.5 h-2.5 rounded-full bg-green-500"></div>
-                    </div>
-                    <div className="text-sm text-gray-400">Driver: {t.driver}</div>
-                    <div className="mt-2 text-xs font-semibold uppercase tracking-wider text-green-400">Available</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {selectedRole === 'dispatch' && activeTab === 'fire-ems' && (
-          <div className="space-y-5">
-            <div>
-              <div className="eyebrow mb-1.5">Dispatch</div>
-              <h2 className="text-2xl font-semibold tracking-tight">Fire/EMS Management</h2>
-            </div>
-
-            <div className="panel p-6">
-              <h3 className="section-title text-red-400">Active Fire/EMS Calls</h3>
-              <p className="text-gray-400 text-sm text-center py-8">No active fire/EMS calls</p>
-            </div>
-
-            <div className="panel p-6">
-              <h3 className="section-title text-red-400">Available Units</h3>
-              <div className="grid md:grid-cols-3 gap-3">
-                {[
-                  { id: 'ENGINE-1', station: 'Station 1' },
-                  { id: 'MEDIC-1', station: 'EMS Station 1' },
-                  { id: 'LADDER-1', station: 'Station 1' },
-                ].map(f => (
-                  <div key={f.id} className="panel-card">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-mono font-semibold">{f.id}</h4>
-                      <div className="w-2.5 h-2.5 rounded-full bg-green-500"></div>
-                    </div>
-                    <div className="text-sm text-gray-400">{f.station}</div>
-                    <div className="mt-2 text-xs font-semibold uppercase tracking-wider text-green-400">Available</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
         </div>
       </main>
 
