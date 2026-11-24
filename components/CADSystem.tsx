@@ -1505,10 +1505,16 @@ const CADSystem = () => {
     ['safetyGang', 'Gang Involvement'],
     ['safetyMental', 'Mental Issues'],
   ];
-  const callForGame = (call) => ({
-    id: call.id, code: call.code, priority: call.priority,
-    address: call.address, postal: call.postal, description: call.description
-  });
+  /** Call sent to the game on assignment; x/y let the unit's GPS route to it. */
+  const callForGame = (call) => {
+    const exact = call?.location && typeof call.location.x === 'number' && typeof call.location.y === 'number' ? call.location : null;
+    const pos = exact || postalCoords(call?.postal);
+    return {
+      id: call.id, code: call.code, priority: call.priority,
+      address: call.address, postal: call.postal, description: call.description,
+      ...(pos ? { x: pos.x, y: pos.y, gpsApprox: !exact } : {}),
+    };
+  };
 
   // ---- Unit groups ---------------------------------------------------------
   // Dispatch can group units that ride in one vehicle (unit.groupId / groupName).

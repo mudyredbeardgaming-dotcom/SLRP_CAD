@@ -37,6 +37,7 @@ Config.Commands = {
   cite     = { name = 'cite',     aliases = {},         enabled = true, leo = true },  -- /cite <player id> <fine> <offense>
   dlexpiry  = { name = 'dlexpiry',  aliases = {},       enabled = true },  -- /dlexpiry 2027-06-30 | auto
   regexpiry = { name = 'regexpiry', aliases = {},       enabled = true },  -- /regexpiry <plate> 2027-06-30 | auto
+  callgps   = { name = 'callgps',   aliases = {},       enabled = true },  -- set the GPS to my assigned call again
 }
 
 -- ACE permission for commands marked `leo = true`. nil = anyone can use them.
@@ -60,6 +61,16 @@ Config.StatusShortcutCommands = true
 -- ---------------------------------------------------------------------------
 -- Live units
 -- ---------------------------------------------------------------------------
+
+-- GPS to calls: when the CAD assigns a unit to a call (dispatch, self-dispatch,
+-- auto-assign, or riding with a grouped unit), a waypoint is set on that
+-- player's map. Calls from an in-game 911 route to the caller's position;
+-- other calls route to their postal code.
+Config.Waypoints = {
+  enabled = true,
+  -- Remove the waypoint when the unit is cleared from that call / the call closes.
+  clearOnClose = true,
+}
 
 -- How often each player reports their position to the game server (ms).
 -- Together with UnitUpdateInterval this sets how smoothly units move on the CAD live map.

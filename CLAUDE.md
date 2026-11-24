@@ -390,6 +390,7 @@ Basis for connecting a FiveM server. Full protocol and setup: `fivem/README.md`.
 - Live map: `components/LiveMap.tsx` (top-level component so pan/zoom survive CADSystem re-renders), fills its parent (unit list is an overlay drawer); shown as a window on the Law Enforcement / Fire-EMS unit dashboard and on the Dispatch **Live Map** tab. Map image is the GTA V atlas in `public/map/` (overview + HD for close zoom, dark/atlas style toggle); calibration in `lib/fivem/mapConfig.ts`. Setting `image: null` falls back to a grid with region labels.
 - Bridge state is in memory (`lib/fivem/store.ts`, on `globalThis`), not in `cad-data.json`, so a single server instance is assumed.
 - CAD actions that should reach the game call `fivem.send(...)` (see createCall, assignUnit, closeCall, updateUnitStatus). Game-originated changes are applied locally and saved, never echoed back.
+- GPS: `callForGame` adds the call's `x`/`y` (game position, else postal; `gpsApprox`) to `call_assigned`. `/api/fivem/command` whitelists call fields, so new ones must be added there too. The client sets a waypoint on assignment and clears it on `call_closed` (`Config.Waypoints`, `/callgps`).
 
 ## Deployment
 
