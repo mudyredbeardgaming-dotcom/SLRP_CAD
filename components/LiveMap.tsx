@@ -44,6 +44,29 @@ const DARK_FILTER = 'invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.92
 type MapStyle = 'dark' | 'atlas';
 const STYLE_KEY = 'strataMapStyle';
 
+/** A CAD call to draw on the map. x/y missing = no known location (listed only). */
+export interface MapCall {
+  id: string;
+  code?: string;
+  priority?: string;
+  address?: string;
+  postal?: string;
+  x?: number | null;
+  y?: number | null;
+  /** True when placed from the postal code (approximate), false for an exact game position. */
+  approx?: boolean;
+  units?: string[];
+  status?: string;
+}
+
+const PRIORITY_COLORS: Record<string, string> = { '1': '#ef4444', '2': '#f59e0b', '3': '#3b82f6' };
+const ROLE_META: Record<string, { label: string; color: string }> = {
+  police: { label: 'LE', color: '#60a5fa' },
+  fire: { label: 'Fire', color: '#f87171' },
+  tow: { label: 'Tow', color: '#fb923c' },
+  other: { label: 'Other', color: '#94a3b8' },
+};
+
 const ageLabel = (ms: number) => (ms < 5000 ? 'live' : ms < 60000 ? `${Math.round(ms / 1000)}s ago` : `${Math.round(ms / 60000)}m ago`);
 
 export default function LiveMap({
@@ -55,6 +78,11 @@ export default function LiveMap({
   getStatusLabel,
   listTitle = 'Active LEO units',
   listAccent = 'text-blue-400',
+  calls = [],
+  onOpenCall,
+  unitFilter,
+  roleOf,
+  roleToggles = false,
 }: {
   enabled: boolean;
   connected: boolean;
@@ -67,6 +95,16 @@ export default function LiveMap({
   listTitle?: string;
   /** Tailwind text colour for the list heading bar (role accent). */
   listAccent?: string;
+  /** Active calls to mark on the map (labelled with the call #). */
+  calls?: MapCall[];
+  /** "Open call" in a call's popup. */
+  onOpenCall?: (id: string) => void;
+  /** Which units to show (your own unit always shows). Receives the CAD unit (if any) and callsign. */
+  unitFilter?: (unit: any | undefined, callsign: string) => boolean;
+  /** Service of a unit ('police' | 'fire' | 'tow' | 'other'), for the role toggles and list tags. */
+  roleOf?: (unit: any | undefined) => string;
+  /** Show LE / Fire / Tow toggle chips (Dispatch). */
+  roleToggles?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 800, h: 600 });
@@ -76,6 +114,8 @@ export default function LiveMap({
   const [now, setNow] = useState(Date.now());
   const [mapStyle, setMapStyle] = useState<MapStyle>('dark');
   const [listOpen, setListOpen] = useState<boolean | null>(null); // null = automatic (by width)
+  const [selectedCall, setSelectedCall] = useState<string | null>(null);
+  const [rolesOff, setRolesOff] = useState<string[]>([]);
   const drag = useRef<{ x: number; y: number; cx: number; cy: number; moved: boolean } | null>(null);
 
   const me = myCallsign ? String(myCallsign).trim().toUpperCase() : undefined;
@@ -120,7 +160,8 @@ export default function LiveMap({
   const vbH = size.h * unitsPerPx;
   const viewBox = `${view.cx - vbW / 2} ${view.cy - vbH / 2} ${vbW} ${vbH}`;
 
-  const blips = useMemo(() => {
+  // Every reporting unit (before the role toggles), then the ones shown
+  const allBlips = useMemo(() => {
     const byCallsign = new Map(units.map(u => [String(u.callsign || '').trim().toUpperCase(), u]));
     return Object.values(telemetry)
       .filter(t => typeof t.location?.x === 'number' && typeof t.location?.y === 'number')
@@ -129,13 +170,22 @@ export default function LiveMap({
         return {
           t,
           unit,
+          role: roleOf ? roleOf(unit) || 'other' : 'other',
           status: unit?.status as string | undefined,
           color: (unit && STATUS_COLORS[unit.status]) || '#94a3b8',
           age: now - (t.updatedAt ?? 0),
         };
       })
+      .filter(b => b.t.callsign === me || !unitFilter || unitFilter(b.unit, b.t.callsign))
       .sort((a, b) => a.t.callsign.localeCompare(b.t.callsign));
-  }, [telemetry, units, now]);
+  }, [telemetry, units, now, unitFilter, roleOf, me]);
+  const blips = useMemo(() => allBlips.filter(b => !rolesOff.includes(b.role)), [allBlips, rolesOff]);
+  const mappedCalls = calls.filter(c => typeof c.x === 'number' && typeof c.y === 'number');
+  const centerOnCall = (c: MapCall) => {
+    if (typeof c.x !== 'number' || typeof c.y !== 'number') return;
+    setFollow(false);
+    setView(v => ({ cx: c.x as number, cy: -(c.y as number), zoom: Math.max(v.zoom, 5) }));
+  };
 
   // Groups: callsign -> { name, members (callsigns) }
   const groupInfo = useMemo(() => {
@@ -252,6 +302,7 @@ export default function LiveMap({
   }, [gridStep, ib.minX, ib.maxX, ib.minY, ib.maxY]);
 
   const selectedBlip = selected ? blips.find(b => b.t.callsign === selected) : undefined;
+  const selectedCallInfo = selectedCall ? calls.find(c => c.id === selectedCall) : undefined;
   const showList = listOpen ?? size.w >= 760;
 
   return (
@@ -319,6 +370,48 @@ export default function LiveMap({
               </>
             )}
 
+            {mappedCalls.map(c => {
+              const color = PRIORITY_COLORS[String(c.priority)] || '#94a3b8';
+              const r = px(9);
+              return (
+                <g
+                  key={'call-' + c.id}
+                  data-map-call={c.id}
+                  transform={`translate(${c.x}, ${-(c.y as number)})`}
+                  style={{ cursor: 'pointer' }}
+                  onPointerDown={e => e.stopPropagation()}
+                  onClick={() => { setSelectedCall(c.id); setSelected(null); }}
+                >
+                  <title>{`Call #${c.id}${c.code ? ` · ${c.code}` : ''}`}</title>
+                  {c.priority === '1' && <circle r={r * 2.2} fill="none" stroke={color} strokeWidth={px(2)} opacity={0.6} className="animate-pulse" />}
+                  {/* diamond marker; dashed outline = placed from the postal (approximate) */}
+                  <rect
+                    x={-r} y={-r} width={r * 2} height={r * 2}
+                    transform="rotate(45)"
+                    fill={color}
+                    fillOpacity={0.9}
+                    stroke="#ffffff"
+                    strokeWidth={px(1.5)}
+                    strokeDasharray={c.approx ? `${px(3)} ${px(2)}` : undefined}
+                  />
+                  {/* call # below the marker (unit callsigns sit above theirs, so they don't collide) */}
+                  <text
+                    y={r * 2.6}
+                    textAnchor="middle"
+                    fontSize={px(11)}
+                    fontWeight={700}
+                    fill="#fde68a"
+                    stroke="#0b1220"
+                    strokeWidth={px(3)}
+                    paintOrder="stroke"
+                    style={{ pointerEvents: 'none', fontFamily: 'var(--font-mono)' }}
+                  >
+                    #{c.id}
+                  </text>
+                </g>
+              );
+            })}
+
             {blips.filter(b => !hidden.has(b.t.callsign)).map(({ t, color, age, status }) => {
               const isMe = t.callsign === me || (!!me && !!mergedLabel.get(t.callsign)?.split(' / ').includes(me));
               const stale = age > MAP_CONFIG.staleAfterMs;
@@ -334,7 +427,7 @@ export default function LiveMap({
                     cursor: 'pointer',
                   }}
                   onPointerDown={e => e.stopPropagation()}
-                  onClick={() => setSelected(t.callsign)}
+                  onClick={() => { setSelected(t.callsign); setSelectedCall(null); }}
                 >
                   <title>{`${mergedLabel.get(t.callsign) || t.callsign} (${Math.round(t.location!.x!)}, ${Math.round(t.location!.y!)})`}</title>
                   {status === 'panic' && (
@@ -380,7 +473,34 @@ export default function LiveMap({
                   ? `Live · ${blips.length} unit${blips.length === 1 ? '' : 's'}`
                   : 'FiveM offline'}
             </span>
+            {calls.length > 0 && (
+              <span className="inline-flex items-center gap-1.5 rounded-lg border border-yellow-500/30 bg-gray-900/85 px-2.5 py-1 text-xs font-medium text-yellow-200 shadow-panel backdrop-blur">
+                <span className="inline-block h-2 w-2 rotate-45 bg-yellow-400" />
+                {calls.length} call{calls.length === 1 ? '' : 's'}
+              </span>
+            )}
           </div>
+          {roleToggles && (
+            <div className="absolute left-3 top-12 flex flex-wrap gap-1.5" onPointerDown={e => e.stopPropagation()} data-map-overlay>
+              {['police', 'fire', 'tow'].map(role => {
+                const on = !rolesOff.includes(role);
+                const n = allBlips.filter(b => b.role === role).length;
+                return (
+                  <button
+                    key={role}
+                    onClick={() => setRolesOff(r => (on ? [...r, role] : r.filter(x => x !== role)))}
+                    className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold backdrop-blur ${on ? 'border-white/[0.14] bg-gray-900/85 text-white' : 'border-white/[0.06] bg-gray-900/60 text-gray-500 line-through'}`}
+                    title={on ? `Hide ${ROLE_META[role].label} units` : `Show ${ROLE_META[role].label} units`}
+                    aria-pressed={on}
+                    data-role-toggle={role}
+                  >
+                    <span className="h-2 w-2 rounded-full" style={{ background: ROLE_META[role].color }} />
+                    {ROLE_META[role].label} <span className="font-mono text-gray-400">{n}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
           <div
             className="absolute top-3 flex flex-col gap-1.5"
             style={{ right: showList ? 'calc(min(18rem, 60%) + 1.25rem)' : '0.75rem' }}
@@ -422,6 +542,32 @@ export default function LiveMap({
             )}
           </div>
 
+          {selectedCallInfo && (
+            <div
+              className="absolute bottom-3 left-3 max-w-sm rounded-xl border border-yellow-500/25 bg-gray-900/90 p-3 text-sm shadow-panel backdrop-blur"
+              onPointerDown={e => e.stopPropagation()}
+              data-call-popup
+            >
+              <div className="flex items-center gap-2">
+                <span className="inline-block h-2.5 w-2.5 rotate-45" style={{ background: PRIORITY_COLORS[String(selectedCallInfo.priority)] || '#94a3b8' }} />
+                <span className="font-mono font-semibold text-white">#{selectedCallInfo.id}</span>
+                {selectedCallInfo.priority && <span className="text-xs text-gray-400">P{selectedCallInfo.priority}</span>}
+                <span className="font-semibold text-gray-200">{selectedCallInfo.code}</span>
+                <button className="ml-auto text-xs text-gray-500 hover:text-white" onClick={() => setSelectedCall(null)}>Close</button>
+              </div>
+              <div className="mt-1.5 text-gray-300">
+                {selectedCallInfo.address || 'No address'}{selectedCallInfo.postal ? ` · Postal ${selectedCallInfo.postal}` : ''}
+              </div>
+              <div className="mt-1 flex flex-wrap gap-x-3 text-xs text-gray-400">
+                <span>{selectedCallInfo.units && selectedCallInfo.units.length ? `Units: ${selectedCallInfo.units.join(', ')}` : 'No units assigned'}</span>
+                {selectedCallInfo.approx && <span>Location from postal</span>}
+              </div>
+              {onOpenCall && (
+                <button className="btn btn-secondary btn-sm mt-2" onClick={() => onOpenCall(selectedCallInfo.id)}>Open call</button>
+              )}
+            </div>
+          )}
+
           {selectedBlip && (
             <div
               className="absolute bottom-3 left-3 max-w-sm rounded-xl border border-white/[0.08] bg-gray-900/90 p-3 text-sm shadow-panel backdrop-blur"
@@ -460,6 +606,34 @@ export default function LiveMap({
         className="absolute bottom-3 right-3 top-3 flex w-[min(18rem,60%)] flex-col rounded-xl border border-white/[0.08] bg-gray-900/90 p-3 shadow-panel backdrop-blur"
         onPointerDown={e => e.stopPropagation()}
       >
+        {calls.length > 0 && (
+          <div className="mb-3 flex max-h-[40%] min-h-0 flex-col">
+            <h3 className="section-title text-yellow-400">Active calls ({calls.length})</h3>
+            <div className="grid min-h-0 content-start gap-1.5 overflow-y-auto pr-1">
+              {calls.map(c => {
+                const placed = typeof c.x === 'number' && typeof c.y === 'number';
+                return (
+                  <button
+                    key={c.id}
+                    onClick={() => { if (placed) { setSelectedCall(c.id); setSelected(null); centerOnCall(c); } else if (onOpenCall) onOpenCall(c.id); }}
+                    className={`subcard text-left transition-colors hover:!border-white/[0.14] ${selectedCall === c.id ? '!border-yellow-500/40' : ''}`}
+                    title={placed ? 'Show on map' : 'No map location: open the call'}
+                    data-map-call-item={c.id}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="inline-block h-2 w-2 flex-shrink-0 rotate-45" style={{ background: PRIORITY_COLORS[String(c.priority)] || '#94a3b8' }} />
+                      <span className="font-mono text-xs font-semibold text-white">#{c.id}</span>
+                      <span className="truncate text-xs text-gray-300">{c.code}</span>
+                    </div>
+                    <div className="mt-0.5 truncate text-[11px] text-gray-500">
+                      {c.address || 'No address'}{c.postal ? ` · ${c.postal}` : ''}{placed ? '' : ' · not on map'}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
         <h3 className={`section-title ${listAccent}`}>{listTitle} ({blips.length})</h3>
         {blips.length === 0 ? (
           <div className="py-10 text-center text-sm text-gray-400">
@@ -474,7 +648,7 @@ export default function LiveMap({
           </div>
         ) : (
           <div className="grid min-h-0 flex-1 content-start gap-2 overflow-y-auto pr-1">
-            {blips.map(({ t, unit, color, age, status }) => (
+            {blips.map(({ t, unit, color, age, status, role }) => (
               <button
                 key={t.callsign}
                 onClick={() => { setSelected(t.callsign); setFollow(false); centerOn(t.callsign); }}
@@ -484,6 +658,11 @@ export default function LiveMap({
                   <span className="h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ background: color }} />
                   <span className="font-mono text-sm font-semibold text-white">{t.callsign}</span>
                   {t.callsign === me && <span className="chip !py-0 text-[10px]">You</span>}
+                  {roleToggles && (
+                    <span className="rounded px-1 text-[10px] font-semibold" style={{ color: (ROLE_META[role] || ROLE_META.other).color }}>
+                      {(ROLE_META[role] || ROLE_META.other).label}
+                    </span>
+                  )}
                   <span className={`ml-auto text-[11px] ${age > MAP_CONFIG.staleAfterMs ? 'text-yellow-400' : 'text-gray-500'}`}>{ageLabel(age)}</span>
                 </div>
                 <div className="mt-0.5 truncate text-xs text-gray-400">

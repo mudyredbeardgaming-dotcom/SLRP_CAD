@@ -187,6 +187,27 @@ Dispatch → Dispatch tab is `renderDispatchBoard()`, built from the same tiled 
   - four columns.
 - Dispatch's default comes from `defaultLayoutFor('dispatch')` and is saved in `strataUnitLayout:dispatch`. A saved layout with the wrong window count falls back to the default.
 
+### Live map units and calls
+`LiveMap` takes `calls` (`MapCall[]`, drawn as diamonds labelled with the call #), `onOpenCall`, `unitFilter`, and `roleOf` + `roleToggles`.
+- **Who sees what:**
+  - LE map: non-FD calls and LE units.
+  - Fire map: FD calls and Fire/EMS units.
+  - Dispatch map: all calls and all units, with LE / Fire / Tow toggle chips and role tags.
+  - Units filter by `unitRoleOf`, and your own unit always shows. Callsigns that aren't in the CAD only show on Dispatch's map.
+- **Where calls go** (`mapCallsFor`):
+  - `call.location` if set. Calls created from an in-game 911 keep the caller's x/y.
+  - Otherwise the call's postal through `lib/fivem/postals.ts`, which uses nearest-postal's `new-postals.json` (MIT) and is drawn with a dashed outline.
+  - Otherwise the call is only listed.
+
+### Records attached to a call
+`call.attachments` holds `[{ id, kind: 'person' | 'report', civilianId, name, dob, reportId, reportType, recordNumber, service, addedBy, addedByUsername, addedByUnit, addedAt }]`. Each add or remove writes a call note.
+- **LE:** Lookup → **Send to Call** (shown when the officer's unit is on an active call) attaches the person.
+- **Fire/EMS:** a report form's **Send to Call** saves the report and attaches it, in one save (`saveFireReport(status, callId)`).
+- **Viewing:**
+  - The Active Call window has an **Attached Records** button next to Clear from call. View opens Lookup for a person (LE) or the report (Fire). Only the unit that added an item can remove it.
+  - Fire/EMS reports are hidden from LE (`visibleAttachments`).
+  - Dispatch's call window lists every attachment.
+
 ### Self-dispatch
 The Active Call window has an **Open Calls** tab (`renderOpenCalls`). It shows the unit's own call type by default: LE for police, `callTitle === 'FD'` for fire.
 - Attach (`selfAttach`) and Clear from call (`selfDetach`) add a call note.

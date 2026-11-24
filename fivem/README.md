@@ -207,6 +207,11 @@ The Law Enforcement view has a **Live Map** tab that shows every unit the bridge
 - Blips glide between position updates and fade once a unit hasn't reported for 15 seconds.
 - **Navigation:** drag to pan; use the mouse wheel or the +/− buttons to zoom. The crosshair button resets the view, and the locate button follows your own unit.
 - **Unit list:** click a unit in the side list to center on it and see its location, vehicle and speed.
+- **Calls:** active calls show as diamonds labelled with the call number.
+  - Who sees which calls: LE sees LE calls, Fire/EMS sees fire calls, and Dispatch sees all of them.
+  - Placement: a call made from an in-game `/911` sits at the caller's position. Other calls are placed at their postal code, using nearest-postal's `new-postals.json` (MIT), and drawn with a dashed outline. Calls with no postal are listed beside the map but not drawn on it.
+  - If your server uses a different postal map, replace `lib/fivem/postals.ts`.
+- **Units shown:** LE and Fire/EMS see their own service's units. Dispatch sees every unit, with LE / Fire / Tow toggles.
 - **Update rate:** the map polls every 1.5s while it's open. Game positions arrive every 2.5s, set by `Config.TelemetryInterval` and `Config.UnitUpdateInterval`.
 
 **Map image:**
