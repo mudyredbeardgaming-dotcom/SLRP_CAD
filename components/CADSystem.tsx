@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AlertCircle, Radio, MapPin, Clock, User, Phone, FileText, Plus, X, Check, Shield, AlertTriangle, Lock, LogOut, Search, Database, Pin, PinOff, Car, Flame, Truck, ArrowRight, Eye, EyeOff, LayoutGrid, ChevronRight, ArrowLeft, Minus, Power, RotateCcw, LayoutPanelLeft, LayoutPanelTop, Columns, GripVertical, Maximize2, Minimize2, Users, LogIn, Unlink, Pencil, ShieldCheck, ThumbsUp, ThumbsDown, Send, Info } from 'lucide-react';
+import { AlertCircle, Radio, MapPin, Clock, User, Phone, FileText, Plus, X, Check, Shield, AlertTriangle, Lock, LogOut, Search, Database, Car, Flame, Truck, ArrowRight, Eye, EyeOff, LayoutGrid, ChevronRight, ArrowLeft, Minus, Power, RotateCcw, LayoutPanelLeft, LayoutPanelTop, Columns, GripVertical, Maximize2, Minimize2, Users, LogIn, Unlink, Pencil, ShieldCheck, ThumbsUp, ThumbsDown, Send, Info } from 'lucide-react';
 import { BRAND, BrandMark, BrandLockup } from './Brand';
 import { useFiveMBridge, formatGameLocation } from '@/lib/fivem/useFiveMBridge';
 import LiveMap from './LiveMap';
@@ -196,7 +196,6 @@ const CADSystem = () => {
   const [showUnitInfo, setShowUnitInfo] = useState(false);
   const [showComModal, setShowComModal] = useState(false);
   const [comNumber, setComNumber] = useState('');
-  const [showRoleMenu, setShowRoleMenu] = useState(false);
   const [loggedInOfficer, setLoggedInOfficer] = useState<any>(null);
   const [showLogin, setShowLogin] = useState(true);
 
@@ -216,12 +215,6 @@ const CADSystem = () => {
   const [dmvRecordData, setDmvRecordData] = useState<any>({});
 
   // Records Management state (Police role)
-  const [showRecordsMenu, setShowRecordsMenu] = useState(false);
-  const [pinnedRecordsButtons, setPinnedRecordsButtons] = useState<any>({
-    lookup: false,
-    records: false,
-    bolo: false
-  });
   const [activeRecordsPanel, setActiveRecordsPanel] = useState<string | null>(null); // 'lookup', 'records', 'bolo'
   const [boloView, setBoloView] = useState<'active' | 'inactive'>('active');
   const [boloSearch, setBoloSearch] = useState('');
@@ -1202,11 +1195,6 @@ const CADSystem = () => {
       setShowNewRecordDropdown(false);
       setActiveRecordsPanel(null);
       // The panels open from the taskbar, so going back just closes the panel
-      return true;
-    }
-    if (showRecordsMenu) {
-      setShowRecordsMenu(false);
-      setShowRoleMenu(true);
       return true;
     }
     return false;
@@ -5000,179 +4988,6 @@ const CADSystem = () => {
   // Render functions, not components: a nested component remounts on every
   // re-render (the clock ticks each second), which replayed the menu's pop-in
   // animation and made it blink.
-  const renderMenuRow = ({ onClick, Icon, title, subtitle, tone = 'default' }: any) => (
-    <button
-      onClick={onClick}
-      className={`group w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-white/[0.05] ${
-        tone === 'danger' ? 'hover:bg-red-500/10' : ''
-      }`}
-    >
-      <span
-        className={`inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg ring-1 ${
-          tone === 'danger'
-            ? 'bg-red-500/10 text-red-400 ring-red-500/20'
-            : tone === 'records'
-              ? 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/20'
-              : 'bg-white/[0.05] text-gray-300 ring-white/[0.08]'
-        }`}
-      >
-        <Icon size={16} />
-      </span>
-      <span className="min-w-0">
-        <span className={`block text-sm font-medium ${tone === 'danger' ? 'text-red-300' : 'text-white'}`}>{title}</span>
-        <span className="block text-xs text-gray-500">{subtitle}</span>
-      </span>
-    </button>
-  );
-
-  const renderRoleMenu = () => {
-    return (
-      <div className="fixed bottom-24 left-4 z-50 w-72 animate-scale-in rounded-xl border border-white/[0.08] bg-gray-850/95 p-2 shadow-modal backdrop-blur-xl">
-        <div className="flex justify-between items-center px-2 pt-1 pb-2">
-          <span className="eyebrow">Menu</span>
-          <button onClick={() => setShowRoleMenu(false)} className="icon-btn !h-7 !w-7">
-            <X size={16} />
-          </button>
-        </div>
-
-        {selectedRole === 'police' && loggedInOfficer && (
-          <div className="mx-1 mb-2 flex items-center gap-3 rounded-lg border border-white/[0.06] bg-white/[0.03] p-3">
-            <div className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-sm font-bold text-white">
-              {(loggedInOfficer.displayName || '?').charAt(0).toUpperCase()}
-            </div>
-            <div className="min-w-0">
-              <div className="text-sm font-semibold text-white truncate">{loggedInOfficer.displayName}</div>
-              <div className="text-xs font-mono text-gray-400">{units.find(u => u.id === selectedUnit)?.callsign}</div>
-            </div>
-          </div>
-        )}
-
-        <div className="space-y-0.5">
-          {selectedRole === 'police' && loggedInOfficer && (
-            renderMenuRow({
-              onClick: () => {
-                setShowRoleMenu(false);
-                setShowRecordsMenu(true);
-              },
-              Icon: Database,
-              title: 'Records Management',
-              subtitle: 'Lookup, Records, BOLO',
-              tone: 'records',
-            })
-          )}
-
-          {renderMenuRow({
-            onClick: () => {
-              setShowRoleMenu(false);
-              setSelectedRole(null);
-            },
-            Icon: LayoutGrid,
-            title: 'Change Role',
-            subtitle: 'Return to role selection',
-          })}
-
-          <div className="my-1 border-t border-white/[0.06]" />
-
-          {renderMenuRow({
-            onClick: () => {
-              setShowRoleMenu(false);
-              handleLogout();
-            },
-            Icon: LogOut,
-            title: 'Sign Out',
-            subtitle: 'Log out and return to login',
-            tone: 'danger',
-          })}
-        </div>
-      </div>
-    );
-  };
-
-  // Records Management Menu Component
-  const renderRecordsManagementMenu = () => {
-    const togglePin = (buttonName) => {
-      setPinnedRecordsButtons(prev => ({
-        ...prev,
-        [buttonName]: !prev[buttonName]
-      }));
-    };
-
-    const handleButtonClick = (panelName) => {
-      setActiveRecordsPanel(panelName);
-      setShowRecordsMenu(false);
-    };
-
-    const items = [
-      { key: 'lookup', title: 'Lookup', subtitle: 'Search persons & vehicles', Icon: Search, chip: 'bg-blue-500/10 text-blue-400 ring-blue-500/20' },
-      { key: 'records', title: 'Records', subtitle: 'View & manage records', Icon: FileText, chip: 'bg-purple-500/10 text-purple-400 ring-purple-500/20' },
-      { key: 'bolo', title: 'BOLO', subtitle: 'Be On the Lookout alerts', Icon: AlertTriangle, chip: 'bg-red-500/10 text-red-400 ring-red-500/20' },
-      ...(supervisorAllowed ? [{ key: 'supervisor', title: 'Supervisor Panel', subtitle: `${pendingReviewCount} waiting for review`, Icon: ShieldCheck, chip: 'bg-red-500/10 text-red-300 ring-red-500/20' }] : []),
-    ];
-
-    return (
-      <div className="fixed bottom-24 left-4 z-50 w-80 animate-scale-in rounded-xl border border-white/[0.08] bg-gray-850/95 p-2 shadow-modal backdrop-blur-xl">
-        <div className="flex justify-between items-center px-2 pt-1 pb-2">
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => goBackInRecords()}
-              className="icon-btn !h-7 !w-7"
-              title="Back to Menu (Backspace)"
-              aria-label="Back to Menu"
-            >
-              <ArrowLeft size={16} />
-            </button>
-            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-              <Database size={16} className="text-emerald-400" />
-              Records Management
-            </h3>
-          </div>
-          <button onClick={() => setShowRecordsMenu(false)} className="icon-btn !h-7 !w-7">
-            <X size={16} />
-          </button>
-        </div>
-
-        <div className="space-y-0.5">
-          {items.map(({ key, title, subtitle, Icon, chip }) => (
-            <div key={key} className="flex items-center gap-1">
-              <button
-                onClick={() => handleButtonClick(key)}
-                className="flex-1 flex items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-white/[0.05]"
-              >
-                <span className={`inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg ring-1 ${chip}`}>
-                  <Icon size={16} />
-                </span>
-                <span>
-                  <span className="block text-sm font-medium text-white">{title}</span>
-                  <span className="block text-xs text-gray-500">{subtitle}</span>
-                </span>
-                {key === 'records' && myDenied.length > 0 && (
-                  <span className="ml-auto rounded-full bg-red-500/20 px-2 py-0.5 text-[10px] font-semibold text-red-300" title="Returned by a supervisor">{myDenied.length} returned</span>
-                )}
-              </button>
-              <button
-                onClick={() => togglePin(key)}
-                className={`inline-flex h-9 w-9 items-center justify-center rounded-lg ${
-                  pinnedRecordsButtons[key]
-                    ? 'bg-accent-500/15 text-accent-300 ring-1 ring-accent-500/30'
-                    : 'text-gray-500 hover:bg-white/[0.06] hover:text-white'
-                }`}
-                title={pinnedRecordsButtons[key] ? 'Unpin from toolbar' : 'Pin to toolbar'}
-              >
-                {pinnedRecordsButtons[key] ? <PinOff size={16} /> : <Pin size={16} />}
-              </button>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-2 border-t border-white/[0.06] px-2 pt-2 pb-1">
-          <p className="text-[11px] text-gray-500">
-            Pin items to add them to the bottom toolbar.
-          </p>
-        </div>
-      </div>
-    );
-  };
-
   // Record form modal. Shared by the Records panel and the BOLO panel, so it
   // is built before both.
   const recordFormModalJSX = activeRecordForm ? (
@@ -14526,11 +14341,16 @@ const CADSystem = () => {
     );
   };
 
-  const renderUnitIdentity = (callsign, name, accentClass, onClick?) => {
+  const UNIT_IDENTITY_ACCENT: Record<string, string> = {
+    police: 'bg-blue-500/15 text-blue-300 ring-1 ring-blue-500/25',
+    fire: 'bg-red-500/15 text-red-300 ring-1 ring-red-500/25',
+    tow: 'bg-orange-500/15 text-orange-300 ring-1 ring-orange-500/25',
+  };
+  const renderUnitIdentity = (callsign, name, accentClass, onClick?, title = 'Edit unit information', icon: any = null) => {
     const content = (
       <>
         <span className={`inline-flex h-9 w-9 items-center justify-center rounded-lg ${accentClass}`}>
-          <User size={16} />
+          {icon || <User size={16} />}
         </span>
         <span className="text-left leading-tight">
           <span className="block font-mono text-sm font-semibold text-white">{callsign}</span>
@@ -14542,7 +14362,7 @@ const CADSystem = () => {
       <button
         onClick={onClick}
         className="flex items-center gap-3 rounded-xl border border-white/[0.07] bg-white/[0.03] py-1.5 pl-1.5 pr-4 hover:border-white/[0.14] hover:bg-white/[0.06]"
-        title="Edit unit information"
+        title={title}
       >
         {content}
       </button>
@@ -14554,7 +14374,6 @@ const CADSystem = () => {
   };
 
   // LE / Fire-EMS put their unit controls in the top bar (no separate status strip)
-  const unitTopBar = (selectedRole === 'police' || selectedRole === 'fire') && !!selectedUnit && !!loggedInOfficer;
   const renderFiveMChip = () => fivem.enabled ? (
     <span
       className={`hidden lg:inline-flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs font-medium ${
@@ -14809,11 +14628,10 @@ const CADSystem = () => {
   // ---- Taskbar (Law Enforcement / Fire-EMS) ----------------------------------
   // LE gets Lookup, Records, BOLO and (supervisors) Supervisor Panel as buttons;
   // both roles get Change Role next to the clock. Sign Out is on role selection.
-  const unitRole = selectedRole === 'police' || selectedRole === 'fire';
+  // Every operational role (Dispatch, LE, Fire/EMS, Tow) uses this taskbar; no Menu button
+  const unitRole = selectedRole === 'police' || selectedRole === 'fire' || selectedRole === 'dispatch' || selectedRole === 'tow';
   const changeRole = () => {
     setActiveRecordsPanel(null);
-    setShowRecordsMenu(false);
-    setShowRoleMenu(false);
     setActiveReportForm(null);
     setActiveRecordForm(null);
     setSelectedRole(null);
@@ -14853,7 +14671,7 @@ const CADSystem = () => {
   const renderTaskbarButton = (panel: string, label: string, icon: any, count = 0, countLabel = '', tone: 'alert' | 'neutral' = 'alert') => (
     <button
       key={panel}
-      onClick={() => { setShowRecordsMenu(false); setActiveRecordsPanel(activeRecordsPanel === panel ? null : panel); }}
+      onClick={() => setActiveRecordsPanel(activeRecordsPanel === panel ? null : panel)}
       className={`btn btn-secondary h-[52px] flex-shrink-0 ${activeRecordsPanel === panel ? '!border-accent-500/40 !bg-accent-500/10' : ''}`}
       data-taskbar-button={panel}
       title={count > 0 ? `${label}: ${count} ${countLabel}` : label}
@@ -14869,137 +14687,116 @@ const CADSystem = () => {
   // The unit dashboard and the dispatch map fill the screen between header and taskbar.
   const showUnitGroups = (selectedRole === 'police' || selectedRole === 'fire') && unitScreen === 'units' && groupUnitsAllowed;
   const fullHeightView = ((selectedRole === 'police' || selectedRole === 'fire') && !showUnitGroups) || (selectedRole === 'dispatch' && activeTab === 'map');
-  const showLayoutControls = unitRole && !showUnitGroups && isWide && !!myUnitRecord;
+  // Only LE / Fire-EMS have the tiled unit dashboard
+  const showLayoutControls = (selectedRole === 'police' || selectedRole === 'fire') && !showUnitGroups && isWide && !!myUnitRecord;
 
   return (
     <div className={`text-white flex flex-col ${fullHeightView ? 'min-h-screen lg:h-screen lg:overflow-hidden' : 'min-h-screen'}`}>
       <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-gray-900/80 backdrop-blur-md">
         <div className={`absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent ${roleTheme.line} to-transparent`} />
 
-        {/* Top bar. Law Enforcement / Fire-EMS: unit, status buttons and PANIC live here too. */}
-        {unitTopBar ? (
-          <div className="px-4 md:px-6 min-h-16 py-2.5 flex flex-wrap items-center gap-x-2 gap-y-2" data-unit-topbar>
-            <div className="mr-1 flex items-center gap-3">
-              <BrandLockup size={30} />
-              <span className={`hidden 2xl:inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${roleTheme.pill}`}>
-                <span className={`h-1.5 w-1.5 rounded-full ${roleTheme.dot}`} />
-                {roleTheme.label}
-              </span>
-            </div>
-            <div className="mx-1 hidden h-8 w-px bg-white/[0.08] md:block" />
-            {selectedRole === 'police'
-              ? renderUnitIdentity(myUnitRecord?.callsign, loggedInOfficer.displayName, 'bg-blue-500/15 text-blue-300 ring-1 ring-blue-500/25', () => setShowUnitInfo(true))
-              : renderUnitIdentity(myUnitRecord?.callsign || loggedInOfficer.unitId, loggedInOfficer.displayName, 'bg-red-500/15 text-red-300 ring-1 ring-red-500/25', () => setShowUnitInfo(true))}
-            {renderRidingWith()}
-            <div className="mx-1 hidden h-8 w-px bg-white/[0.08] md:block" />
-            {selectedRole === 'police' ? (
-              <>
-                {renderStatusButton('busy', 'Busy', '10-6', () => updateUnitStatus(selectedUnit, 'busy'))}
-                {renderStatusButton('unavailable', 'Unavailable', '10-7', () => updateUnitStatus(selectedUnit, 'unavailable'))}
-                {renderStatusButton('available', 'Available', '10-8', () => updateUnitStatus(selectedUnit, 'available'))}
-                {renderStatusButton('enroute', 'Enroute', '10-76', () => updateUnitStatus(selectedUnit, 'enroute'))}
-                {renderStatusButton('onscene', 'On-Scene', '10-23', () => updateUnitStatus(selectedUnit, 'onscene'))}
-              </>
-            ) : (
-              <>
-                {renderStatusButton('available', 'Available', '', () => updateUnitStatus(selectedUnit, 'available'))}
-                {renderStatusButton('enroute', 'Enroute', '', () => updateUnitStatus(selectedUnit, 'enroute'))}
-                {renderStatusButton('onscene', 'On-Scene', '', () => updateUnitStatus(selectedUnit, 'onscene'))}
-                {renderStatusButton('busy', 'At Hospital', '', () => updateUnitStatus(selectedUnit, 'busy'))}
-              </>
-            )}
-            {groupUnitsAllowed && (
-              <button
-                onClick={() => setUnitScreen(unitScreen === 'units' ? 'mine' : 'units')}
-                className={`status-btn ${unitScreen === 'units' ? '!border-accent-500/50 !bg-accent-500/15 !text-white' : ''}`}
-                title={unitScreen === 'units' ? 'Back to my unit' : 'Group units (supervisor)'}
-              >
-                <Users size={15} /> {unitScreen === 'units' ? 'Back to My Unit' : 'Units'}
-              </button>
-            )}
-            {/* PANIC sits alone on the right, away from other buttons, so it isn't pressed by accident */}
-            <div className="ml-auto flex items-center pl-8">
-              {selectedRole === 'police' && (
-                <button
-                  onClick={() => updateUnitStatus(selectedUnit, 'panic')}
-                  className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold tracking-wide text-white shadow-[0_0_0_1px_rgb(239_68_68/0.5),0_8px_24px_-8px_rgb(239_68_68/0.6)] ${
-                    myUnitRecord?.status === 'panic' ? 'bg-red-600 animate-pulse' : 'bg-red-600/90 hover:bg-red-500'
-                  }`}
-                >
-                  <AlertTriangle size={16} />
-                  PANIC
-                </button>
-              )}
-            </div>
-          </div>
-        ) : (
-        <div className="px-4 md:px-6 h-16 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-4 min-w-0">
+        {/* Top bar (all operational roles): logo, who you are, your controls; PANIC alone on the right (LE) */}
+        <div className="px-4 md:px-6 min-h-16 py-2.5 flex flex-wrap items-center gap-x-2 gap-y-2" data-unit-topbar>
+          <div className="mr-1 flex items-center gap-3">
             <BrandLockup size={30} />
-            <span className={`hidden sm:inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${roleTheme.pill}`}>
+            <span className={`hidden 2xl:inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${roleTheme.pill}`}>
               <span className={`h-1.5 w-1.5 rounded-full ${roleTheme.dot}`} />
               {roleTheme.label}
             </span>
           </div>
+          {loggedInOfficer && (
+            <>
+              <div className="mx-1 hidden h-8 w-px bg-white/[0.08] md:block" />
+              {selectedRole === 'dispatch'
+                ? renderUnitIdentity(
+                    myUnitRecord?.callsign || loggedInOfficer.unitId || 'Dispatch',
+                    comNumber ? `${loggedInOfficer.displayName} · COM ${comNumber}` : loggedInOfficer.displayName,
+                    'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/25',
+                    () => setShowComModal(true),
+                    'Set dispatcher COM #',
+                    <Radio size={16} />
+                  )
+                : renderUnitIdentity(
+                    myUnitRecord?.callsign || loggedInOfficer.unitId,
+                    loggedInOfficer.displayName,
+                    UNIT_IDENTITY_ACCENT[selectedRole] || UNIT_IDENTITY_ACCENT.police,
+                    selectedUnit && myUnitRecord ? () => setShowUnitInfo(true) : undefined,
+                    undefined,
+                    selectedRole === 'tow' ? <Truck size={16} /> : undefined
+                  )}
+              {renderRidingWith()}
+              <div className="mx-1 hidden h-8 w-px bg-white/[0.08] md:block" />
+            </>
+          )}
 
-          {(selectedRole === 'dispatch' || selectedRole === 'tow') ? (
-            <nav className="seg">
-              {selectedRole === 'dispatch' && (
-                <>
-                  <button onClick={() => setActiveTab('dispatch')} className={`seg-item ${activeTab === 'dispatch' ? 'seg-item-active' : ''}`}>
-                    <Radio size={15} /> Dispatch
-                  </button>
-                  <button onClick={() => setActiveTab('units')} className={`seg-item ${activeTab === 'units' ? 'seg-item-active' : ''}`}>
-                    <Shield size={15} /> Units
-                  </button>
-                  <button onClick={() => setActiveTab('tow')} className={`seg-item ${activeTab === 'tow' ? 'seg-item-active' : ''}`}>
-                    <Truck size={15} /> Tow
-                  </button>
-                  <button onClick={() => setActiveTab('fire-ems')} className={`seg-item ${activeTab === 'fire-ems' ? 'seg-item-active' : ''}`}>
-                    <Flame size={15} /> Fire/EMS
-                  </button>
-                  <button onClick={() => setActiveTab('map')} className={`seg-item ${activeTab === 'map' ? 'seg-item-active' : ''}`}>
-                    <MapPin size={15} /> Live Map
-                  </button>
-                </>
-              )}
-              {selectedRole === 'tow' && (
-                <button className="seg-item seg-item-active">
-                  <Truck size={15} />
-                  My Unit
-                </button>
-              )}
-            </nav>
-          ) : <span />}
-
-          <div className="flex items-center gap-2">
-            {renderFiveMChip()}
-            {selectedRole === 'dispatch' && selectedUnit && (
-              <button
-                onClick={() => setShowComModal(true)}
-                className="flex items-center gap-2 rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 py-1.5 text-sm font-semibold text-emerald-300 hover:bg-emerald-500/15"
-                title="Set dispatcher COM #"
-              >
-                <Radio size={15} />
-                <span className="font-mono">{units.find(u => u.id === selectedUnit)?.callsign || 'Unit'}</span>
+          {selectedRole === 'dispatch' && (
+            <nav className="seg" aria-label="Dispatch views">
+              <button onClick={() => setActiveTab('dispatch')} className={`seg-item ${activeTab === 'dispatch' ? 'seg-item-active' : ''}`}>
+                <Radio size={15} /> Dispatch
               </button>
-            )}
-          </div>
+              <button onClick={() => setActiveTab('units')} className={`seg-item ${activeTab === 'units' ? 'seg-item-active' : ''}`}>
+                <Shield size={15} /> Units
+              </button>
+              <button onClick={() => setActiveTab('tow')} className={`seg-item ${activeTab === 'tow' ? 'seg-item-active' : ''}`}>
+                <Truck size={15} /> Tow
+              </button>
+              <button onClick={() => setActiveTab('fire-ems')} className={`seg-item ${activeTab === 'fire-ems' ? 'seg-item-active' : ''}`}>
+                <Flame size={15} /> Fire/EMS
+              </button>
+              <button onClick={() => setActiveTab('map')} className={`seg-item ${activeTab === 'map' ? 'seg-item-active' : ''}`}>
+                <MapPin size={15} /> Live Map
+              </button>
+            </nav>
+          )}
+          {selectedUnit && selectedRole === 'police' && (
+            <>
+              {renderStatusButton('busy', 'Busy', '10-6', () => updateUnitStatus(selectedUnit, 'busy'))}
+              {renderStatusButton('unavailable', 'Unavailable', '10-7', () => updateUnitStatus(selectedUnit, 'unavailable'))}
+              {renderStatusButton('available', 'Available', '10-8', () => updateUnitStatus(selectedUnit, 'available'))}
+              {renderStatusButton('enroute', 'Enroute', '10-76', () => updateUnitStatus(selectedUnit, 'enroute'))}
+              {renderStatusButton('onscene', 'On-Scene', '10-23', () => updateUnitStatus(selectedUnit, 'onscene'))}
+            </>
+          )}
+          {selectedUnit && selectedRole === 'fire' && (
+            <>
+              {renderStatusButton('available', 'Available', '', () => updateUnitStatus(selectedUnit, 'available'))}
+              {renderStatusButton('enroute', 'Enroute', '', () => updateUnitStatus(selectedUnit, 'enroute'))}
+              {renderStatusButton('onscene', 'On-Scene', '', () => updateUnitStatus(selectedUnit, 'onscene'))}
+              {renderStatusButton('busy', 'At Hospital', '', () => updateUnitStatus(selectedUnit, 'busy'))}
+            </>
+          )}
+          {selectedUnit && selectedRole === 'tow' && (
+            <>
+              {renderStatusButton('available', 'Available', '', () => updateUnitStatus(selectedUnit, 'available'))}
+              {renderStatusButton('enroute', 'Enroute', '', () => updateUnitStatus(selectedUnit, 'enroute'))}
+              {renderStatusButton('onscene', 'On-Scene', '', () => updateUnitStatus(selectedUnit, 'onscene'))}
+              {renderStatusButton('busy', 'Towing', '', () => updateUnitStatus(selectedUnit, 'busy'))}
+            </>
+          )}
+          {(selectedRole === 'police' || selectedRole === 'fire') && groupUnitsAllowed && (
+            <button
+              onClick={() => setUnitScreen(unitScreen === 'units' ? 'mine' : 'units')}
+              className={`status-btn ${unitScreen === 'units' ? '!border-accent-500/50 !bg-accent-500/15 !text-white' : ''}`}
+              title={unitScreen === 'units' ? 'Back to my unit' : 'Group units (supervisor)'}
+            >
+              <Users size={15} /> {unitScreen === 'units' ? 'Back to My Unit' : 'Units'}
+            </button>
+          )}
+          {/* PANIC sits alone on the right, away from other buttons, so it isn't pressed by accident */}
+          {selectedRole === 'police' && selectedUnit && (
+            <div className="ml-auto flex items-center pl-8">
+              <button
+                onClick={() => updateUnitStatus(selectedUnit, 'panic')}
+                className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold tracking-wide text-white shadow-[0_0_0_1px_rgb(239_68_68/0.5),0_8px_24px_-8px_rgb(239_68_68/0.6)] ${
+                  myUnitRecord?.status === 'panic' ? 'bg-red-600 animate-pulse' : 'bg-red-600/90 hover:bg-red-500'
+                }`}
+              >
+                <AlertTriangle size={16} />
+                PANIC
+              </button>
+            </div>
+          )}
         </div>
-
-        )}
-
-        {/* Tow status strip (LE and Fire/EMS have theirs in the top bar) */}
-        {selectedRole === 'tow' && loggedInOfficer && (
-          <div className="border-t border-white/[0.05] bg-gray-950/30 px-4 md:px-6 py-2.5 flex flex-wrap items-center gap-2">
-            {renderUnitIdentity(loggedInOfficer.unitId, loggedInOfficer.displayName, 'bg-orange-500/15 text-orange-300 ring-1 ring-orange-500/25')}
-            <div className="mx-1 hidden h-8 w-px bg-white/[0.08] md:block" />
-            <button className="status-btn"><span className="h-2 w-2 rounded-full bg-green-500 opacity-60" />Available</button>
-            <button className="status-btn"><span className="h-2 w-2 rounded-full bg-blue-500 opacity-60" />Enroute</button>
-            <button className="status-btn"><span className="h-2 w-2 rounded-full bg-purple-500 opacity-60" />On-Scene</button>
-            <button className="status-btn"><span className="h-2 w-2 rounded-full bg-orange-500 opacity-60" />Towing</button>
-          </div>
-        )}
       </header>
 
       <main className={fullHeightView ? 'flex-1 px-3 md:px-4 pt-4 pb-[88px] lg:min-h-0' : 'flex-1 px-4 md:px-6 py-6 pb-28'}>
@@ -15264,23 +15061,7 @@ const CADSystem = () => {
                 </>
               )}
             </div>
-          ) : (
-          <div className="flex items-center gap-2 min-w-0">
-            <button
-              onClick={() => setShowRoleMenu(!showRoleMenu)}
-              className={`flex items-center gap-2.5 rounded-xl border py-1.5 pl-1.5 pr-3.5 ${
-                showRoleMenu
-                  ? 'border-accent-500/40 bg-accent-500/10'
-                  : 'border-white/[0.07] bg-white/[0.03] hover:border-white/[0.14] hover:bg-white/[0.06]'
-              }`}
-              title={selectedRole === 'police' && loggedInOfficer ? loggedInOfficer.displayName : selectedRole === 'dispatch' ? 'Dispatch' : 'Menu'}
-            >
-              <BrandMark size={34} />
-              <span className="hidden sm:block text-sm font-medium text-gray-200">Menu</span>
-            </button>
-
-          </div>
-          )}
+          ) : <div />}
           <div className="flex items-center justify-center">
             {showLayoutControls && renderLayoutControls()}
           </div>
@@ -15307,8 +15088,6 @@ const CADSystem = () => {
         </div>
       </footer>
 
-      {showRoleMenu && renderRoleMenu()}
-      {showRecordsMenu && renderRecordsManagementMenu()}
       {activeRecordsPanel === 'records' && recordsPanelJSX}
       {activeRecordsPanel === 'lookup' && lookupPanelJSX}
       {activeRecordsPanel === 'bolo' && boloPanelJSX}
