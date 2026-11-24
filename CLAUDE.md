@@ -202,6 +202,21 @@ Every report and record has a `reviewStatus` (`reviewOf(item)`). Older items tak
 - The form banner `renderReviewBanner` also has Approve and Deny.
 - Citations from FiveM arrive PENDING.
 
+### Fire/EMS reports
+Fire taskbar → **Reports** opens `fireReportsPanelJSX` (`activeRecordsPanel === 'fire-reports'`).
+- **Lists:** Mine/All, search, and New Report.
+- **Types:** `FIRE_REPORT_TYPES` = FIRE INVESTIGATION REPORT and MEDICAL PATIENT REPORT. These are base forms for now (`fireReportFormJSX`):
+  - common Incident fields, plus a Narrative;
+  - fire details (type, cause, origin, damage);
+  - medical: a patient picker linked to a character (`report.patient`), plus complaint, treatment, disposition and destination.
+  - Add fields there as the reports get defined.
+- **Storage:** in `officerReports` with `service: 'FIRE'`.
+- **Kept out of LE:** they are excluded from LE lists, the LE Supervisor Panel and Lookup (`isFireReport`; LE code uses `leReports`).
+- **Status:** DRAFT or SUBMITTED, with no supervisor review yet. Other users don't see someone else's drafts.
+
+### Admin accounts
+Admins can open every role. When an admin enters LE or Fire/EMS, a unit is created for their login's `unitId` (e.g. ADMIN-1, `adminUnit: true`) if it doesn't exist. That gives them status buttons, self-dispatch, Open Calls and a callsign on the map. Admins also pass every supervisor, grouping and self-dispatch check (`lib/permissions.ts`).
+
 ### DMV expiration dates
 - "Today" is the CAD date in Pacific time (`cadToday()` in `lib/cadDate.ts`), not the browser's or server's date.
 - `liveDmvRecord(s)` shows a registration, insurance or license as **EXPIRED** once its date is before today, for VALID, ACTIVE or empty statuses. It only changes what is displayed; the stored record is untouched.
@@ -284,7 +299,7 @@ Role color is a highlight (pill, dot, icon chip, header underline), not a thick 
     - Dispatch: the identity card shows the dispatcher, opens the COM # modal, and shows `COM …` once set. Then comes the view nav (Dispatch / Units / Tow / Fire-EMS / Live Map).
     - PANIC (LE only) sits alone on the right with a wide gap. **Keep other controls away from it.** 10-code tags hide below 1400px.
   - **Taskbar:**
-    - Left: LE gets Lookup / Records / BOLO / Supervisor Panel buttons (`renderTaskbarButton`, with count badges).
+    - Left: LE gets Lookup / Records / BOLO / Supervisor Panel buttons (`renderTaskbarButton`, with count badges). Fire/EMS gets Reports.
     - Middle: the window layout controls (`renderLayoutControls`), LE and Fire only.
     - Right: FiveM chip (`renderFiveMChip`), Change Role and the PST clock.
   - There is no Menu button anymore. Sign Out is on role selection.

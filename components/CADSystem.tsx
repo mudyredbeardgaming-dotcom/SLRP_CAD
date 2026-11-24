@@ -494,6 +494,15 @@ const CADSystem = () => {
     return !!n && n === normName(civName(person));
   };
 
+  // ---- Fire/EMS reports ----------------------------------------------------
+  // Stored in officerReports (so they save/sync like LE reports) with
+  // service: 'FIRE'. They are kept out of every LE list, the LE Supervisor
+  // Panel and Lookup. Statuses: DRAFT or SUBMITTED (no supervisor review yet).
+  const FIRE_REPORT_TYPES = ['FIRE INVESTIGATION REPORT', 'MEDICAL PATIENT REPORT'];
+  const isFireReport = (r: any) => r?.service === 'FIRE' || FIRE_REPORT_TYPES.includes(r?.type);
+  const leReports = officerReports.filter(r => !isFireReport(r));
+  const fireReports = officerReports.filter(isFireReport);
+
   // ---- Supervisor review ----------------------------------------------------
   // Every LE report and record has a review state:
   //   DRAFT     saved with "Save as Draft": only its author sees it, supervisors don't
@@ -630,10 +639,10 @@ const CADSystem = () => {
   const newestFirst = (a: any, b: any) => String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
   const visibleRecords = (list: any[]) => list.filter(r => (reviewOf(r) !== 'DRAFT' ? true : isMyRecord(r)));
   const shownRecords = (recordsScope === 'all' ? visibleRecords(officerRecords) : officerRecords.filter(isMyRecord)).slice().sort(newestFirst);
-  const shownReports = (recordsScope === 'all' ? visibleRecords(officerReports) : officerReports.filter(isMyRecord)).slice().sort(newestFirst);
+  const shownReports = (recordsScope === 'all' ? visibleRecords(leReports) : leReports.filter(isMyRecord)).slice().sort(newestFirst);
   /** My reports/records a supervisor sent back. */
   const myDenied = [
-    ...officerReports.filter(r => isMyRecord(r) && reviewOf(r) === 'DENIED').map(r => ({ kind: 'report' as const, item: r })),
+    ...leReports.filter(r => isMyRecord(r) && reviewOf(r) === 'DENIED').map(r => ({ kind: 'report' as const, item: r })),
     ...officerRecords.filter(r => isMyRecord(r) && reviewOf(r) === 'DENIED').map(r => ({ kind: 'record' as const, item: r })),
   ].sort((a, b) => String(b.item.reviewedAt || '').localeCompare(String(a.item.reviewedAt || '')));
 
@@ -1050,6 +1059,37 @@ const CADSystem = () => {
     }
   };
 
+  // Admins can work any role for testing. Their login points at a unit
+  // (e.g. ADMIN-1) that normally doesn't exist, which left LE / Fire-EMS with
+  // "Unit Not Found", dead status buttons and no self-dispatch. Create it the
+  // first time an admin opens one of those roles.
+  useEffect(() => {
+    if (!isClient || loggedInOfficer?.role !== 'admin') return;
+    if (selectedRole !== 'police' && selectedRole !== 'fire') return;
+    if (units.length === 0) return; // wait for the data load
+    const unitId = selectedUnit || loggedInOfficer.unitId || `ADMIN-${loggedInOfficer.username}`;
+    if (!selectedUnit) setSelectedUnit(unitId);
+    if (units.some(u => u.id === unitId)) return;
+    const adminUnit = {
+      id: unitId,
+      callsign: String(unitId).toUpperCase(),
+      status: 'available',
+      officer: loggedInOfficer.displayName || loggedInOfficer.username,
+      assignedCall: null,
+      aop: '',
+      agency: selectedRole === 'fire' ? 'LSFD' : 'B.C.S.O',
+      department: selectedRole === 'fire' ? 'LSFD' : 'B.C.S.O',
+      rank: 'Admin',
+      subdivision: '',
+      location: '',
+      callHistory: [],
+      adminUnit: true,
+    };
+    const newUnits = [...units, adminUnit];
+    setUnits(newUnits);
+    saveDataImmediately({ units: newUnits, calls, civilians, officerReports, officerRecords, officerCredentials });
+  }, [isClient, loggedInOfficer, selectedRole, selectedUnit, units]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Save data to server whenever it changes (debounced for non-critical updates)
   useEffect(() => {
     if (isClient) {
@@ -1419,7 +1459,7 @@ const CADSystem = () => {
     const m = (name: any, id?: any) => personMatches(person, name, id);
     // Other officers' drafts are private
     const officerRecords = officerRecordsAll.filter(visibleToMe);
-    const officerReports = officerReportsAll.filter(visibleToMe);
+    const officerReports = officerReportsAll.filter(r => visibleToMe(r) && !isFireReport(r));
     const dmv = person?.dmvRecords || [];
     const plates = new Set(dmv.filter((r: any) => r.type === 'VEHICLE REGISTRATION')
       .map((r: any) => String(r.data?.plateNumber || '').trim().toUpperCase()).filter(Boolean));
@@ -8165,7 +8205,7 @@ const CADSystem = () => {
 
   // Report form modal. Shared by the Records panel and Lookup (open a report
   // from a person's history).
-  const reportFormModalJSX = activeReportForm ? (
+  const reportFormModalJSX = activeReportForm && !FIRE_REPORT_TYPES.includes(activeReportForm) ? (
           <div className="modal-backdrop z-[60]">
             <div className="modal-surface w-full max-w-5xl max-h-[90vh] overflow-y-auto">
               <div className="bg-gray-900 px-6 py-4 border-b border-white/[0.06] flex justify-between items-center sticky top-0 z-10">
@@ -12240,11 +12280,285 @@ const CADSystem = () => {
           </div>
   ) : null;
 
+  // ---- Fire/EMS Reports panel (Fire taskbar -> Reports) ----------------------
+  // A base for now: common incident fields, a few type-specific fields and a
+  // narrative. Add fields to FIRE_REPORT_FIELDS / the form as the reports are defined.
+  const handleNewFireReport = (type: string) => {
+    const recordId = nextReportRecordId;
+    setNextReportRecordId(prev => prev + 1);
+    setEditingReportId(null);
+    setShowNewReportDropdown(false);
+    setInvolvedSearch('');
+    setActiveReportForm(type);
+    setCurrentReportData({
+      type,
+      service: 'FIRE',
+      recordNumber: recordId,
+      officer: loggedInOfficer?.displayName || '',
+      officerUsername: loggedInOfficer?.username || null,
+      callsign: myUnitRecord?.callsign || loggedInOfficer?.unitId || '',
+      department: loggedInOfficer?.department || '',
+      incidentDate: cadToday(),
+      incidentTime: new Intl.DateTimeFormat('en-GB', { timeZone: 'America/Los_Angeles', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date()),
+      callId: (calls.find(c => c.status !== 'CLOSED' && (c.assignedUnits || []).includes(selectedUnit)) || {}).id || '',
+      status: 'DRAFT',
+    });
+  };
+  const closeFireReport = () => {
+    setInvolvedSearch('');
+    setActiveReportForm(null);
+    setCurrentReportData({});
+    setEditingReportId(null);
+  };
+  const saveFireReport = (status: 'DRAFT' | 'SUBMITTED') => {
+    const now = new Date().toISOString();
+    const data = {
+      ...currentReportData,
+      service: 'FIRE',
+      status,
+      reviewStatus: status,
+      ...(status === 'SUBMITTED' && !currentReportData.submittedAt ? { submittedAt: now } : {}),
+    };
+    const newReports = editingReportId
+      ? officerReports.map(r => (r.id === editingReportId ? { ...data, updatedAt: now } : r))
+      : [...officerReports, { ...data, id: `RPT-${Date.now()}`, createdAt: now, updatedAt: now }];
+    setOfficerReports(newReports);
+    saveDataImmediately({ units, calls, civilians, officerReports: newReports, officerRecords, officerCredentials });
+    closeFireReport();
+  };
+  const fireField = (label: string, key: string, opts: { type?: string; placeholder?: string; span?: boolean; options?: string[]; readOnly?: boolean } = {}) => (
+    <div className={opts.span ? 'md:col-span-2' : ''}>
+      <label className="field-label">{label}</label>
+      {opts.options ? (
+        <select value={currentReportData[key] || ''} onChange={(e) => setCurrentReportData({ ...currentReportData, [key]: e.target.value })} className="field" aria-label={label}>
+          <option value="">Select...</option>
+          {opts.options.map(o => <option key={o} value={o}>{o}</option>)}
+        </select>
+      ) : opts.type === 'textarea' ? (
+        <textarea value={currentReportData[key] || ''} onChange={(e) => setCurrentReportData({ ...currentReportData, [key]: e.target.value })} placeholder={opts.placeholder} className="field h-32" aria-label={label} />
+      ) : (
+        <input
+          type={opts.type || 'text'}
+          value={currentReportData[key] || ''}
+          readOnly={opts.readOnly}
+          onChange={(e) => setCurrentReportData({ ...currentReportData, [key]: e.target.value })}
+          placeholder={opts.placeholder}
+          className="field"
+          aria-label={label}
+        />
+      )}
+    </div>
+  );
+  /** Patient picker for the Medical Patient Report (links the report to a character). */
+  const renderPatientPicker = () => {
+    const q = involvedSearch.trim().toLowerCase();
+    const results = q.length >= 2 ? civilians.filter(c => civName(c).toLowerCase().includes(q)).slice(0, 8) : [];
+    const patient = currentReportData.patient || {};
+    const setPatient = (next: any) => setCurrentReportData({ ...currentReportData, patient: next });
+    return (
+      <div className="panel-card">
+        <h4 className="section-title text-red-400">Patient</h4>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="relative md:col-span-2">
+            <label className="field-label">Search character</label>
+            <input
+              type="text"
+              value={involvedSearch}
+              onChange={(e) => setInvolvedSearch(e.target.value)}
+              placeholder="Type a name to fill the patient from the CAD..."
+              className="field"
+              aria-label="Search patient"
+            />
+            {results.length > 0 && (
+              <div className="menu-list absolute z-30 mt-1 max-h-56 w-full overflow-y-auto">
+                {results.map(c => (
+                  <button key={c.id} type="button" className="menu-item w-full text-left"
+                    onClick={() => { setPatient({ civilianId: c.id, name: civName(c), dob: civDob(c), sex: c.sex || '', address: civAddress(c), phone: civPhone(c) }); setInvolvedSearch(''); }}>
+                    <span className="font-medium text-white">{civName(c)}</span>
+                    <span className="ml-2 text-xs text-gray-400">DOB {civDob(c) || 'N/A'}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {[['Name', 'name'], ['Date of Birth', 'dob'], ['Sex', 'sex'], ['Phone', 'phone']].map(([label, key]) => (
+            <div key={key}>
+              <label className="field-label">{label}</label>
+              <input
+                type={key === 'dob' ? 'date' : 'text'}
+                value={patient[key] || ''}
+                onChange={(e) => setPatient({ ...patient, [key]: e.target.value, ...(key === 'name' ? { civilianId: null } : {}) })}
+                className="field"
+                aria-label={`Patient ${label}`}
+              />
+            </div>
+          ))}
+          <div className="md:col-span-2">
+            <label className="field-label">Address</label>
+            <input type="text" value={patient.address || ''} onChange={(e) => setPatient({ ...patient, address: e.target.value })} className="field" aria-label="Patient Address" />
+          </div>
+        </div>
+        {patient.name && !patient.civilianId && <p className="mt-2 text-xs text-gray-500">Not linked to a CAD character.</p>}
+      </div>
+    );
+  };
+  const fireReportFormJSX = activeReportForm && FIRE_REPORT_TYPES.includes(activeReportForm) ? (
+    <div className="modal-backdrop z-[60]">
+      <div className="modal-surface w-full max-w-4xl max-h-[90vh] overflow-y-auto" data-fire-report-form={activeReportForm}>
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/[0.06] bg-gray-900 px-6 py-4">
+          <h3 className="flex items-center gap-2 text-lg font-bold text-red-400">
+            {activeReportForm === 'MEDICAL PATIENT REPORT' ? <Shield size={20} /> : <Flame size={20} />}
+            {activeReportForm}
+            {editingReportId && (
+              <span className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ring-1 ${currentReportData.status === 'SUBMITTED' ? 'bg-sky-500/15 text-sky-300 ring-sky-500/30' : 'bg-yellow-500/15 text-yellow-300 ring-yellow-500/30'}`}>
+                {currentReportData.status === 'SUBMITTED' ? 'SUBMITTED' : 'DRAFT'}
+              </span>
+            )}
+          </h3>
+          <button onClick={closeFireReport} className="icon-btn" aria-label="Close"><X size={20} /></button>
+        </div>
+        <div className="space-y-5 p-6">
+          <div className="panel-card">
+            <h4 className="section-title text-red-400">Incident</h4>
+            <div className="grid gap-4 md:grid-cols-4">
+              {fireField('Report #', 'recordNumber', { readOnly: true })}
+              {fireField('Date', 'incidentDate', { type: 'date' })}
+              {fireField('Time', 'incidentTime', { type: 'time' })}
+              {fireField('CAD Call #', 'callId', { placeholder: 'e.g. 000123' })}
+              {fireField('Unit', 'callsign')}
+              {fireField('Personnel', 'officer')}
+              <div className="md:col-span-2">{fireField('Department', 'department')}</div>
+              <div className="md:col-span-3">{fireField('Location', 'location', { placeholder: 'Street / cross street / area' })}</div>
+              {fireField('Postal', 'postal')}
+            </div>
+          </div>
+
+          {activeReportForm === 'FIRE INVESTIGATION REPORT' && (
+            <div className="panel-card">
+              <h4 className="section-title text-orange-400">Fire Details</h4>
+              <div className="grid gap-4 md:grid-cols-2">
+                {fireField('Incident Type', 'incidentType', { options: ['STRUCTURE FIRE', 'VEHICLE FIRE', 'WILDLAND / BRUSH FIRE', 'TRASH / RUBBISH FIRE', 'EXPLOSION', 'OTHER'] })}
+                {fireField('Cause Determination', 'causeDetermination', { options: ['UNDER INVESTIGATION', 'ACCIDENTAL', 'NATURAL', 'INCENDIARY', 'UNDETERMINED'] })}
+                {fireField('Area of Origin', 'areaOfOrigin', { placeholder: 'Where the fire started' })}
+                {fireField('Property Owner / Occupant', 'propertyOwner')}
+                {fireField('Estimated Damage ($)', 'damageEstimate', { type: 'number' })}
+                {fireField('Injuries / Fatalities', 'casualties', { placeholder: 'e.g. 1 injured, 0 fatalities' })}
+              </div>
+            </div>
+          )}
+
+          {activeReportForm === 'MEDICAL PATIENT REPORT' && (
+            <>
+              {renderPatientPicker()}
+              <div className="panel-card">
+                <h4 className="section-title text-red-400">Assessment &amp; Care</h4>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="md:col-span-2">{fireField('Chief Complaint', 'chiefComplaint')}</div>
+                  {fireField('Treatment Given', 'treatment', { span: true })}
+                  {fireField('Disposition', 'disposition', { options: ['TRANSPORTED', 'TREATED & RELEASED', 'REFUSED CARE', 'DECEASED ON SCENE', 'CANCELLED'] })}
+                  {fireField('Destination Hospital', 'destination')}
+                </div>
+              </div>
+            </>
+          )}
+
+          <div className="panel-card">
+            <h4 className="section-title text-gray-300">Narrative</h4>
+            {fireField('What happened', 'narrative', { type: 'textarea', placeholder: 'Describe the incident, actions taken and outcome.' })}
+          </div>
+
+          <div className="flex justify-end gap-2 border-t border-white/[0.06] pt-4">
+            <button onClick={closeFireReport} className="btn btn-secondary">Cancel</button>
+            <button onClick={() => saveFireReport('DRAFT')} className="btn bg-yellow-600 text-white hover:bg-yellow-500">Save as Draft</button>
+            <button onClick={() => saveFireReport('SUBMITTED')} className="btn btn-danger">{currentReportData.status === 'SUBMITTED' && editingReportId ? 'Save' : 'Submit Report'}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
+  const myFireDrafts = fireReports.filter(r => isMyRecord(r) && r.status === 'DRAFT').length;
+  const fireReportsPanelJSX = (() => {
+    if (selectedRole !== 'fire') return null;
+    const q = supervisorSearch.trim().toLowerCase();
+    const list = (recordsScope === 'all' ? fireReports.filter(r => r.status !== 'DRAFT' || isMyRecord(r)) : fireReports.filter(isMyRecord))
+      .filter(r => !q || [r.type, r.recordNumber, r.officer, r.location, r.patient?.name, r.callId].some(v => String(v || '').toLowerCase().includes(q)))
+      .slice().sort(newestFirst);
+    return (
+      <div className="modal-backdrop z-50">
+        <div className="modal-surface w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col" data-panel="fire-reports">
+          <div className="modal-header">
+            <div className="flex items-center gap-2">
+              {renderBackButton('Records Management')}
+              <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                <FileText size={20} className="text-red-400" /> Fire/EMS Reports
+              </h2>
+            </div>
+            <button onClick={() => { setActiveRecordsPanel(null); setShowNewReportDropdown(false); }} className="icon-btn" aria-label="Close"><X size={20} /></button>
+          </div>
+          <div className="flex flex-wrap items-center gap-3 border-b border-white/[0.06] px-6 py-3">
+            <div className="relative">
+              <button onClick={() => setShowNewReportDropdown(!showNewReportDropdown)} className="btn btn-danger">
+                <Plus size={16} /> New Report <span className="text-xs">▼</span>
+              </button>
+              {showNewReportDropdown && (
+                <div className="menu-list absolute left-0 top-full z-10 mt-1 min-w-56">
+                  {FIRE_REPORT_TYPES.map(t => (
+                    <button key={t} onClick={() => handleNewFireReport(t)} className="menu-item w-full text-left">{t}</button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="seg !p-0.5" role="group" aria-label="Reports shown">
+              <button onClick={() => setRecordsScope('mine')} className={`seg-item !px-2.5 !py-1 !text-xs ${recordsScope === 'mine' ? 'seg-item-active' : ''}`}>Mine</button>
+              <button onClick={() => setRecordsScope('all')} className={`seg-item !px-2.5 !py-1 !text-xs ${recordsScope === 'all' ? 'seg-item-active' : ''}`}>All</button>
+            </div>
+            <input
+              type="text"
+              value={supervisorSearch}
+              onChange={(e) => setSupervisorSearch(e.target.value)}
+              placeholder="Search type, #, patient, location..."
+              className="field field-sm ml-auto !w-72"
+            />
+          </div>
+          <div className="flex-1 overflow-y-auto p-6">
+            {list.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-white/[0.1] p-10 text-center text-sm text-gray-400">
+                <FileText size={32} className="mx-auto mb-2 text-gray-600" />
+                {recordsScope === 'mine' ? 'You have no reports yet. Use "New Report" to start one.' : 'No reports yet.'}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {list.map(r => (
+                  <button key={r.id} onClick={() => openExistingReport(r)} className="subcard w-full p-3 text-left hover:!border-white/[0.14]" data-fire-report={r.id}>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {r.type === 'MEDICAL PATIENT REPORT' ? <Shield size={15} className="text-red-300" /> : <Flame size={15} className="text-orange-300" />}
+                      <span className="text-sm font-semibold text-white">{r.type}</span>
+                      {r.recordNumber && <span className="font-mono text-xs text-gray-400">#{r.recordNumber}</span>}
+                      <span className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ring-1 ${r.status === 'SUBMITTED' ? 'bg-sky-500/15 text-sky-300 ring-sky-500/30' : 'bg-yellow-500/15 text-yellow-300 ring-yellow-500/30'}`}>
+                        {r.status === 'SUBMITTED' ? 'SUBMITTED' : 'DRAFT'}
+                      </span>
+                      <span className="ml-auto text-xs text-gray-500">{formatRecordDateTime(r.createdAt)}</span>
+                    </div>
+                    <div className="mt-1 text-xs text-gray-400">
+                      {[r.officer && `${r.officer}${r.callsign ? ` (${r.callsign})` : ''}`, r.patient?.name && `Patient: ${r.patient.name}`, r.incidentType, r.location, r.callId && `Call #${r.callId}`].filter(Boolean).join(' · ')}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+        {fireReportFormJSX}
+      </div>
+    );
+  })();
+
   // ---- Supervisor Panel (Records Management) --------------------------------
   const subjectOf = (x: any) => x.subjectName || x.arresteeName || x.trespasserName || x.party1?.name || x.subject
     || (x.involvedPersons || [])[0]?.name || '';
   const reviewEntries = [
-    ...officerReports.map(r => ({ kind: 'report' as const, item: r })),
+    ...leReports.map(r => ({ kind: 'report' as const, item: r })),
     ...officerRecords.map(r => ({ kind: 'record' as const, item: r })),
   ];
   const pendingReviewCount = reviewEntries.filter(x => reviewOf(x.item) === 'PENDING').length;
@@ -14135,7 +14449,7 @@ const CADSystem = () => {
           </div>
 
           {call.status !== 'CLOSED' && selectedRole === 'dispatch' && (
-            <button onClick={() => closeCall(call.id)} className="btn btn-success w-full mt-4">
+            <button onClick={() => { closeCall(call.id); setSelectedCall(null); }} className="btn btn-success w-full mt-4">
               Close Call
             </button>
           )}
@@ -15060,6 +15374,9 @@ const CADSystem = () => {
                   {supervisorAllowed && renderTaskbarButton('supervisor', 'Supervisor Panel', <ShieldCheck size={16} className="text-red-300" />, pendingReviewCount, 'waiting for review')}
                 </>
               )}
+              {selectedRole === 'fire' && loggedInOfficer && (
+                renderTaskbarButton('fire-reports', 'Reports', <FileText size={16} className="text-red-400" />, myFireDrafts, 'of your drafts', 'neutral')
+              )}
             </div>
           ) : <div />}
           <div className="flex items-center justify-center">
@@ -15092,6 +15409,7 @@ const CADSystem = () => {
       {activeRecordsPanel === 'lookup' && lookupPanelJSX}
       {activeRecordsPanel === 'bolo' && boloPanelJSX}
       {activeRecordsPanel === 'supervisor' && supervisorPanelJSX}
+      {activeRecordsPanel === 'fire-reports' && fireReportsPanelJSX}
       {showNewCall && <NewCallForm />}
       {selectedCall && <CallDetail call={selectedCall} />}
       {showUnitInfo && selectedUnit && units.find(u => u.id === selectedUnit) && <UnitInfoModal unit={units.find(u => u.id === selectedUnit)} />}
