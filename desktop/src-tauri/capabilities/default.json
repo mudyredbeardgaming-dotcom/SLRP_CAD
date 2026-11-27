@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "The launcher may check for updates and restart the app. The CAD server's pages get no app permissions.",
+  "windows": ["main"],
+  "permissions": ["core:default", "updater:default", "process:default"]
+}

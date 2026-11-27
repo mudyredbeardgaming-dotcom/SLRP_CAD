@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>StrataMDT</title>
+    <link rel="stylesheet" href="launcher.css" />
+  </head>
+  <body>
+    <main class="card">
+      <img src="logo.png" alt="StrataMDT" class="logo" width="132" height="132" />
+      <h1>Strata<span>MDT</span></h1>
+      <p id="version" class="muted">&nbsp;</p>
+
+      <section id="status-view">
+        <div class="status">
+          <span id="spinner" class="spinner"></span>
+          <span id="status">Starting…</span>
+        </div>
+        <div id="progress" class="progress" hidden><div id="progress-bar"></div></div>
+        <p id="server-line" class="muted small" hidden>
+          Server: <span id="server-label"></span>
+          <button id="change-server" class="link" type="button">Change</button>
+        </p>
+      </section>
+
+      <form id="server-view" hidden>
+        <label for="server-input">CAD server address</label>
+        <input id="server-input" type="text" placeholder="https://your-cad.up.railway.app" autocomplete="url" spellcheck="false" />
+        <p id="server-error" class="error" hidden></p>
+        <button type="submit" class="primary">Connect</button>
+      </form>
+    </main>
+    <script src="config.js"></script>
+    <script src="launcher.js"></script>
+  </body>
+</html>

@@ -1,0 +1,28 @@
+# Compiles the StrataMDT desktop app (no installer, no signing) whenever it changes.
+name: Desktop check
+
+on:
+  push:
+    paths: ['desktop/**', '.github/workflows/desktop-*.yml']
+  pull_request:
+    paths: ['desktop/**', '.github/workflows/desktop-*.yml']
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri -> target
+      - run: npm install --no-audit --no-fund
+      - name: Compile (no bundle)
+        run: npm run check

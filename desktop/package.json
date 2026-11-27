@@ -1,0 +1,17 @@
+{
+  "name": "strata-mdt-desktop",
+  "private": true,
+  "version": "0.1.0",
+  "description": "StrataMDT desktop app (Tauri). Opens the CAD in its own window and updates itself on launch.",
+  "scripts": {
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "check": "tauri build --no-bundle",
+    "icons": "tauri icon app-icon.png",
+    "set-version": "node scripts/set-version.mjs"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0"
+  }
+}

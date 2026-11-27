@@ -1,0 +1,67 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "StrataMDT",
+  "version": "0.1.0",
+  "identifier": "com.stratamdt.desktop",
+  "build": {
+    "frontendDist": "../src"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "StrataMDT",
+        "width": 1600,
+        "height": 950,
+        "minWidth": 1024,
+        "minHeight": 700,
+        "center": true,
+        "resizable": true,
+        "backgroundColor": "#0b0f16"
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "nsis"
+    ],
+    "publisher": "StrataMDT",
+    "copyright": "StrataMDT",
+    "category": "Utility",
+    "shortDescription": "StrataMDT CAD / MDT",
+    "longDescription": "StrataMDT computer-aided dispatch and mobile data terminal for FiveM roleplay communities.",
+    "createUpdaterArtifacts": true,
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "displayLanguageSelector": false
+      },
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEYwNjk1QkMyMDVCRTkxQTUKUldTbGtiNEZ3bHRwOEw3Q2VqamtacUVnNFN6b2dHdzZqbnpsQXRIRCsrZVRYK216MVQzUXB5T3cK",
+      "endpoints": [
+        "https://github.com/mudyredbeardgaming-dotcom/SLRP_CAD/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
+}
