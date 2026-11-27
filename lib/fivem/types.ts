@@ -37,7 +37,10 @@ export interface UnitTelemetry {
   playerName?: string;
   serverId?: number;
   location?: GameLocation;
-  vehicle?: { model?: string; plate?: string; speed?: number } | null;
+  /** ahead: the vehicle directly in front of this one (traffic stops). */
+  vehicle?: { model?: string; plate?: string; speed?: number; ahead?: { plate?: string; model?: string } | null } | null;
+  /** Wraith ARS 2X plate reader: latest scanned / locked plate per camera, age in seconds. */
+  plateReader?: Partial<Record<'front' | 'rear', { scanned?: { plate: string; age: number }; locked?: { plate: string; age: number } }>> | null;
   /** Set by the CAD when received (ms since epoch). */
   updatedAt?: number;
 }

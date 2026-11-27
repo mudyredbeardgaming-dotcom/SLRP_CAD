@@ -72,6 +72,19 @@ Config.Waypoints = {
   clearOnClose = true,
 }
 
+-- Traffic stops: the CAD's "Traffic Stop" button fills the plate from the
+-- officer's radar plate reader (Wraith ARS 2X, wk_wars2x) and, as a fallback,
+-- from the vehicle directly in front of the officer's car.
+Config.PlateReader = {
+  enabled = true,
+  -- Listen for wk_wars2x's wk:onPlateScanned / wk:onPlateLocked events.
+  wars2x = true,
+  -- Forget plate reads older than this (seconds).
+  maxAgeSeconds = 300,
+  -- Also look for the vehicle directly ahead of the officer's car (meters; 0 = off).
+  aheadDistance = 25.0,
+}
+
 -- How often each player reports their position to the game server (ms).
 -- Together with UnitUpdateInterval this sets how smoothly units move on the CAD live map.
 Config.TelemetryInterval = 2500

@@ -254,6 +254,8 @@ const CADSystem = () => {
   const [selectedLookupVehicle, setSelectedLookupVehicle] = useState<any>(null);
   // Civilian portal: the history item expanded to show its details
   const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
+  // Traffic stop: plate typed by the officer to replace the one from the game
+  const [tsPlateDraft, setTsPlateDraft] = useState('');
   const [editingReportId, setEditingReportId] = useState<string | null>(null);
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
 
@@ -1739,6 +1741,200 @@ const CADSystem = () => {
         status: c.status,
       };
     });
+  // ---- Traffic stops (LE taskbar -> Traffic Stop) ------------------------------
+  /** The CAD's registration for a plate: live vehicle data + owner, or null. */
+  const findRegistration = (plate: any) => {
+    const want = normPlate(plate);
+    if (!want) return null;
+    for (const civ of civilians) {
+      const rec = liveDmvRecords(civ.dmvRecords).find((r: any) => r.type === 'VEHICLE REGISTRATION' && normPlate(r.data?.plateNumber) === want);
+      if (rec) return { data: rec.data, owner: civ };
+    }
+    return null;
+  };
+  /**
+   * Plate of the stopped vehicle from the game: Wraith ARS 2X front camera
+   * (locked plate first, then the latest scan within a minute), else the
+   * vehicle directly in front of the officer's car.
+   */
+  const pickStopPlate = (t: any): { plate: string; source: string; model?: string } | null => {
+    const front = t?.plateReader?.front;
+    if (front?.locked?.plate) return { plate: front.locked.plate, source: 'Radar plate reader (front, locked)' };
+    if (front?.scanned?.plate && front.scanned.age <= 60) return { plate: front.scanned.plate, source: 'Radar plate reader (front)' };
+    if (t?.vehicle?.ahead?.plate) return { plate: t.vehicle.ahead.plate, source: 'Vehicle in front of the unit', model: t.vehicle.ahead.model };
+    const rear = t?.plateReader?.rear;
+    if (rear?.locked?.plate) return { plate: rear.locked.plate, source: 'Radar plate reader (rear, locked)' };
+    return null;
+  };
+  /** Snapshot of what the CAD knows about a stopped plate. */
+  const trafficStopInfo = (plate: string, source: string, model?: string) => {
+    const reg = findRegistration(plate);
+    const d = reg?.data || {};
+    return {
+      plate: normPlate(plate) || '',
+      plateSource: source,
+      vehicle: reg ? { year: d.year || '', make: d.make || '', model: d.model || '', color: d.color || '', vehicleType: d.vehicleType || '' } : (model ? { model } : null),
+      registered: !!reg,
+      registrationStatus: d.registrationStatus || null,
+      insuranceStatus: d.insuranceStatus || null,
+      ownerName: reg ? civName(reg.owner) : null,
+      ownerId: reg?.owner?.id || null,
+    };
+  };
+  const vehicleText = (v: any) => (v ? [v.year, v.color, v.make, v.model].filter(Boolean).join(' ') : '');
+  const trafficStopSummary = (ts: any) => (
+    !ts.plate ? 'Traffic stop, plate not captured yet.'
+      : `Traffic stop on ${ts.plate}${vehicleText(ts.vehicle) ? ` (${vehicleText(ts.vehicle)})` : ''}. `
+        + (ts.registered ? `RO: ${ts.ownerName}. REG ${ts.registrationStatus || '?'}, INS ${ts.insuranceStatus || '?'}.` : 'No registration on file in the CAD.')
+  );
+  const myStopUnit = selectedRole === 'police' && selectedUnit ? units.find(u => u.id === selectedUnit) : null;
+  const myStopTelemetry = myStopUnit ? fivem.telemetryFor(myStopUnit.callsign) : null;
+  const pendingStopPlate = pickStopPlate(myStopTelemetry);
+  /** One click: a TRAFFIC STOP call at my position, me on scene, the stopped plate run against the CAD. */
+  const startTrafficStop = () => {
+    const unit = myStopUnit;
+    if (!unit) return;
+    const current = activeCallOf(unit.id);
+    if (current) {
+      window.alert(`You are on call #${callNumberFor(current, 'police')}. Clear from it before starting a traffic stop.`);
+      return;
+    }
+    const t: any = myStopTelemetry;
+    const picked = pickStopPlate(t);
+    const ts: any = { ...trafficStopInfo(picked?.plate || '', picked?.source || 'Not captured', picked?.model),
+      startedBy: loggedInOfficer?.displayName || unit.officer, startedAt: new Date().toISOString() };
+    const loc = t?.location || {};
+    const now = new Date().toISOString();
+    const id = nextCallNumber('L');
+    const ids = groupIdsOf(unit.id).filter(x => unitRoleOf(units.find(u => u.id === x)) === 'police');
+    const owner = ts.ownerId ? civilians.find(c => c.id === ts.ownerId) : null;
+    const newCall: any = {
+      id,
+      numbers: { police: id },
+      callOrigin: 'OBSERVED',
+      callTitle: 'LE',
+      code: 'TRAFFIC STOP',
+      priority: '3',
+      address: [loc.street, loc.crossStreet].filter(Boolean).join(' / ') || loc.zone || 'Location not reported',
+      postal: loc.postal || '',
+      ...(typeof loc.x === 'number' && typeof loc.y === 'number' ? { location: { x: loc.x, y: loc.y, z: loc.z } } : {}),
+      description: trafficStopSummary(ts),
+      caller: ts.startedBy,
+      status: 'ACTIVE',
+      assignedUnits: ids,
+      primaryUnit: unit.id,
+      timestamp: now,
+      trafficStop: ts,
+      attachments: owner ? [attachmentEntry({ kind: 'person', service: 'LE', civilianId: owner.id, name: civName(owner), dob: civDob(owner) })] : [],
+      callNotes: [{ text: `${unit.callsign} started a traffic stop${ts.plate ? ` on ${ts.plate} (${ts.plateSource})` : ''}`, timestamp: now }],
+    };
+    const newCalls = [...calls, newCall];
+    const newUnits = units.map(u => (ids.includes(u.id) ? { ...u, assignedCall: id, status: 'onscene' } : u));
+    setCalls(newCalls);
+    setUnits(newUnits);
+    setCallPanelTab('mine');
+    setShowAttachments(false);
+    setTsPlateDraft('');
+    saveDataImmediately({ units: newUnits, calls: newCalls, civilians, officerReports, officerRecords, officerCredentials });
+    const callsigns = ids.map(callsignOf).filter(Boolean);
+    if (callsigns.length) {
+      // the unit is already there: no GPS waypoint
+      const { x: _x, y: _y, gpsApprox: _a, ...gameCall } = callForGame(newCall, 'police') as any;
+      fivem.send({ type: 'call_assigned', callsigns, call: gameCall });
+      callsigns.forEach(cs => fivem.send({ type: 'unit_status', callsign: cs, status: 'onscene' }));
+    }
+  };
+  /** Replace the stop's plate (typed, or re-read from the game) and re-run it. */
+  const updateTrafficStopPlate = (callId: string, plate: string, source: string, model?: string) => {
+    const now = new Date().toISOString();
+    const newCalls = calls.map(c => {
+      if (c.id !== callId || !c.trafficStop) return c;
+      const ts = { ...c.trafficStop, ...trafficStopInfo(plate, source, model) };
+      const owner = ts.ownerId ? civilians.find(x => x.id === ts.ownerId) : null;
+      const att = owner && !(c.attachments || []).some((a: any) => a.kind === 'person' && a.civilianId === owner.id)
+        ? [attachmentEntry({ kind: 'person', service: 'LE', civilianId: owner.id, name: civName(owner), dob: civDob(owner) })] : [];
+      return {
+        ...c,
+        trafficStop: ts,
+        description: trafficStopSummary(ts),
+        attachments: [...(c.attachments || []), ...att],
+        callNotes: [...(c.callNotes || []), { text: `Stopped vehicle plate set to ${ts.plate} (${source})`, timestamp: now }],
+      };
+    });
+    setCalls(newCalls);
+    setTsPlateDraft('');
+    saveDataImmediately({ units, calls: newCalls, civilians, officerReports, officerRecords, officerCredentials });
+  };
+  /** Traffic stop details card (Active Call window, dispatch call window). */
+  const renderTrafficStopCard = (call: any, editable: boolean) => {
+    const saved = call.trafficStop;
+    if (!saved) return null;
+    // registration and statuses are re-read so changes in the CAD show right away
+    const ts = saved.plate ? { ...saved, ...trafficStopInfo(saved.plate, saved.plateSource, saved.vehicle?.model) } : saved;
+    const owner = ts.ownerId ? civilians.find(c => c.id === ts.ownerId) : null;
+    const wanted = owner && selectedRole !== 'fire' ? getPersonHistory(owner).wanted : false;
+    const plateBolos = ts.plate && selectedRole !== 'fire' ? getPlateHistory(ts.plate).bolos : [];
+    const chip = (label: string, v: any) => v ? (
+      <span className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${v === 'VALID' ? 'bg-emerald-500/15 text-emerald-300' : 'bg-red-500/15 text-red-300'}`}>{label} {v}</span>
+    ) : null;
+    const fresh = pickStopPlate(myStopTelemetry);
+    return (
+      <div className={`panel-card ${plateBolos.length || wanted ? '!border-red-500/40' : ''}`} data-traffic-stop>
+        <div className="eyebrow mb-2 flex items-center gap-2"><Car size={14} /> Traffic Stop</div>
+        {ts.plate ? (
+          <>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-md border border-white/[0.15] bg-white/[0.06] px-2 py-0.5 font-mono text-xl font-bold tracking-wider text-white" data-stop-plate>{ts.plate}</span>
+              <span className="text-sm text-gray-200">{vehicleText(ts.vehicle) || 'Vehicle details unknown'}</span>
+              {chip('REG', ts.registrationStatus)}
+              {chip('INS', ts.insuranceStatus)}
+              {!ts.registered && <span className="rounded bg-yellow-500/15 px-1.5 py-0.5 text-[11px] font-semibold text-yellow-300">NO REGISTRATION ON FILE</span>}
+            </div>
+            <div className="mt-1 text-[11px] text-gray-500">Plate from: {ts.plateSource}</div>
+            {ts.registered && (
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+                <span className="text-gray-400">Registered owner:</span>
+                <span className="font-semibold text-white">{ts.ownerName}</span>
+                {wanted && <span className="rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white animate-pulse">WANTED</span>}
+                {selectedRole === 'police' && owner && (
+                  <button onClick={() => { setActiveRecordsPanel('lookup'); selectLookupPerson(owner); }} className="btn btn-secondary btn-sm"><Search size={13} /> Run owner</button>
+                )}
+              </div>
+            )}
+            {plateBolos.map((b: any) => (
+              <div key={b.id} className="mt-2 rounded-md border border-red-500/40 bg-red-500/10 p-2 text-sm text-red-100" role="alert">
+                <span className="mr-2 rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">BOLO ON PLATE</span>
+                {BOLO_REASONS.filter(([k]) => b[k]).map(([, l]) => l).join(', ') || b.briefInformation || 'Be on the lookout'}
+              </div>
+            ))}
+          </>
+        ) : (
+          <p className="text-sm text-yellow-300">No plate was captured. Lock the plate on your radar, or enter it below.</p>
+        )}
+        {editable && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            <input
+              type="text"
+              value={tsPlateDraft}
+              onChange={(e) => setTsPlateDraft(e.target.value.toUpperCase())}
+              onKeyDown={(e) => { if (e.key === 'Enter' && tsPlateDraft.trim()) updateTrafficStopPlate(call.id, tsPlateDraft, 'Entered by officer'); }}
+              placeholder={ts.plate ? 'Different plate?' : 'Enter plate'}
+              className="field field-sm min-w-0 flex-1 font-mono uppercase"
+              aria-label="Stopped vehicle plate"
+              maxLength={10}
+            />
+            <button disabled={!tsPlateDraft.trim()} onClick={() => updateTrafficStopPlate(call.id, tsPlateDraft, 'Entered by officer')} className="btn btn-secondary btn-sm disabled:opacity-40">Run plate</button>
+            {fresh && normPlate(fresh.plate) !== ts.plate && (
+              <button onClick={() => updateTrafficStopPlate(call.id, fresh.plate, fresh.source, fresh.model)} className="btn btn-primary btn-sm" title={fresh.source}>
+                Use {fresh.plate} from game
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const openCallById = (id: string) => {
     const c = calls.find(x => String(x.id) === String(id));
     if (c) setSelectedCall(c);
@@ -14449,6 +14645,8 @@ const CADSystem = () => {
                 </div>
               )}
 
+              {renderTrafficStopCard(activeCall, selectedRole === 'police')}
+
               <div className="panel-card">
                 <div className="eyebrow mb-1.5">Call Type</div>
                 <div className="text-xl font-bold text-white">{activeCall.code}</div>
@@ -14879,6 +15077,8 @@ const CADSystem = () => {
             </div>
 
             <div className="space-y-4">
+              {renderTrafficStopCard(call, false)}
+
               {(call.attachments || []).length > 0 && (
                 <div className="panel-card" data-call-attachments>
                   <h3 className="eyebrow mb-3 flex items-center gap-2"><Paperclip size={14} /> Attached Records ({call.attachments.length})</h3>
@@ -16046,6 +16246,18 @@ const CADSystem = () => {
                   {renderTaskbarButton('records', 'Records', <FileText size={16} className="text-purple-400" />, myDenied.length, 'returned by a supervisor')}
                   {renderTaskbarButton('bolo', 'BOLO', <AlertTriangle size={16} className="text-red-400" />, boloCounts.active, 'active BOLOs', 'neutral')}
                   {supervisorAllowed && renderTaskbarButton('supervisor', 'Supervisor Panel', <ShieldCheck size={16} className="text-red-300" />, pendingReviewCount, 'waiting for review')}
+                  {myStopUnit && (
+                    <button
+                      onClick={startTrafficStop}
+                      className="btn h-[52px] flex-shrink-0 border border-blue-500/30 bg-blue-500/15 text-blue-100 hover:bg-blue-500/25"
+                      title={pendingStopPlate ? `Start a traffic stop on ${pendingStopPlate.plate} (${pendingStopPlate.source})` : 'Start a traffic stop at your location (no plate from the game yet)'}
+                      data-traffic-stop-button
+                    >
+                      <Car size={16} className="text-blue-300" />
+                      Traffic Stop
+                      {pendingStopPlate && <span className="rounded bg-white/10 px-1.5 font-mono text-xs">{pendingStopPlate.plate}</span>}
+                    </button>
+                  )}
                 </>
               )}
               {selectedRole === 'fire' && loggedInOfficer && (

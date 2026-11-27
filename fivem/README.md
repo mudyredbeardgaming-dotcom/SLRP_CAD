@@ -188,6 +188,22 @@ When a unit is put on a call in the CAD, that player's map gets a waypoint to th
 
 Units are matched by callsign, so Fire and Tow players also need to run `/callsign` (e.g. `/callsign ENGINE-1`, `/callsign TOW-1`). If you set `Config.LeoAce`, give those players the ACE too, or set `leo = false` on the `callsign` command.
 
+## Traffic stops (Wraith ARS 2X)
+
+The CAD's Law Enforcement taskbar has a **Traffic Stop** button. One click creates a TRAFFIC STOP call (L####) at the officer's position, with them on scene. It also runs the stopped vehicle's plate against the CAD's registrations: vehicle, registered owner, registration and insurance status, a WANTED owner, and any BOLO on the plate. The officer adds notes to the call as usual.
+
+**Where the plate comes from:**
+1. **Wraith ARS 2X** (`wk_wars2x`): the front camera's locked plate, or a front scan from the last minute. The resource listens for wk_wars2x's `wk:onPlateScanned` and `wk:onPlateLocked` events, so no changes to wk_wars2x are needed.
+2. **The vehicle directly in front of the officer's car**, found with a short forward probe from the client. This is the fallback when the radar has nothing.
+3. **Typed by the officer** on the call, which also works when FiveM isn't connected.
+
+Settings are in `Config.PlateReader`:
+- `wars2x`: turn the radar listener on or off;
+- `maxAgeSeconds`: how long a plate read is kept;
+- `aheadDistance`: how far the forward probe looks, in meters (`0` turns it off).
+
+The officer must have a `/callsign`, since that's how the CAD finds their position and plate reads.
+
 ## Citations written in game
 
 A citation written in game becomes a **CITATION** record in the CAD, filled in like one written in the CAD's Citation form.
