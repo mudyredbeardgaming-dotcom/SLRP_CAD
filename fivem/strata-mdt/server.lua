@@ -8,6 +8,7 @@ local API_KEY = GetConvar('strata_api_key', '')
 local RESOURCE_VERSION = GetResourceMetadata(GetCurrentResourceName(), 'version', 0) or 'dev'
 
 local callsigns = {}       -- [source] = 'A-101'
+local plateReads = {}      -- [source] = { front = { scanned = {plate, at}, locked = {plate, at} }, rear = {...} }
 local telemetry = {}       -- [source] = { location = {...}, vehicle = {...} }
 local last911 = {}         -- [source] = os.time()
 local outboxCursor = nil   -- nil until the first poll returns the CAD's cursor
@@ -144,6 +145,43 @@ RegisterNetEvent('strata:clearCallsign', function()
   callsigns[src], telemetry[src] = nil, nil
 end)
 
+-- Wraith ARS 2X (wk_wars2x) plate reader. The radar fires these for the player
+-- using it; the CAD's Traffic Stop button uses the latest front-camera read.
+local function onPlateRead(kind)
+  return function(cam, plate, _index)
+    local src = source
+    local pr = Config.PlateReader or {}
+    if pr.enabled == false or pr.wars2x == false then return end
+    cam = tostring(cam or ''):lower()
+    if cam ~= 'front' and cam ~= 'rear' then return end
+    plate = tostring(plate or ''):gsub('^%s+', ''):gsub('%s+$', ''):upper()
+    if plate == '' then return end
+    plateReads[src] = plateReads[src] or {}
+    plateReads[src][cam] = plateReads[src][cam] or {}
+    plateReads[src][cam][kind] = { plate = plate, at = os.time() }
+  end
+end
+RegisterNetEvent('wk:onPlateScanned', onPlateRead('scanned'))
+RegisterNetEvent('wk:onPlateLocked', onPlateRead('locked'))
+
+--- Plate reader state for the CAD: ages in seconds, old reads dropped.
+local function plateReaderFor(src)
+  local reads = plateReads[src]
+  if not reads then return nil end
+  local maxAge = (Config.PlateReader and Config.PlateReader.maxAgeSeconds) or 300
+  local now, out = os.time(), {}
+  for cam, kinds in pairs(reads) do
+    for kind, r in pairs(kinds) do
+      local age = now - r.at
+      if age <= maxAge then
+        out[cam] = out[cam] or {}
+        out[cam][kind] = { plate = r.plate, age = age }
+      end
+    end
+  end
+  return next(out) and out or nil
+end
+
 RegisterNetEvent('strata:telemetry', function(location, vehicle)
   local src = source
   if not callsigns[src] or type(location) ~= 'table' then return end
@@ -203,7 +241,7 @@ end)
 AddEventHandler('playerDropped', function()
   local src = source
   if callsigns[src] then Strata.SendEvents({ { type = 'unit_left', callsign = callsigns[src] } }) end
-  callsigns[src], telemetry[src], last911[src] = nil, nil, nil
+  callsigns[src], telemetry[src], last911[src], plateReads[src] = nil, nil, nil, nil
 end)
 
 -- ---------------------------------------------------------------------------
@@ -330,6 +368,7 @@ CreateThread(function()
           serverId = tonumber(src),
           location = t.location,
           vehicle = t.vehicle,
+          plateReader = plateReaderFor(src),
         }
       end
     end

@@ -209,6 +209,21 @@ Dispatch → Dispatch tab is `renderDispatchBoard()`, built from the same tiled 
 - **Auto-assign on create** (`autoAssignCandidate`): LE calls take an available LE unit, FD calls an available Fire/EMS unit. Tow is never auto-assigned.
 - Open Calls and the LE/Fire maps filter by `serviceOfCall`. The maps also show calls the service has a number on.
 
+### Traffic stops (LE taskbar → Traffic Stop)
+`startTrafficStop()` does it in one click: it creates an L#### TRAFFIC STOP call (ACTIVE, the officer's unit and group on scene, no GPS waypoint).
+- **Location:** from the officer's FiveM telemetry (street / cross street, postal, x/y).
+- **Plate:** `pickStopPlate(telemetry)` uses, in order:
+  1. Wraith ARS 2X front camera, locked;
+  2. front camera scan under 60s old;
+  3. the vehicle directly ahead (client ray probe);
+  4. rear camera, locked.
+- **Registration:** `findRegistration(plate)` looks it up in the CAD (live statuses). The result is stored in `call.trafficStop` and the call description, and the registered owner is attached to the call.
+- **Traffic Stop card** (`renderTrafficStopCard`), in the Active Call window and Dispatch's call window:
+  - plate, vehicle, REG/INS, owner (with a WANTED flag and a Run owner button), BOLO ON PLATE;
+  - a plate field to re-run a different plate, and "Use … from game" when the game has a newer read (`updateTrafficStopPlate`).
+  - Officers keep adding notes in the call's Notes.
+- **Game side:** `server.lua` listens for `wk:onPlateScanned` / `wk:onPlateLocked` and sends `plateReader` with `unit_update`. `client.lua` adds `vehicle.ahead`. Both are set in `Config.PlateReader`.
+
 ### Dispatch BOLOs
 Approved, active BOLOs (`dispatchBolos`) show on the Dispatch board under the Active Calls window's **BOLOs** tab.
 - The tab badge pulses with the number not broadcast yet.

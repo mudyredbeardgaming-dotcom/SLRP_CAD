@@ -36,14 +36,40 @@ local function getLocation()
   }
 end
 
+local function trimPlate(p)
+  return ((p or ''):gsub('^%s+', ''):gsub('%s+$', ''))
+end
+
+-- The vehicle directly in front of mine (for traffic stops when no radar plate is locked).
+local function getVehicleAhead(veh)
+  local pr = Config.PlateReader or {}
+  local dist = tonumber(pr.aheadDistance) or 0
+  if pr.enabled == false or dist <= 0 then return nil end
+  -- three straight probes (left / centre / right) from the front of my car
+  for _, side in ipairs({ 0.0, -1.2, 1.2 }) do
+    local from = GetOffsetFromEntityInWorldCoords(veh, side, 2.5, 0.3)
+    local to = GetOffsetFromEntityInWorldCoords(veh, side, 2.5 + dist, 0.3)
+    local probe = StartExpensiveSynchronousShapeTestLosProbe(from.x, from.y, from.z, to.x, to.y, to.z, 2, veh, 7)
+    local _, hit, _, _, entity = GetShapeTestResult(probe)
+    if hit == 1 and entity and entity ~= 0 and IsEntityAVehicle(entity) and entity ~= veh then
+      return {
+        plate = trimPlate(GetVehicleNumberPlateText(entity)),
+        model = GetDisplayNameFromVehicleModel(GetEntityModel(entity)),
+      }
+    end
+  end
+  return nil
+end
+
 local function getVehicle()
   local ped = PlayerPedId()
   if not IsPedInAnyVehicle(ped, false) then return nil end
   local veh = GetVehiclePedIsIn(ped, false)
   return {
     model = GetDisplayNameFromVehicleModel(GetEntityModel(veh)),
-    plate = (GetVehicleNumberPlateText(veh) or ''):gsub('^%s+', ''):gsub('%s+$', ''),
+    plate = trimPlate(GetVehicleNumberPlateText(veh)),
     speed = math.floor(GetEntitySpeed(veh) * 2.236936), -- mph
+    ahead = getVehicleAhead(veh),
   }
 end
 
