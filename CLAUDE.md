@@ -293,6 +293,18 @@ Fire taskbar → **Reports** opens `fireReportsPanelJSX` (`activeRecordsPanel ==
 - **Kept out of LE:** they are excluded from LE lists, the LE Supervisor Panel and Lookup (`isFireReport`; LE code uses `leReports`).
 - **Status:** DRAFT or SUBMITTED, with no supervisor review yet. Other users don't see someone else's drafts.
 
+### Tow reports
+Tow taskbar → **Create Tow Report** (`handleNewTowReport(call?)`, form `towReportFormJSX`).
+- **Report type:** `TOW REPORT`, `service: 'TOW'`, DRAFT or SUBMITTED.
+- **Fields** (a base set; extend in the form):
+  - tow, driver, company, requested by;
+  - pickup, postal, destination / storage lot;
+  - vehicle (plate + **Look up plate** fills year / make / model / color / owner and REG/INS via `towVehicleFields`);
+  - reason, hook and drop times, fees, hold notes, condition, narrative.
+- **From the tow unit's call:** the form fills the T#### number, location, the requesting LE units, and the traffic stop plate.
+- **Tow screen:** shows the tow unit's active call (`myTowCall`) and **My Tow Reports**.
+- **Kept out of LE:** excluded from LE lists and the Supervisor Panel (`isTowReport` → `leReports`). They do show in plate and owner history (`rolesIn` adds REGISTERED OWNER), and LE opens them read-only.
+
 ### Admin accounts
 Admins can open every role. When an admin enters LE or Fire/EMS, a unit is created for their login's `unitId` (e.g. ADMIN-1, `adminUnit: true`) if it doesn't exist. That gives them status buttons, self-dispatch, Open Calls and a callsign on the map. Admins also pass every supervisor, grouping and self-dispatch check (`lib/permissions.ts`).
 
@@ -378,7 +390,7 @@ Role color is a highlight (pill, dot, icon chip, header underline), not a thick 
     - Dispatch: the identity card shows the dispatcher, opens the COM # modal, and shows `COM …` once set. Then comes the view nav (Dispatch / Units / Tow / Fire-EMS / Live Map).
     - PANIC (LE only) sits alone on the right with a wide gap. **Keep other controls away from it.** 10-code tags hide below 1400px.
   - **Taskbar:**
-    - Left: LE gets Lookup / Records / BOLO / Supervisor Panel buttons (`renderTaskbarButton`, with count badges). Fire/EMS gets Reports.
+    - Left: LE gets Lookup / Records / BOLO / Supervisor Panel buttons (`renderTaskbarButton`, with count badges) and Traffic Stop. Fire/EMS gets Reports. Tow gets Create Tow Report.
     - Middle: the window layout controls (`renderLayoutControls`), shown for the LE / Fire dashboards and the Dispatch board.
     - Right: FiveM chip (`renderFiveMChip`), Change Role and the PST clock.
   - There is no Menu button anymore. Sign Out is on role selection.

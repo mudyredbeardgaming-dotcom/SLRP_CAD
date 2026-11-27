@@ -516,7 +516,12 @@ const CADSystem = () => {
   // Panel and Lookup. Statuses: DRAFT or SUBMITTED (no supervisor review yet).
   const FIRE_REPORT_TYPES = ['FIRE INVESTIGATION REPORT', 'MEDICAL PATIENT REPORT'];
   const isFireReport = (r: any) => r?.service === 'FIRE' || FIRE_REPORT_TYPES.includes(r?.type);
-  const leReports = officerReports.filter(r => !isFireReport(r));
+  // Tow reports (Tow taskbar -> Create Tow Report): service 'TOW'. Like Fire/EMS
+  // reports they stay out of LE lists and the Supervisor Panel, but a towed
+  // vehicle shows in plate / owner history.
+  const TOW_REPORT_TYPE = 'TOW REPORT';
+  const isTowReport = (r: any) => r?.service === 'TOW' || r?.type === TOW_REPORT_TYPE;
+  const leReports = officerReports.filter(r => !isFireReport(r) && !isTowReport(r));
   const fireReports = officerReports.filter(isFireReport);
 
   // ---- Supervisor review ----------------------------------------------------
@@ -8708,7 +8713,7 @@ const CADSystem = () => {
 
   // Report form modal. Shared by the Records panel and Lookup (open a report
   // from a person's history).
-  const reportFormModalJSX = activeReportForm && !FIRE_REPORT_TYPES.includes(activeReportForm) ? (
+  const reportFormModalJSX = activeReportForm && !FIRE_REPORT_TYPES.includes(activeReportForm) && activeReportForm !== TOW_REPORT_TYPE ? (
           <div className="modal-backdrop z-[60]">
             <div className="modal-surface w-full max-w-5xl max-h-[90vh] overflow-y-auto">
               <div className="bg-gray-900 px-6 py-4 border-b border-white/[0.06] flex justify-between items-center sticky top-0 z-10">
@@ -13006,6 +13011,185 @@ const CADSystem = () => {
     </div>
   ) : null;
 
+  // ---- Tow reports ------------------------------------------------------------
+  const myTowUnit = selectedUnit ? units.find(u => u.id === selectedUnit) : null;
+  const myTowCall = selectedRole === 'tow' && myTowUnit ? activeCallOf(myTowUnit.id) : null;
+  const myTowReports = officerReports.filter(r => isTowReport(r) && isMyRecord(r))
+    .slice().sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+  /** Vehicle, owner and registration from the CAD for a plate (fills the tow report). */
+  const towVehicleFields = (plate: any) => {
+    const reg = findRegistration(plate);
+    if (!reg) return { vehiclePlate: normPlate(plate), ownerName: '', ownerId: null, registrationStatus: '', insuranceStatus: '', vehicleOnFile: false };
+    const d = reg.data || {};
+    return {
+      vehiclePlate: normPlate(plate),
+      vehicleYear: d.year || '', vehicleMake: d.make || '', vehicleModel: d.model || '', vehicleColor: d.color || '',
+      ownerName: civName(reg.owner), ownerId: reg.owner.id,
+      registrationStatus: d.registrationStatus || '', insuranceStatus: d.insuranceStatus || '',
+      vehicleOnFile: true,
+    };
+  };
+  /** New tow report; prefilled from the tow unit's call (number, location, stopped plate). */
+  const handleNewTowReport = (call?: any) => {
+    const recordId = nextReportRecordId;
+    setNextReportRecordId(prev => prev + 1);
+    setEditingReportId(null);
+    setActiveReportForm(TOW_REPORT_TYPE);
+    const plate = call?.trafficStop?.plate || '';
+    setCurrentReportData({
+      type: TOW_REPORT_TYPE,
+      service: 'TOW',
+      recordNumber: recordId,
+      officer: loggedInOfficer?.displayName || '',
+      officerUsername: loggedInOfficer?.username || null,
+      callsign: myTowUnit?.callsign || loggedInOfficer?.unitId || '',
+      department: loggedInOfficer?.department || '',
+      incidentDate: cadToday(),
+      incidentTime: new Intl.DateTimeFormat('en-GB', { timeZone: 'America/Los_Angeles', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date()),
+      callId: call ? callNumberFor(call, 'tow') : '',
+      location: call?.address || '',
+      postal: call?.postal || '',
+      requestedBy: call ? 'LAW ENFORCEMENT' : '',
+      requestingUnit: call ? (call.assignedUnits || []).map((id: string) => units.find(u => u.id === id)).filter((u: any) => u && unitRoleOf(u) === 'police').map((u: any) => u.callsign).join(', ') : '',
+      ...(plate ? towVehicleFields(plate) : {}),
+      status: 'DRAFT',
+    });
+  };
+  const saveTowReport = (status: 'DRAFT' | 'SUBMITTED') => {
+    const now = new Date().toISOString();
+    const data = {
+      ...currentReportData,
+      service: 'TOW',
+      status,
+      reviewStatus: status,
+      ...(status === 'SUBMITTED' && !currentReportData.submittedAt ? { submittedAt: now } : {}),
+    };
+    const newReports = editingReportId
+      ? officerReports.map(r => (r.id === editingReportId ? { ...data, updatedAt: now } : r))
+      : [...officerReports, { ...data, id: `RPT-${Date.now()}`, createdAt: now, updatedAt: now }];
+    setOfficerReports(newReports);
+    saveDataImmediately({ units, calls, civilians, officerReports: newReports, officerRecords, officerCredentials });
+    closeFireReport();
+  };
+  const towReportFormJSX = activeReportForm === TOW_REPORT_TYPE ? (() => {
+    const canEdit = selectedRole === 'tow' || loggedInOfficer?.role === 'admin';
+    const chip = (label: string, v: any) => v ? (
+      <span className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${v === 'VALID' ? 'bg-emerald-500/15 text-emerald-300' : 'bg-red-500/15 text-red-300'}`}>{label} {v}</span>
+    ) : null;
+    return (
+      <div className="modal-backdrop z-[60]">
+        <div className="modal-surface w-full max-w-4xl max-h-[90vh] overflow-y-auto" data-tow-report-form>
+          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/[0.06] bg-gray-900 px-6 py-4">
+            <h3 className="flex items-center gap-2 text-lg font-bold text-orange-400">
+              <Truck size={20} /> TOW REPORT
+              {editingReportId && (
+                <span className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ring-1 ${currentReportData.status === 'SUBMITTED' ? 'bg-sky-500/15 text-sky-300 ring-sky-500/30' : 'bg-yellow-500/15 text-yellow-300 ring-yellow-500/30'}`}>
+                  {currentReportData.status === 'SUBMITTED' ? 'SUBMITTED' : 'DRAFT'}
+                </span>
+              )}
+            </h3>
+            <button onClick={closeFireReport} className="icon-btn" aria-label="Close"><X size={20} /></button>
+          </div>
+          <div className="space-y-5 p-6">
+            <div className="panel-card">
+              <h4 className="section-title text-orange-400">Tow</h4>
+              <div className="grid gap-4 md:grid-cols-4">
+                {fireField('Report #', 'recordNumber', { readOnly: true })}
+                {fireField('Date', 'incidentDate', { type: 'date' })}
+                {fireField('Time', 'incidentTime', { type: 'time' })}
+                {fireField('CAD Call #', 'callId', { placeholder: 'e.g. T0001' })}
+                {fireField('Tow Unit', 'callsign')}
+                {fireField('Driver', 'officer')}
+                <div className="md:col-span-2">{fireField('Company', 'department')}</div>
+                <div className="md:col-span-2">{fireField('Requested By', 'requestedBy', { options: ['LAW ENFORCEMENT', 'VEHICLE OWNER', 'PRIVATE PROPERTY', 'FIRE/EMS', 'OTHER'] })}</div>
+                <div className="md:col-span-2">{fireField('Requesting Unit / Person', 'requestingUnit', { placeholder: 'e.g. A-101' })}</div>
+              </div>
+            </div>
+
+            <div className="panel-card">
+              <h4 className="section-title text-orange-400">Locations</h4>
+              <div className="grid gap-4 md:grid-cols-4">
+                <div className="md:col-span-3">{fireField('Pickup Location', 'location', { placeholder: 'Street / cross street / area' })}</div>
+                {fireField('Postal', 'postal')}
+                <div className="md:col-span-4">{fireField('Destination / Storage Lot', 'destination', { placeholder: 'e.g. Davis impound lot' })}</div>
+              </div>
+            </div>
+
+            <div className="panel-card">
+              <h4 className="section-title text-orange-400">Vehicle</h4>
+              <div className="flex flex-wrap items-end gap-2">
+                <div className="min-w-[160px] flex-1">
+                  <label className="field-label">Plate</label>
+                  <input
+                    type="text"
+                    value={currentReportData.vehiclePlate || ''}
+                    onChange={(e) => setCurrentReportData({ ...currentReportData, vehiclePlate: e.target.value.toUpperCase() })}
+                    onKeyDown={(e) => { if (e.key === 'Enter') setCurrentReportData({ ...currentReportData, ...towVehicleFields(currentReportData.vehiclePlate) }); }}
+                    className="field font-mono uppercase"
+                    aria-label="Plate"
+                    maxLength={10}
+                  />
+                </div>
+                <button
+                  type="button"
+                  disabled={!String(currentReportData.vehiclePlate || '').trim()}
+                  onClick={() => setCurrentReportData({ ...currentReportData, ...towVehicleFields(currentReportData.vehiclePlate) })}
+                  className="btn btn-secondary disabled:opacity-40"
+                >
+                  <Search size={15} /> Look up plate
+                </button>
+                <div className="flex flex-wrap items-center gap-1.5 pb-2">
+                  {chip('REG', currentReportData.registrationStatus)}
+                  {chip('INS', currentReportData.insuranceStatus)}
+                  {currentReportData.vehiclePlate && currentReportData.vehicleOnFile === false && (
+                    <span className="rounded bg-yellow-500/15 px-1.5 py-0.5 text-[11px] font-semibold text-yellow-300">NOT ON FILE</span>
+                  )}
+                </div>
+              </div>
+              <div className="mt-4 grid gap-4 md:grid-cols-4">
+                {fireField('Year', 'vehicleYear')}
+                {fireField('Make', 'vehicleMake')}
+                {fireField('Model', 'vehicleModel')}
+                {fireField('Color', 'vehicleColor')}
+                <div className="md:col-span-2">{fireField('Registered Owner', 'ownerName')}</div>
+                <div className="md:col-span-2">{fireField('VIN', 'vehicleVin')}</div>
+              </div>
+            </div>
+
+            <div className="panel-card">
+              <h4 className="section-title text-orange-400">Tow Details</h4>
+              <div className="grid gap-4 md:grid-cols-4">
+                <div className="md:col-span-2">{fireField('Reason', 'towReason', { options: ['IMPOUND', 'ACCIDENT / MVA', 'DISABLED VEHICLE', 'ILLEGALLY PARKED', 'PRIVATE PROPERTY', 'REPOSSESSION', 'EVIDENCE HOLD', 'OTHER'] })}</div>
+                {fireField('Hooked At', 'hookTime', { type: 'time' })}
+                {fireField('Dropped At', 'dropTime', { type: 'time' })}
+                {fireField('Fees ($)', 'fees', { type: 'number' })}
+                <div className="md:col-span-3">{fireField('Hold / Release Notes', 'holdNotes', { placeholder: 'e.g. Hold for LE, release to owner with proof of insurance' })}</div>
+                <div className="md:col-span-4">{fireField('Vehicle Condition / Damage', 'vehicleCondition', { type: 'textarea', placeholder: 'Existing damage, contents, keys...' })}</div>
+              </div>
+            </div>
+
+            <div className="panel-card">
+              <h4 className="section-title text-gray-300">Narrative</h4>
+              {fireField('What happened', 'narrative', { type: 'textarea', placeholder: 'Describe the tow.' })}
+            </div>
+
+            <div className="flex justify-end gap-2 border-t border-white/[0.06] pt-4">
+              <button onClick={closeFireReport} className="btn btn-secondary">{canEdit ? 'Cancel' : 'Close'}</button>
+              {canEdit && (
+                <>
+                  <button onClick={() => saveTowReport('DRAFT')} className="btn bg-yellow-600 text-white hover:bg-yellow-500">Save as Draft</button>
+                  <button onClick={() => saveTowReport('SUBMITTED')} className="btn bg-orange-600 text-white hover:bg-orange-500">
+                    {currentReportData.status === 'SUBMITTED' && editingReportId ? 'Save' : 'Submit Report'}
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  })() : null;
+
   const myFireDrafts = fireReports.filter(r => isMyRecord(r) && r.status === 'DRAFT').length;
   const fireReportsPanelJSX = (() => {
     if (selectedRole !== 'fire') return null;
@@ -16217,12 +16401,70 @@ const CADSystem = () => {
               </div>
             </div>
 
-            <div className="panel p-6">
-              <h3 className="section-title text-orange-400">Active Tow Requests</h3>
-              <div className="py-10 text-center">
-                <Truck size={36} className="mx-auto mb-3 text-gray-600" />
-                <p className="text-sm text-gray-400">No active tow requests assigned to you</p>
-              </div>
+            <div className="panel p-6" data-tow-call>
+              <h3 className="section-title text-orange-400">Active Tow Request</h3>
+              {myTowCall ? (
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="font-mono text-2xl font-bold text-white">{callNumberFor(myTowCall, 'tow')}</span>
+                    {callNumbersOf(myTowCall).filter(n => n !== callNumberFor(myTowCall, 'tow')).map(n => (
+                      <span key={n} className="rounded bg-white/[0.06] px-1.5 py-0.5 font-mono text-xs text-gray-400">{n}</span>
+                    ))}
+                    <span className={`${getPriorityColor(myTowCall.priority)} rounded-full px-2.5 py-0.5 text-xs font-semibold text-white`}>P{myTowCall.priority}</span>
+                    <span className="font-semibold text-white">{myTowCall.code}</span>
+                    <button onClick={() => handleNewTowReport(myTowCall)} className="btn btn-sm ml-auto bg-orange-600 text-white hover:bg-orange-500">
+                      <FileText size={14} /> Tow report for this call
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2 text-gray-200"><MapPin size={16} className="text-orange-400" />{myTowCall.address || 'No location'}{myTowCall.postal ? <span className="font-mono text-sm text-gray-400">· Postal {myTowCall.postal}</span> : null}</div>
+                  {myTowCall.trafficStop?.plate && (
+                    <div className="text-sm text-gray-300">Vehicle: <span className="font-mono font-semibold text-white">{myTowCall.trafficStop.plate}</span> {vehicleText(myTowCall.trafficStop.vehicle)}</div>
+                  )}
+                  {myTowCall.description && <p className="whitespace-pre-wrap text-sm text-gray-300">{myTowCall.description}</p>}
+                  <div className="text-xs text-gray-500">
+                    On scene: {(myTowCall.assignedUnits || []).map(callsignOf).filter(Boolean).join(', ') || '—'}
+                  </div>
+                  {(myTowCall.callNotes || []).length > 0 && (
+                    <div className="well max-h-40 space-y-1.5 overflow-y-auto p-3 text-sm">
+                      {myTowCall.callNotes.slice(-5).map((n: any, i: number) => (
+                        <div key={i}><span className="text-xs text-gray-500">{formatPSTTime(n.timestamp)}</span> <span className="text-gray-200">{n.text}</span></div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="py-10 text-center">
+                  <Truck size={36} className="mx-auto mb-3 text-gray-600" />
+                  <p className="text-sm text-gray-400">No active tow requests assigned to you</p>
+                </div>
+              )}
+            </div>
+
+            <div className="panel p-6" data-tow-reports>
+              <h3 className="section-title text-orange-400">My Tow Reports ({myTowReports.length})</h3>
+              {myTowReports.length === 0 ? (
+                <p className="py-4 text-sm text-gray-500">No tow reports yet. Use "Create Tow Report" below.</p>
+              ) : (
+                <div className="space-y-2">
+                  {myTowReports.map(r => (
+                    <button key={r.id} onClick={() => openExistingReport(r)} className="subcard w-full p-3 text-left hover:!border-white/[0.14]" data-tow-report={r.id}>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-semibold text-white">TOW REPORT</span>
+                        {r.recordNumber && <span className="font-mono text-xs text-gray-400">#{r.recordNumber}</span>}
+                        {r.vehiclePlate && <span className="rounded bg-white/[0.06] px-1.5 font-mono text-xs text-gray-200">{r.vehiclePlate}</span>}
+                        {r.towReason && <span className="chip !py-0 text-[10px]">{r.towReason}</span>}
+                        <span className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ring-1 ${r.status === 'SUBMITTED' ? 'bg-sky-500/15 text-sky-300 ring-sky-500/30' : 'bg-yellow-500/15 text-yellow-300 ring-yellow-500/30'}`}>
+                          {r.status === 'SUBMITTED' ? 'SUBMITTED' : 'DRAFT'}
+                        </span>
+                        <span className="ml-auto text-xs text-gray-500">{formatRecordDateTime(r.createdAt)}</span>
+                      </div>
+                      <div className="mt-1 text-xs text-gray-400">
+                        {[r.callId && `Call #${r.callId}`, r.location, r.destination && `to ${r.destination}`].filter(Boolean).join(' · ')}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -16263,6 +16505,17 @@ const CADSystem = () => {
               {selectedRole === 'fire' && loggedInOfficer && (
                 renderTaskbarButton('fire-reports', 'Reports', <FileText size={16} className="text-red-400" />, myFireDrafts, 'of your drafts', 'neutral')
               )}
+              {selectedRole === 'tow' && loggedInOfficer && (
+                <button
+                  onClick={() => handleNewTowReport(myTowCall || undefined)}
+                  className="btn h-[52px] flex-shrink-0 border border-orange-500/30 bg-orange-500/15 text-orange-100 hover:bg-orange-500/25"
+                  title={myTowCall ? `New tow report for call #${callNumberFor(myTowCall, 'tow')}` : 'New tow report'}
+                  data-create-tow-report
+                >
+                  <FileText size={16} className="text-orange-300" />
+                  Create Tow Report
+                </button>
+              )}
             </div>
           ) : <div />}
           <div className="flex items-center justify-center">
@@ -16296,6 +16549,7 @@ const CADSystem = () => {
       {activeRecordsPanel === 'bolo' && boloPanelJSX}
       {activeRecordsPanel === 'supervisor' && supervisorPanelJSX}
       {activeRecordsPanel === 'fire-reports' && fireReportsPanelJSX}
+      {towReportFormJSX}
       {showNewCall && <NewCallForm />}
       {selectedCall && <CallDetail call={selectedCall} />}
       {showUnitInfo && selectedUnit && units.find(u => u.id === selectedUnit) && <UnitInfoModal unit={units.find(u => u.id === selectedUnit)} />}

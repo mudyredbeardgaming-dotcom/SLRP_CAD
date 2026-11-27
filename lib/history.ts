@@ -79,6 +79,7 @@ export function rolesIn(item: any, person: any): string[] {
   if (m(item.witness1Name) || m(item.witness2Name)) roles.push('WITNESS');
   if (RECORD_SUBJECT_ROLE[item.type] && m(item.subjectName, item.subjectId)) roles.push(RECORD_SUBJECT_ROLE[item.type]);
   if (item.patient && m(item.patient.name, item.patient.civilianId)) roles.push('PATIENT');
+  if (item.type === 'TOW REPORT' && m(item.ownerName, item.ownerId)) roles.push('REGISTERED OWNER');
   const mine = registeredPlates(person);
   if (mine.size) platesIn(item).forEach(([label, plate]) => { if (mine.has(plate)) roles.push(`${label} ${plate}`); });
   return Array.from(new Set(roles.map(r => String(r).toUpperCase())));
