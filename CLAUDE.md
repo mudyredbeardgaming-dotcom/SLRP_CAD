@@ -31,6 +31,7 @@ StrataMDT/
 ├── lib/dataStore.ts    # Locked, atomic access to data/cad-data.json (server)
 ├── lib/permissions.ts  # SELF_DISPATCH / SUPERVISORS policies; canSelfDispatch, isSupervisor, canGroupUnits, canReviewRecords
 ├── lib/cadDate.ts      # CAD date (Pacific time), +1 year, EXPIRED status helpers (browser + server)
+├── lib/history.ts      # rolesIn / plateHistory: who and which plates are on a report or record (CAD + in-game lookups)
 ├── lib/fivem/          # FiveM bridge: protocol types, in-memory store, API-key auth, character sync, useFiveMBridge hook
 ├── fivem/strata-mdt/   # Sample FiveM resource (Lua) + fivem/README.md protocol docs
 ├── public/             # Static assets (legacy role logos still live here)
@@ -165,6 +166,17 @@ Every report and record has an **Involved Persons** section (`renderInvolvedPers
 Characters store `dateOfBirth`, `cellPhone`, `streetResidence`; use `civName`/`civDob`/`civPhone`/`civAddress` (they also read the legacy `dob`/`phone`/`address`).
 
 Records (BOLO, warrant, arrest, citation) show in Lookup's "Involved In Reports & Records" through their Involved Persons. A BOLO with the person as an involved SUSPECT also puts them in the WANTED banner.
+
+**One history everywhere** (`lib/history.ts`):
+- `rolesIn(item, person)` finds every role a person has on a report or record:
+  - Involved Persons, including **PERSON OF INTEREST**;
+  - arrestee, trespasser, parties, subject of force, driver, witnesses;
+  - record subject (WARRANT SUBJECT / BOLO SUBJECT / CITED) and Fire/EMS patient;
+  - `VEHICLE <plate>` when one of their registered plates is on it (`platesIn`; plates are normalized, spaces don't matter).
+- **Lookup:** the "Involved In Reports & Records" section uses it, so old warrants and inactive BOLOs show too, with a status chip.
+- **Plate runs:** running a plate shows the plate panel (`getPlateHistory`) above the owner, with registration/insurance status, any **BOLO ON PLATE** and every report or record listing the plate.
+- **Civilian portal:** the Records & Reports section lists the character's submitted reports and records (no drafts). Each row expands to show officer, location, vehicles, charges and narrative. Citations stay in their own section.
+- **In-game:** `/api/fivem/lookup` uses the same helpers. `/runname` adds arrests and a history count; `/runplate` adds BOLO ON PLATE and a history count.
 
 ### Unit dashboard (Law Enforcement / Fire-EMS)
 `renderUnitDashboard()` shows Active Call, Call History and Live Map as tiled windows on one screen (`renderDashWindow`). Layout state `unitLayout` `{preset: side|top|columns, order, s1, s2, maximized}` is saved per role in localStorage (`strataUnitLayout:<role>`).
@@ -373,6 +385,8 @@ All test credentials are stored in `/data/cad-data.json` under `officerCredentia
 - **Dispatch**: dispatcher1 / dispatch123
 - **Civilian**: civilian1 / civilian123
 - **Admin**: admin1 / admin123, admin2 / admin123
+
+Test characters for the Civilian portal and Lookup (owner-less, so everyone sees them) are listed in `TESTING_LOGINS.md`: Maria Lopez, Tony Vance, Darnell Brooks, Sarah Chen, Jake Miller and Emily Carter. Their ids are `civ_test_*`.
 
 ## Role Permissions Matrix
 

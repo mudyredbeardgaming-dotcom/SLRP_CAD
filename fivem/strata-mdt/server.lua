@@ -230,10 +230,12 @@ Strata.RegisterCommand('runplate', function(src, args)
     for _, v in ipairs(data.results) do
       local flags = (#(v.flags or {}) > 0) and (' | FLAGS: %d'):format(#v.flags) or ''
       local expired = v.registrationStatus == 'EXPIRED' or v.insuranceStatus == 'EXPIRED'
-      Strata.Chat(src, ('%s: %s %s %s (%s) | Owner: %s | REG %s | INS %s%s'):format(
+      local bolo = (#(v.plateBolos or {}) > 0) and ' | BOLO ON PLATE' or ''
+      local hist = (v.history or 0) > 0 and (' | History: %d'):format(v.history) or ''
+      Strata.Chat(src, ('%s: %s %s %s (%s) | Owner: %s | REG %s | INS %s%s%s%s'):format(
         v.plate, v.year or '', v.make or '', v.model or '', v.color or '?', v.owner or '?',
-        v.registrationStatus or v.status or '?', v.insuranceStatus or '?', flags),
-        (expired or flags ~= '') and { 245, 158, 11 } or nil)
+        v.registrationStatus or v.status or '?', v.insuranceStatus or '?', bolo, flags, hist),
+        bolo ~= '' and { 239, 68, 68 } or (expired or flags ~= '') and { 245, 158, 11 } or nil)
     end
   end)
 end)
@@ -251,7 +253,10 @@ Strata.RegisterCommand('runname', function(src, args)
       local license = (p.licenses and p.licenses[1]) and (p.licenses[1].status or '?') or 'NONE'
       local flags = (#(p.flags or {}) > 0) and (' | FLAGS: %d'):format(#p.flags) or ''
       local cites = (p.citations or 0) > 0 and (' | Citations: %d'):format(p.citations) or ''
-      Strata.Chat(src, ('%s | DOB %s | License: %s%s%s'):format(p.name, p.dob or '?', license, cites, flags))
+      local arrests = (p.arrests or 0) > 0 and (' | Arrests: %d'):format(p.arrests) or ''
+      local hist = (p.history or 0) > 0 and (' | History: %d'):format(p.history) or ''
+      Strata.Chat(src, ('%s | DOB %s | License: %s%s%s%s%s'):format(p.name, p.dob or '?', license, arrests, cites, hist, flags),
+        flags ~= '' and { 239, 68, 68 } or nil)
     end
   end)
 end)
