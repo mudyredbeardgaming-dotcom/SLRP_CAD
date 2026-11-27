@@ -176,6 +176,404 @@
           }
         }
       ]
+    },
+    {
+      "id": "civ_test_001",
+      "photo": null,
+      "firstName": "Maria",
+      "lastName": "Lopez",
+      "middleInitial": "R",
+      "dateOfBirth": "1993-07-22",
+      "sex": "F",
+      "aka": "",
+      "streetResidence": "221 Vespucci Blvd, Los Santos",
+      "postalCode": "7024",
+      "height": "5'6\"",
+      "weight": "135",
+      "hairColor": "BROWN",
+      "eyeColor": "BROWN",
+      "scarsMarksTattoos": "",
+      "cellPhone": "555-0142",
+      "organDonor": false,
+      "deceased": false,
+      "records": [],
+      "dmvRecords": [
+        {
+          "id": "civ_test_001-DL",
+          "type": "LICENSE",
+          "createdAt": "2026-11-27T00:00:00.000Z",
+          "characterId": "civ_test_001",
+          "data": {
+            "licenseType": "DRIVER LICENSE",
+            "licenseNumber": "D4821733",
+            "status": "VALID",
+            "licenseClass": "C",
+            "motorcycleEndorsement": "NONE",
+            "issuedDate": "2024-01-10",
+            "expirationDate": "2028-03-01"
+          }
+        },
+        {
+          "id": "civ_test_001-VEH1",
+          "type": "VEHICLE REGISTRATION",
+          "createdAt": "2026-11-27T00:00:00.000Z",
+          "characterId": "civ_test_001",
+          "data": {
+            "plateNumber": "4LOP221",
+            "year": "2021",
+            "make": "Karin",
+            "model": "Sultan",
+            "color": "Blue",
+            "vehicleType": "SEDAN",
+            "vin": "1STRATA4LOP221TES",
+            "registrationStatus": "VALID",
+            "registrationExpiration": "2027-08-01",
+            "insuranceStatus": "VALID",
+            "insuranceExpiration": "2027-08-01",
+            "registrationDate": "2025-06-01"
+          }
+        }
+      ],
+      "createdAt": "2026-11-27T00:00:00.000Z",
+      "testCharacter": true
+    },
+    {
+      "id": "civ_test_002",
+      "photo": null,
+      "firstName": "Tony",
+      "lastName": "Vance",
+      "middleInitial": "J",
+      "dateOfBirth": "1988-02-11",
+      "sex": "M",
+      "aka": "T-Bone",
+      "streetResidence": "14 Grove St, Davis",
+      "postalCode": "8063",
+      "height": "6'1\"",
+      "weight": "210",
+      "hairColor": "BLACK",
+      "eyeColor": "BROWN",
+      "scarsMarksTattoos": "Tattoo: \"LS\" on right forearm",
+      "cellPhone": "555-0177",
+      "organDonor": false,
+      "deceased": false,
+      "records": [],
+      "dmvRecords": [
+        {
+          "id": "civ_test_002-DL",
+          "type": "LICENSE",
+          "createdAt": "2026-11-27T00:00:00.000Z",
+          "characterId": "civ_test_002",
+          "data": {
+            "licenseType": "DRIVER LICENSE",
+            "licenseNumber": "V5530912",
+            "status": "SUSPENDED",
+            "licenseClass": "C",
+            "motorcycleEndorsement": "NONE",
+            "issuedDate": "2024-01-10",
+            "expirationDate": "2027-02-11"
+          }
+        },
+        {
+          "id": "civ_test_002-VEH1",
+          "type": "VEHICLE REGISTRATION",
+          "createdAt": "2026-11-27T00:00:00.000Z",
+          "characterId": "civ_test_002",
+          "data": {
+            "plateNumber": "8ABC123",
+            "year": "2019",
+            "make": "Bravado",
+            "model": "Buffalo",
+            "color": "Black",
+            "vehicleType": "SEDAN",
+            "vin": "1STRATA8ABC123TES",
+            "registrationStatus": "VALID",
+            "registrationExpiration": "2027-05-01",
+            "insuranceStatus": "VALID",
+            "insuranceExpiration": "2027-05-01",
+            "registrationDate": "2025-06-01"
+          }
+        },
+        {
+          "id": "civ_test_002-PROB",
+          "type": "PROBATION",
+          "createdAt": "2026-11-27T00:00:00.000Z",
+          "characterId": "civ_test_002",
+          "data": {
+            "probationActive": "YES",
+            "probationStartDate": "2026-03-01",
+            "probationEndDate": "2027-09-01",
+            "probationJurisdiction": "Los Santos County",
+            "probationCharges": [
+              {
+                "id": 1,
+                "charge": "Grand Theft Auto",
+                "titleCode": "PC 487",
+                "chargeType": "FELONY",
+                "counts": 1
+              }
+            ]
+          }
+        }
+      ],
+      "createdAt": "2026-11-27T00:00:00.000Z",
+      "testCharacter": true
+    },
+    {
+      "id": "civ_test_003",
+      "photo": null,
+      "firstName": "Darnell",
+      "lastName": "Brooks",
+      "middleInitial": "",
+      "dateOfBirth": "1996-11-03",
+      "sex": "M",
+      "aka": "",
+      "streetResidence": "88 Forum Dr, Strawberry",
+      "postalCode": "9012",
+      "height": "5'10\"",
+      "weight": "175",
+      "hairColor": "BLACK",
+      "eyeColor": "BROWN",
+      "scarsMarksTattoos": "",
+      "cellPhone": "555-0119",
+      "organDonor": false,
+      "deceased": false,
+      "records": [],
+      "dmvRecords": [
+        {
+          "id": "civ_test_003-DL",
+          "type": "LICENSE",
+          "createdAt": "2026-11-27T00:00:00.000Z",
+          "characterId": "civ_test_003",
+          "data": {
+            "licenseType": "DRIVER LICENSE",
+            "licenseNumber": "B7710345",
+            "status": "VALID",
+            "licenseClass": "C",
+            "motorcycleEndorsement": "NONE",
+            "issuedDate": "2024-01-10",
+            "expirationDate": "2024-05-01"
+          }
+        },
+        {
+          "id": "civ_test_003-VEH1",
+          "type": "VEHICLE REGISTRATION",
+          "createdAt": "2026-11-27T00:00:00.000Z",
+          "characterId": "civ_test_003",
+          "data": {
+            "plateNumber": "DBRK770",
+            "year": "2015",
+            "make": "Declasse",
+            "model": "Vigero",
+            "color": "Red",
+            "vehicleType": "COUPE",
+            "vin": "1STRATADBRK770TES",
+            "registrationStatus": "VALID",
+            "registrationExpiration": "2025-01-15",
+            "insuranceStatus": "VALID",
+            "insuranceExpiration": "2025-01-15",
+            "registrationDate": "2025-06-01"
+          }
+        }
+      ],
+      "createdAt": "2026-11-27T00:00:00.000Z",
+      "testCharacter": true
+    },
+    {
+      "id": "civ_test_004",
+      "photo": null,
+      "firstName": "Sarah",
+      "lastName": "Chen",
+      "middleInitial": "L",
+      "dateOfBirth": "1990-04-09",
+      "sex": "F",
+      "aka": "",
+      "streetResidence": "4 Richman Ave, Richman",
+      "postalCode": "6051",
+      "height": "5'4\"",
+      "weight": "120",
+      "hairColor": "BLACK",
+      "eyeColor": "BROWN",
+      "scarsMarksTattoos": "",
+      "cellPhone": "555-0188",
+      "organDonor": false,
+      "deceased": false,
+      "records": [],
+      "dmvRecords": [
+        {
+          "id": "civ_test_004-DL",
+          "type": "LICENSE",
+          "createdAt": "2026-11-27T00:00:00.000Z",
+          "characterId": "civ_test_004",
+          "data": {
+            "licenseType": "DRIVER LICENSE",
+            "licenseNumber": "C1209877",
+            "status": "VALID",
+            "licenseClass": "C",
+            "motorcycleEndorsement": "NONE",
+            "issuedDate": "2024-01-10",
+            "expirationDate": "2029-04-09"
+          }
+        },
+        {
+          "id": "civ_test_004-PILOT",
+          "type": "LICENSE",
+          "createdAt": "2026-11-27T00:00:00.000Z",
+          "characterId": "civ_test_004",
+          "data": {
+            "licenseType": "PILOT LICENSE",
+            "licenseNumber": "P3300121",
+            "status": "VALID",
+            "issuedDate": "2025-02-01",
+            "expirationDate": "2028-02-01"
+          }
+        },
+        {
+          "id": "civ_test_004-VEH1",
+          "type": "VEHICLE REGISTRATION",
+          "createdAt": "2026-11-27T00:00:00.000Z",
+          "characterId": "civ_test_004",
+          "data": {
+            "plateNumber": "SCHEN01",
+            "year": "2023",
+            "make": "Pegassi",
+            "model": "Zentorno",
+            "color": "White",
+            "vehicleType": "COUPE",
+            "vin": "1STRATASCHEN01TES",
+            "registrationStatus": "VALID",
+            "registrationExpiration": "2027-10-01",
+            "insuranceStatus": "VALID",
+            "insuranceExpiration": "2027-10-01",
+            "registrationDate": "2025-06-01"
+          }
+        },
+        {
+          "id": "civ_test_004-VEH2",
+          "type": "VEHICLE REGISTRATION",
+          "createdAt": "2026-11-27T00:00:00.000Z",
+          "characterId": "civ_test_004",
+          "data": {
+            "plateNumber": "SCHEN02",
+            "year": "2022",
+            "make": "Benefactor",
+            "model": "Dubsta",
+            "color": "Gray",
+            "vehicleType": "SUV",
+            "vin": "1STRATASCHEN02TES",
+            "registrationStatus": "VALID",
+            "registrationExpiration": "2027-10-01",
+            "insuranceStatus": "VALID",
+            "insuranceExpiration": "2027-10-01",
+            "registrationDate": "2025-06-01"
+          }
+        }
+      ],
+      "createdAt": "2026-11-27T00:00:00.000Z",
+      "testCharacter": true
+    },
+    {
+      "id": "civ_test_005",
+      "photo": null,
+      "firstName": "Jake",
+      "lastName": "Miller",
+      "middleInitial": "T",
+      "dateOfBirth": "1985-09-30",
+      "sex": "M",
+      "aka": "",
+      "streetResidence": "1 Panorama Dr, Sandy Shores",
+      "postalCode": "2045",
+      "height": "6'0\"",
+      "weight": "190",
+      "hairColor": "BROWN",
+      "eyeColor": "BLUE",
+      "scarsMarksTattoos": "Scar above left eye",
+      "cellPhone": "555-0133",
+      "organDonor": false,
+      "deceased": false,
+      "records": [],
+      "dmvRecords": [
+        {
+          "id": "civ_test_005-DL",
+          "type": "LICENSE",
+          "createdAt": "2026-11-27T00:00:00.000Z",
+          "characterId": "civ_test_005",
+          "data": {
+            "licenseType": "DRIVER LICENSE",
+            "licenseNumber": "M6650214",
+            "status": "VALID",
+            "licenseClass": "C",
+            "motorcycleEndorsement": "NONE",
+            "issuedDate": "2024-01-10",
+            "expirationDate": "2027-09-30"
+          }
+        },
+        {
+          "id": "civ_test_005-VEH1",
+          "type": "VEHICLE REGISTRATION",
+          "createdAt": "2026-11-27T00:00:00.000Z",
+          "characterId": "civ_test_005",
+          "data": {
+            "plateNumber": "JMIL555",
+            "year": "2012",
+            "make": "Vapid",
+            "model": "Sandking",
+            "color": "Green",
+            "vehicleType": "TRUCK",
+            "vin": "1STRATAJMIL555TES",
+            "registrationStatus": "VALID",
+            "registrationExpiration": "2027-01-20",
+            "insuranceStatus": "VALID",
+            "insuranceExpiration": "2027-01-20",
+            "registrationDate": "2025-06-01"
+          }
+        },
+        {
+          "id": "civ_test_005-OOSW",
+          "type": "OUT OF STATE WARRANT",
+          "createdAt": "2026-11-27T00:00:00.000Z",
+          "characterId": "civ_test_005",
+          "data": {
+            "warrantOutOf": "Liberty City",
+            "warrantActive": "YES",
+            "extraditable": "YES",
+            "charges": [
+              {
+                "id": 1,
+                "charge": "Armed Robbery",
+                "titleCode": "PC 211",
+                "chargeType": "FELONY",
+                "counts": 2
+              }
+            ]
+          }
+        }
+      ],
+      "createdAt": "2026-11-27T00:00:00.000Z",
+      "testCharacter": true
+    },
+    {
+      "id": "civ_test_006",
+      "photo": null,
+      "firstName": "Emily",
+      "lastName": "Carter",
+      "middleInitial": "",
+      "dateOfBirth": "2001-12-18",
+      "sex": "F",
+      "aka": "",
+      "streetResidence": "16 Mirror Park Blvd, Mirror Park",
+      "postalCode": "9205",
+      "height": "5'7\"",
+      "weight": "130",
+      "hairColor": "BLONDE",
+      "eyeColor": "GREEN",
+      "scarsMarksTattoos": "",
+      "cellPhone": "555-0164",
+      "organDonor": false,
+      "deceased": false,
+      "records": [],
+      "dmvRecords": [],
+      "createdAt": "2026-11-27T00:00:00.000Z",
+      "testCharacter": true
     }
   ],
   "officerReports": [],
