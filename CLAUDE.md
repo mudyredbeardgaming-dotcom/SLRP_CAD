@@ -199,6 +199,16 @@ Dispatch → Dispatch tab is `renderDispatchBoard()`, built from the same tiled 
   - four columns.
 - Dispatch's default comes from `defaultLayoutFor('dispatch')` and is saved in `strataUnitLayout:dispatch`. A saved layout with the wrong window count falls back to the default.
 
+### Call numbers by service
+- **Numbering:** a call's `id` is its number for the service it was created for. **L####** for LE, **F####** for FD, **T####** for TOW (the New Call "Type" select). `nextCallNumber(prefix)` counts from every saved call, so dispatchers never collide.
+- **Other services on the same call:** the first time a unit of another service is assigned, the call gets that service's number in `call.numbers` (e.g. `{ police: 'L0012', fire: 'F0004', tow: 'T0002' }`) plus a call note. An MVA stays one call, but each service has its own number.
+- **Showing numbers:**
+  - `callNumberFor(call, service)` gives a service's number, and `callNumbersOf(call)` / `renderCallNumbers` list them all.
+  - Units see their own service's number: dashboard, history (`callNumber` on history entries), maps (`MapCall.label`), Lookup / report "Send to Call".
+  - The game gets it too: `callForGame(call, service)`, and `call_closed` is sent per service.
+- **Auto-assign on create** (`autoAssignCandidate`): LE calls take an available LE unit, FD calls an available Fire/EMS unit. Tow is never auto-assigned.
+- Open Calls and the LE/Fire maps filter by `serviceOfCall`. The maps also show calls the service has a number on.
+
 ### Dispatch BOLOs
 Approved, active BOLOs (`dispatchBolos`) show on the Dispatch board under the Active Calls window's **BOLOs** tab.
 - The tab badge pulses with the number not broadcast yet.
@@ -387,6 +397,10 @@ All test credentials are stored in `/data/cad-data.json` under `officerCredentia
 - **Admin**: admin1 / admin123, admin2 / admin123
 
 Test characters for the Civilian portal and Lookup (owner-less, so everyone sees them) are listed in `TESTING_LOGINS.md`: Maria Lopez, Tony Vance, Darnell Brooks, Sarah Chen, Jake Miller and Emily Carter. Their ids are `civ_test_*`.
+
+Test calls (`testCall: true`), all PENDING with no units:
+- LE: L0001 Traffic Stop, L0002 Suspicious Person, L0003 MVA (for trying Fire/Tow numbers);
+- FD: F0001 Structure Fire, F0002 Medical Call.
 
 ## Role Permissions Matrix
 

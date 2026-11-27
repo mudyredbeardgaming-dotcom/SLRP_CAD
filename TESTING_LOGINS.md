@@ -103,6 +103,22 @@ Write a report or record naming one of them (Involved Persons, arrestee, a Party
 
 ---
 
+## Test Calls
+
+The system starts with five pending calls and no units assigned:
+
+| Call | Type | What |
+|------|------|------|
+| L0001 | LE | Traffic stop, Vespucci Blvd (postal 7024) |
+| L0002 | LE | Suspicious person, Grove St (8063) |
+| L0003 | LE | Motor vehicle accident, Route 68 (2034). Assign a Fire/EMS unit and it gets F####; assign a tow truck and it gets T#### |
+| F0001 | FD | Structure fire, Mirror Park (9205) |
+| F0002 | FD | Medical call, Pillbox Hill (7175) |
+
+New calls continue the numbering: L0004, F0003, T0001...
+
+---
+
 ## Quick Test Scenarios
 
 ### Test Role-Based Access Control

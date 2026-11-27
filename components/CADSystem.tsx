@@ -193,7 +193,6 @@ const CADSystem = () => {
   const [units, setUnits] = useState<any[]>([]);
   const [showNewCall, setShowNewCall] = useState(false);
   const [selectedCall, setSelectedCall] = useState<any>(null);
-  const [callIdCounter, setCallIdCounter] = useState(1);
   const [selectedUnit, setSelectedUnit] = useState<string | null>(null);
   const [showUnitInfo, setShowUnitInfo] = useState(false);
   const [showComModal, setShowComModal] = useState(false);
@@ -1599,11 +1598,12 @@ const CADSystem = () => {
     ['safetyMental', 'Mental Issues'],
   ];
   /** Call sent to the game on assignment; x/y let the unit's GPS route to it. */
-  const callForGame = (call) => {
+  const callForGame = (call, service?: string | null) => {
     const exact = call?.location && typeof call.location.x === 'number' && typeof call.location.y === 'number' ? call.location : null;
     const pos = exact || postalCoords(call?.postal);
     return {
-      id: call.id, code: call.code, priority: call.priority,
+      // the number this unit's service uses for the call (L/F/T####)
+      id: callNumberFor(call, service), code: call.code, priority: call.priority,
       address: call.address, postal: call.postal, description: call.description,
       ...(pos ? { x: pos.x, y: pos.y, gpsApprox: !exact } : {}),
     };
@@ -1621,6 +1621,48 @@ const CADSystem = () => {
   };
   const groupPartners = (unit) => (unit?.groupId ? units.filter(u => u.groupId === unit.groupId && u.id !== unit.id) : []);
   const activeCallOf = (unitId) => calls.find(c => c.status !== 'CLOSED' && (c.assignedUnits || []).includes(unitId));
+
+  // ---- Call numbers by service ------------------------------------------------
+  // A call's id is its number for the service it was created for: L#### (LE),
+  // F#### (Fire/EMS), T#### (Tow). When another service is put on the call it
+  // gets its own number on the same call (call.numbers.fire = 'F0004', ...), so
+  // an MVA stays one call but each service has its own call number.
+  const SERVICE_PREFIX: Record<string, string> = { police: 'L', fire: 'F', tow: 'T' };
+  const SERVICE_LABEL: Record<string, string> = { police: 'LE', fire: 'Fire/EMS', tow: 'Tow' };
+  const serviceOfCall = (c: any) => {
+    const t = String(c?.callTitle || '').toUpperCase();
+    return t === 'FD' ? 'fire' : t === 'TOW' ? 'tow' : 'police';
+  };
+  /** Next free number for a prefix, counted from every call already saved (so dispatchers never collide). */
+  const nextCallNumber = (prefix: string, list: any[] = calls) => {
+    const re = new RegExp(`^${prefix}(\\d+)$`);
+    let max = 0;
+    list.forEach(c => [c.id, ...Object.values(c.numbers || {})].forEach(v => {
+      const m = String(v || '').match(re);
+      if (m) max = Math.max(max, Number(m[1]));
+    }));
+    return `${prefix}${String(max + 1).padStart(4, '0')}`;
+  };
+  /** The call's number for a service (falls back to its own id). */
+  const callNumberFor = (c: any, service?: string | null) =>
+    (service && c?.numbers?.[service]) || (service && serviceOfCall(c) === service ? c?.id : null) || c?.id;
+  /** Every number on a call, its own first. */
+  const callNumbersOf = (c: any): string[] => Array.from(new Set([c?.id, ...Object.values(c?.numbers || {})].filter(Boolean).map(String)));
+  /** First available unit of the call's service (Tow is never auto-assigned). */
+  const autoAssignCandidate = (callTitle: any) => {
+    const service = serviceOfCall({ callTitle });
+    if (service === 'tow') return null;
+    return units.find(u => u.status === 'available' && !activeCallOf(u.id) && unitRoleOf(u) === service) || null;
+  };
+  const renderCallNumbers = (c: any, size: 'sm' | 'lg' = 'sm') => (
+    <span className="inline-flex flex-wrap items-center gap-1" data-call-numbers={callNumbersOf(c).join(',')}>
+      {callNumbersOf(c).map((n, i) => (
+        <span key={n} className={`font-mono ${size === 'lg' ? 'text-lg' : 'text-xs'} ${i === 0 ? 'font-semibold text-white' : 'rounded bg-white/[0.06] px-1 text-gray-300'}`}>
+          {i === 0 ? `#${n}` : n}
+        </span>
+      ))}
+    </span>
+  );
 
   // ---- Records attached to a call ---------------------------------------------
   // Units on a call share people (LE Lookup -> Send to Call) and Fire/EMS
@@ -1676,7 +1718,8 @@ const CADSystem = () => {
   // A call is placed at its game position (calls made from an in-game 911 keep
   // the caller's location), else at its postal code (approximate).
   const isFireCall = (c: any) => String(c?.callTitle || '').toUpperCase() === 'FD';
-  const mapCallsFor = (keep: (c: any) => boolean): MapCall[] => calls
+  /** `service` labels calls with that service's number (null = every number, for dispatch). */
+  const mapCallsFor = (keep: (c: any) => boolean, service: string | null = null): MapCall[] => calls
     .filter(c => c.status !== 'CLOSED' && keep(c))
     .map(c => {
       const exact = c.location && typeof c.location.x === 'number' && typeof c.location.y === 'number' ? c.location : null;
@@ -1684,6 +1727,7 @@ const CADSystem = () => {
       const pos = exact || byPostal;
       return {
         id: String(c.id),
+        label: service ? callNumberFor(c, service) : callNumbersOf(c).join(' / '),
         code: c.code,
         priority: String(c.priority ?? ''),
         address: c.address,
@@ -1733,7 +1777,7 @@ const CADSystem = () => {
       : calls;
     if (sharedCall) {
       const joined = members.filter(u => !sharedCall.assignedUnits.includes(u.id)).map(u => u.callsign).filter(Boolean);
-      if (joined.length) fivem.send({ type: 'call_assigned', callsigns: joined, call: callForGame(sharedCall) });
+      if (joined.length) fivem.send({ type: 'call_assigned', callsigns: joined, call: callForGame(sharedCall, unitRoleOf(members[0])) });
     }
     saveUnitsAndCalls(newUnits, newCalls);
   };
@@ -1756,13 +1800,16 @@ const CADSystem = () => {
 
   const createCall = (rawCallData) => {
     const { fivemAlertId, ...callData } = rawCallData || {};
-    const callId = String(callIdCounter).padStart(6, '0');
-    const availableUnit = units.find(u => u.status === 'available' && !u.assignedCall);
-    const autoIds = availableUnit ? groupIdsOf(availableUnit.id) : [];
+    const service = serviceOfCall(callData);
+    const callId = nextCallNumber(SERVICE_PREFIX[service]);
+    // LE calls auto-assign an LE unit, FD calls a Fire/EMS unit; Tow is never auto-assigned
+    const availableUnit = autoAssignCandidate(callData.callTitle);
+    const autoIds = availableUnit ? groupIdsOf(availableUnit.id).filter(id => unitRoleOf(units.find(u => u.id === id)) === service) : [];
 
     const newCall = {
-      id: callId,
       ...callData,
+      id: callId,
+      numbers: { [service]: callId },
       status: availableUnit ? 'ACTIVE' : 'PENDING',
       assignedUnits: autoIds,
       primaryUnit: availableUnit?.id || null,
@@ -1781,13 +1828,12 @@ const CADSystem = () => {
       setUnits(newUnits);
     }
 
-    setCallIdCounter(callIdCounter + 1);
     setShowNewCall(false);
     setNewCallPrefill(null);
     if (fivemAlertId) fivem.acknowledge(fivemAlertId);
     const autoCallsigns = autoIds.map(id => units.find(u => u.id === id)?.callsign).filter(Boolean);
     if (autoCallsigns.length) {
-      fivem.send({ type: 'call_assigned', callsigns: autoCallsigns, call: callForGame(newCall) });
+      fivem.send({ type: 'call_assigned', callsigns: autoCallsigns, call: callForGame(newCall, service) });
     }
 
     console.log('📞 CREATE CALL - Triggering immediate save with', newCalls.length, 'calls');
@@ -1809,17 +1855,26 @@ const CADSystem = () => {
     const ids = groupIdsOf(unitId);
     const willAssign = !call.assignedUnits.includes(unitId);
     const now = new Date().toISOString();
+    // A service joining a call it doesn't have a number on yet gets one (e.g. Fire on L0012 -> F0004)
+    const service = unitRoleOf(units.find(u => u.id === unitId));
+    const prefix = SERVICE_PREFIX[service];
+    const needsNumber = willAssign && !!prefix && !call.numbers?.[service] && serviceOfCall(call) !== service;
+    const newNumber = needsNumber ? nextCallNumber(prefix) : null;
     const newCalls = calls.map(c => {
       if (c.id !== callId) return c;
       const assigned = willAssign
         ? [...c.assignedUnits, ...ids.filter(id => !c.assignedUnits.includes(id))]
         : c.assignedUnits.filter(id => !ids.includes(id));
+      const notes = [...(c.callNotes || [])];
+      if (newNumber) notes.push({ text: `${SERVICE_LABEL[service]} call number ${newNumber} created for this call`, timestamp: now });
+      if (opts?.note) notes.push({ text: opts.note, timestamp: now });
       return {
         ...c,
+        numbers: { [serviceOfCall(c)]: c.id, ...(c.numbers || {}), ...(newNumber ? { [service]: newNumber } : {}) },
         assignedUnits: assigned,
         status: assigned.length > 0 ? 'ACTIVE' : 'PENDING',
         primaryUnit: c.primaryUnit && assigned.includes(c.primaryUnit) ? c.primaryUnit : (assigned[0] || null),
-        callNotes: opts?.note ? [...(c.callNotes || []), { text: opts.note, timestamp: now }] : c.callNotes
+        callNotes: notes
       };
     });
 
@@ -1834,9 +1889,9 @@ const CADSystem = () => {
     const callsigns = ids.map(callsignOf).filter(Boolean);
     if (assignedCall && callsigns.length) {
       if (willAssign) {
-        fivem.send({ type: 'call_assigned', callsigns, call: callForGame(assignedCall) });
+        fivem.send({ type: 'call_assigned', callsigns, call: callForGame(assignedCall, service) });
       } else {
-        fivem.send({ type: 'call_closed', callsigns, callId });
+        fivem.send({ type: 'call_closed', callsigns, callId: callNumberFor(assignedCall, service) });
       }
     }
 
@@ -1868,14 +1923,23 @@ const CADSystem = () => {
   const closeCall = (callId) => {
     const call = calls.find(c => c.id === callId);
     if (call) {
-      const callsigns = (call.assignedUnits || []).map(callsignOf).filter(Boolean);
-      if (callsigns.length) fivem.send({ type: 'call_closed', callsigns, callId });
+      // each service clears its own number for the call
+      const byService: Record<string, string[]> = {};
+      (call.assignedUnits || []).forEach(id => {
+        const u = units.find(x => x.id === id);
+        const cs = u?.callsign;
+        if (!cs) return;
+        const svc = unitRoleOf(u);
+        (byService[svc] = byService[svc] || []).push(cs);
+      });
+      Object.entries(byService).forEach(([svc, callsigns]) => fivem.send({ type: 'call_closed', callsigns, callId: callNumberFor(call, svc) }));
     }
     const newCalls = calls.map(c => c.id === callId ? { ...c, status: 'CLOSED' } : c);
     const newUnits = units.map(u => {
       if (u.assignedCall === callId || (call && call.assignedUnits.includes(u.id))) {
         const historyEntry = {
           callId: call.id,
+          callNumber: callNumberFor(call, unitRoleOf(u)),
           code: call.code,
           address: call.address,
           timestamp: call.timestamp,
@@ -1931,6 +1995,7 @@ const CADSystem = () => {
       if (!ids.includes(u.id)) return u;
       const historyEntry = {
         callId: call.id,
+        callNumber: callNumberFor(call, unitRoleOf(u)),
         code: call.code,
         address: call.address,
         timestamp: call.timestamp,
@@ -1942,7 +2007,7 @@ const CADSystem = () => {
     });
 
     const callsigns = ids.map(callsignOf).filter(Boolean);
-    if (callsigns.length) fivem.send({ type: 'call_closed', callsigns, callId });
+    if (callsigns.length) fivem.send({ type: 'call_closed', callsigns, callId: callNumberFor(call, unitRoleOf(units.find(u => u.id === ids[0]))) });
     saveUnitsAndCalls(newUnits, newCalls);
   };
 
@@ -12732,7 +12797,7 @@ const CADSystem = () => {
                   title={attached ? 'Already attached to the call' : 'Save and attach this report to your call for the other units'}
                   data-send-report-to-call
                 >
-                  {attached ? <><Check size={14} /> Attached to call #{onCall.id}</> : <><Send size={14} /> Send to Call #{onCall.id}</>}
+                  {attached ? <><Check size={14} /> Attached to call #{callNumberFor(onCall, 'fire')}</> : <><Send size={14} /> Send to Call #{callNumberFor(onCall, 'fire')}</>}
                 </button>
               );
             })()}
@@ -13622,7 +13687,7 @@ const CADSystem = () => {
               {onCall && (
                 <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-accent-500/25 bg-accent-500/[0.07] px-3 py-2" data-send-to-call>
                   <span className="text-sm text-gray-300">
-                    On call <span className="font-mono text-white">#{onCall.id}</span> · {onCall.code}
+                    On call <span className="font-mono text-white">#{callNumberFor(onCall, 'police')}</span> · {onCall.code}
                   </span>
                   <button
                     onClick={() => attachToCall(onCall.id, { kind: 'person', service: 'LE', civilianId: person.id, name: civName(person), dob: civDob(person) })}
@@ -13630,7 +13695,7 @@ const CADSystem = () => {
                     className="btn btn-primary btn-sm disabled:opacity-50"
                     title={alreadyAttached ? 'Already attached to the call' : 'Attach this person to your call for the other units'}
                   >
-                    {alreadyAttached ? <><Check size={14} /> Attached to call</> : <><Send size={14} /> Send to Call #{onCall.id}</>}
+                    {alreadyAttached ? <><Check size={14} /> Attached to call</> : <><Send size={14} /> Send to Call #{callNumberFor(onCall, 'police')}</>}
                   </button>
                 </div>
               )}
@@ -14185,7 +14250,7 @@ const CADSystem = () => {
   };
 
   const renderOpenCalls = (myUnit: any, activeCall: any) => {
-    const typeMatch = (c: any) => (selectedRole === 'fire' ? c.callTitle === 'FD' : c.callTitle !== 'FD');
+    const typeMatch = (c: any) => serviceOfCall(c) === selectedRole;
     const open = calls
       .filter(c => c.status !== 'CLOSED' && !(c.assignedUnits || []).includes(myUnit.id) && (openCallsAllTypes || typeMatch(c)))
       .sort((a, b) => String(a.priority).localeCompare(String(b.priority)) || String(a.timestamp).localeCompare(String(b.timestamp)));
@@ -14193,7 +14258,7 @@ const CADSystem = () => {
       <div className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs text-gray-500">
-            {activeCall ? `You are on call #${activeCall.id}. Clear from it to attach to another call.` : 'Attach yourself to a call. Dispatch sees it on the board and in the call notes.'}
+            {activeCall ? `You are on call #${callNumberFor(activeCall, selectedRole)}. Clear from it to attach to another call.` : 'Attach yourself to a call. Dispatch sees it on the board and in the call notes.'}
           </p>
           <label className="flex items-center gap-2 text-xs text-gray-400">
             <input type="checkbox" checked={openCallsAllTypes} onChange={(e) => setOpenCallsAllTypes(e.target.checked)} />
@@ -14207,7 +14272,7 @@ const CADSystem = () => {
           return (
             <div key={c.id} className="subcard p-3">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="font-mono text-xs text-gray-500">#{c.id}</span>
+                {renderCallNumbers(c)}
                 <span className={`${getPriorityColor(c.priority)} text-white px-2 py-0.5 rounded-md text-xs font-semibold`}>P{c.priority}</span>
                 <span className="font-semibold text-white">{c.code}</span>
                 {c.callTitle && <span className="chip !py-0 text-[10px]">{c.callTitle}</span>}
@@ -14296,7 +14361,7 @@ const CADSystem = () => {
       ...unitCallHistory.filter(h => !closedCalls.some(c => c.id === h.callId))
     ];
     const openCount = calls.filter(c => c.status !== 'CLOSED' && !(c.assignedUnits || []).includes(myUnit.id)
-      && (openCallsAllTypes || (selectedRole === 'fire' ? c.callTitle === 'FD' : c.callTitle !== 'FD'))).length;
+      && (openCallsAllTypes || serviceOfCall(c) === selectedRole)).length;
     const tab = selfDispatchAllowed ? callPanelTab : 'mine';
     const accent = selectedRole === 'fire' ? 'text-red-400' : 'text-blue-400';
 
@@ -14304,7 +14369,10 @@ const CADSystem = () => {
           {activeCall ? (
             <div className="space-y-3">
               <div className="flex items-center gap-3 flex-wrap pb-3 border-b border-white/[0.06]">
-                <span className="font-mono text-2xl font-bold text-white">{activeCall.id}</span>
+                <span className="font-mono text-2xl font-bold text-white" data-my-call-number>{callNumberFor(activeCall, selectedRole)}</span>
+                {callNumbersOf(activeCall).filter(n => n !== callNumberFor(activeCall, selectedRole)).map(n => (
+                  <span key={n} className="rounded bg-white/[0.06] px-1.5 py-0.5 font-mono text-xs text-gray-400" title="Same call, another service's number">{n}</span>
+                ))}
                 <span className={`${getPriorityColor(activeCall.priority)} text-white px-2.5 py-0.5 rounded-full text-xs font-semibold tracking-wide`}>
                   PRIORITY {activeCall.priority}
                 </span>
@@ -14523,6 +14591,7 @@ const CADSystem = () => {
                 // Check if it's a full call object or a history entry
                 const isFullCall = entry.historyType === 'CLOSED';
                 const callId = isFullCall ? entry.id : entry.callId;
+                const shownNumber = isFullCall ? callNumberFor(entry, selectedRole) : (entry.callNumber || entry.callId);
                 const code = entry.code;
                 const address = entry.address;
                 const timestamp = entry.timestamp;
@@ -14546,7 +14615,7 @@ const CADSystem = () => {
                   >
                     <div className="flex justify-between mb-2">
                       <div className="flex gap-2 flex-wrap items-center">
-                        <span className="font-mono text-gray-400">{callId}</span>
+                        <span className="font-mono text-gray-400">{shownNumber}</span>
                         <span className="text-white font-semibold">{code}</span>
                         {role && (
                           <span className={`px-2 py-0.5 rounded text-xs ${
@@ -14617,7 +14686,8 @@ const CADSystem = () => {
               listTitle={selectedRole === 'fire' ? 'Active Fire/EMS units' : 'Active LEO units'}
               listAccent={accent}
               // LE: LE calls + LE units. Fire/EMS: fire calls + Fire/EMS units.
-              calls={mapCallsFor(c => (selectedRole === 'fire' ? isFireCall(c) : !isFireCall(c)))}
+              // calls of this service, or that this service has been put on (it has its own number)
+              calls={mapCallsFor(c => serviceOfCall(c) === selectedRole || !!c.numbers?.[selectedRole], selectedRole)}
               onOpenCall={openCallById}
               unitFilter={(u) => !!u && unitRoleOf(u) === selectedRole}
             />
@@ -14635,7 +14705,9 @@ const CADSystem = () => {
       ...(newCallPrefill || {}) // e.g. an in-game 911 call from the FiveM bridge
     });
 
-    const availUnit = units.find(u => u.status === 'available' && !u.assignedCall);
+    const service = serviceOfCall(data);
+    const availUnit = autoAssignCandidate(data.callTitle);
+    const previewNumber = nextCallNumber(SERVICE_PREFIX[service]);
 
     return (
       <div className="modal-backdrop z-50">
@@ -14646,8 +14718,12 @@ const CADSystem = () => {
           </div>
           
           <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 mb-4 text-sm text-blue-200">
-            Call ID: <span className="font-mono font-bold">{String(callIdCounter).padStart(6, '0')}</span>
-            {availUnit && <> - Auto-assigned to <span className="font-bold">{availUnit.callsign}</span></>}
+            Call #: <span className="font-mono font-bold" data-new-call-number>{previewNumber}</span>
+            {service === 'tow'
+              ? <> - Tow units are never auto-assigned; assign one from the call.</>
+              : availUnit
+                ? <> - Auto-assigned to <span className="font-bold">{availUnit.callsign}</span></>
+                : <> - No available {SERVICE_LABEL[service]} unit; the call will wait as PENDING.</>}
           </div>
 
           <div className="space-y-4">
@@ -14694,6 +14770,7 @@ const CADSystem = () => {
                 >
                   <option value="LE">LE</option>
                   <option value="FD">FD</option>
+                  <option value="TOW">TOW</option>
                 </select>
               </div>
               <div>
@@ -14777,7 +14854,7 @@ const CADSystem = () => {
         <div className="modal-surface p-6 w-full max-w-5xl max-h-[90vh] overflow-y-auto">
           <div className="flex justify-between mb-4">
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="font-mono text-lg font-semibold text-white">#{call.id}</h2>
+              <h2 className="font-mono text-lg font-semibold text-white">{renderCallNumbers(call, 'lg')}</h2>
               <span className={`${getPriorityColor(call.priority)} text-white px-2 py-0.5 rounded-md text-xs font-semibold`}>P{call.priority}</span>
               <span className="rounded-md border border-accent-500/30 bg-accent-500/15 px-2 py-0.5 text-xs font-semibold tracking-wide text-accent-300">{call.status}</span>
             </div>
@@ -15445,7 +15522,7 @@ const CADSystem = () => {
                 <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 pl-[18px] text-xs">
                   {call && (
                     <button onClick={() => setSelectedCall(call)} className="flex items-center gap-1 text-gray-300 hover:text-white">
-                      <Radio size={11} className="text-accent-400" /> <span className="font-mono">#{call.id}</span> {call.code}
+                      <Radio size={11} className="text-accent-400" /> <span className="font-mono">#{callNumberFor(call, role)}</span> {call.code}
                     </button>
                   )}
                   {live && <span className="flex items-center gap-1 text-emerald-300"><MapPin size={11} />{live}</span>}
@@ -15660,7 +15737,7 @@ const CADSystem = () => {
                     <div className="flex justify-between items-start gap-4">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-mono text-xs text-gray-500">#{call.id}</span>
+                          {renderCallNumbers(call)}
                           <span className={`${getPriorityColor(call.priority)} text-white px-2 py-0.5 rounded-md text-xs font-semibold`}>
                             {/^\d$/.test(String(call.priority)) ? `P${call.priority}` : call.priority}
                           </span>
