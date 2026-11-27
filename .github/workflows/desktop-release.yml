@@ -1,0 +1,78 @@
+# Builds the StrataMDT Windows installer and publishes it, with the signed
+# update file (latest.json), as a GitHub Release. Installed apps check that
+# release every time they open and update themselves before use.
+#
+# Release:  cd desktop && node scripts/set-version.mjs 0.2.0
+#           git commit -am "Desktop 0.2.0" && git tag desktop-v0.2.0
+#           git push && git push origin desktop-v0.2.0
+# (or Actions -> Desktop release -> Run workflow, which uses the version in tauri.conf.json)
+#
+# Repository secrets (Settings -> Secrets and variables -> Actions):
+#   TAURI_SIGNING_PRIVATE_KEY           required: contents of strata-mdt-updater.key
+#   TAURI_SIGNING_PRIVATE_KEY_PASSWORD  optional: empty for the generated key
+#   WINDOWS_CERTIFICATE                 optional: base64 of a code-signing .pfx
+#   WINDOWS_CERTIFICATE_PASSWORD        optional: the .pfx password
+name: Desktop release
+
+on:
+  push:
+    tags: ['desktop-v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    env:
+      HAS_WINDOWS_CERT: ${{ secrets.WINDOWS_CERTIFICATE != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri -> target
+      - name: Install CLI
+        working-directory: desktop
+        run: npm install --no-audit --no-fund
+
+      # Code signing (only when a certificate secret exists): import the .pfx
+      # and tell Tauri which certificate to sign the app and installer with.
+      - name: Import code-signing certificate
+        id: cert
+        if: env.HAS_WINDOWS_CERT == 'true'
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          $pfx = Join-Path $env:RUNNER_TEMP 'cert.pfx'
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
+          $pw = ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText
+          $cert = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $pw
+          Remove-Item $pfx
+          $conf = Join-Path $env:GITHUB_WORKSPACE 'desktop/src-tauri/signing.conf.json'
+          @{ bundle = @{ windows = @{ certificateThumbprint = $cert.Thumbprint; digestAlgorithm = 'sha256'; timestampUrl = 'http://timestamp.digicert.com' } } } |
+            ConvertTo-Json -Depth 5 | Set-Content -Path $conf -Encoding utf8
+          "config=$conf" >> $env:GITHUB_OUTPUT
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: desktop
+          tagName: desktop-v__VERSION__
+          releaseName: StrataMDT Desktop v__VERSION__
+          releaseBody: |
+            Download and run the `StrataMDT_x.y.z_x64-setup.exe` installer below.
+            Installed copies update themselves the next time they open.
+          releaseDraft: false
+          prerelease: false
+          includeUpdaterJson: true
+          args: ${{ steps.cert.outputs.config && format('--config {0}', steps.cert.outputs.config) || '' }}

@@ -1,0 +1,36 @@
+# Compiles the StrataMDT desktop app (no installer, no signing) whenever it changes.
+name: Desktop check
+
+on:
+  push:
+    paths: ['desktop/**', '.github/workflows/desktop-*.yml']
+  pull_request:
+    paths: ['desktop/**', '.github/workflows/desktop-*.yml']
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri -> target
+      - run: npm install --no-audit --no-fund
+      - name: Compile (no bundle)
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run check 2>&1 | tee build.log || {
+            # Job logs need a GitHub login; annotations don't. Put the errors in one annotation.
+            msg=$(grep -E -A8 '(^|\s)(error|Error)(\[|:| )' build.log | head -80 | awk '{gsub(/%/,"%25"); printf "%s%%0A", $0}')
+            echo "::error title=Desktop compile failed::${msg}"
+            exit 1
+          }

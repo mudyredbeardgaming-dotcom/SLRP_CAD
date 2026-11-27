@@ -42,3 +42,12 @@ next-env.d.ts
 *.swp
 *.swo
 *~
+
+# Desktop app (Tauri)
+/desktop/node_modules
+/desktop/src-tauri/target
+/desktop/src-tauri/gen
+# signing keys / certificates never go in the repo
+*.key
+*.pfx
+*.p12
