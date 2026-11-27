@@ -187,6 +187,12 @@ Dispatch → Dispatch tab is `renderDispatchBoard()`, built from the same tiled 
   - four columns.
 - Dispatch's default comes from `defaultLayoutFor('dispatch')` and is saved in `strataUnitLayout:dispatch`. A saved layout with the wrong window count falls back to the default.
 
+### Dispatch BOLOs
+Approved, active BOLOs (`dispatchBolos`) show on the Dispatch board under the Active Calls window's **BOLOs** tab.
+- The tab badge pulses with the number not broadcast yet.
+- Each card has a generated radio script (`boloRadioScript`) and **Mark broadcast** / **Broadcast again**, which store `broadcastAt`, `broadcastBy` and `broadcastCount`.
+- Pending, draft and deactivated BOLOs don't show.
+
 ### Live map units and calls
 `LiveMap` takes `calls` (`MapCall[]`, drawn as diamonds labelled with the call #), `onOpenCall`, `unitFilter`, and `roleOf` + `roleToggles`.
 - **Who sees what:**
@@ -229,6 +235,8 @@ Every report and record has a `reviewStatus` (`reviewOf(item)`). Older items tak
 - **PENDING:** set by "Submit for Review".
 - **DENIED:** `denialReason` is required. The author sees it under "Returned by a supervisor" in the Records panel and in the form banner, and can "Resubmit for Review".
 - **APPROVED:** the item leaves the queue. If the author edits and resubmits it, it goes back to PENDING.
+  - Approving requires the supervisor's typed signature and a date (default: today's CAD date), plus optional notes (`renderApproveForm`).
+  - These are stored as `approvalSignature`, `approvalDate` and `approvalNotes`, and also in `reviewHistory`. They are shown with `renderApprovalSignature` in the form banner and the Approved tab.
 - `report.status` mirrors the review state (DRAFT, SUBMITTED, DENIED, APPROVED). `record.status` keeps its own meaning (ACTIVE, INACTIVE...).
 - Each review adds to `reviewHistory`, along with `reviewedBy` and `reviewedAt`.
 - The Supervisor Panel is `activeRecordsPanel === 'supervisor'` (`supervisorPanelJSX`), with Pending, Denied and Approved tabs. Only `canReviewRecords` users see it (police supervisors and admins).

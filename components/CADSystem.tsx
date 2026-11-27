@@ -239,6 +239,13 @@ const CADSystem = () => {
   const [supervisorSearch, setSupervisorSearch] = useState('');
   const [denyingKey, setDenyingKey] = useState<string | null>(null); // `${kind}:${id}` being denied
   const [denyReason, setDenyReason] = useState('');
+  // Approving: supervisor's signature, date and optional notes
+  const [approvingKey, setApprovingKey] = useState<string | null>(null); // `${kind}:${id}` being approved
+  const [approveSignature, setApproveSignature] = useState('');
+  const [approveDate, setApproveDate] = useState('');
+  const [approveNotes, setApproveNotes] = useState('');
+  // Dispatch board: Active Calls window shows calls or approved BOLOs
+  const [dispatchCallsTab, setDispatchCallsTab] = useState<'calls' | 'bolos'>('calls');
   // Civilian portal: DMV record being edited (null = adding a new one)
   const [editingDmvId, setEditingDmvId] = useState<string | null>(null);
   // Active Call window: show the records attached to the call
@@ -557,9 +564,14 @@ const CADSystem = () => {
       ...(existing && reviewOf(existing) === 'DENIED' ? { resubmittedAt: now } : {}),
     };
   };
-  const reviewItem = (kind: 'report' | 'record', id: string, decision: 'APPROVED' | 'DENIED', reason = '') => {
+  /** `approval` (signature, date, notes) is required to approve. */
+  const reviewItem = (kind: 'report' | 'record', id: string, decision: 'APPROVED' | 'DENIED', reason = '', approval?: { signature: string; date: string; notes?: string }) => {
+    if (decision === 'APPROVED' && !(approval?.signature?.trim() && approval?.date)) return;
     const now = new Date().toISOString();
     const by = loggedInOfficer?.displayName || loggedInOfficer?.username || 'Supervisor';
+    const signed = decision === 'APPROVED' && approval
+      ? { signature: approval.signature.trim(), date: approval.date, notes: (approval.notes || '').trim() }
+      : null;
     const apply = (item: any) => ({
       ...item,
       reviewStatus: decision,
@@ -567,7 +579,10 @@ const CADSystem = () => {
       reviewedBy: by,
       reviewedByUsername: loggedInOfficer?.username || null,
       denialReason: decision === 'DENIED' ? reason.trim() : null,
-      reviewHistory: [...(item.reviewHistory || []), { decision, reason: reason.trim(), by, at: now }],
+      approvalSignature: signed ? signed.signature : null,
+      approvalDate: signed ? signed.date : null,
+      approvalNotes: signed ? signed.notes : null,
+      reviewHistory: [...(item.reviewHistory || []), { decision, reason: reason.trim(), by, at: now, ...(signed || {}) }],
       ...(kind === 'report' ? { status: decision } : {}),
     });
     let newReports = officerReports, newRecords = officerRecords;
@@ -578,7 +593,73 @@ const CADSystem = () => {
     saveDataImmediately({ units, calls, civilians, officerReports: newReports, officerRecords: newRecords, officerCredentials });
     setDenyingKey(null);
     setDenyReason('');
+    setApprovingKey(null);
   };
+  const startApprove = (key: string) => {
+    setDenyingKey(null);
+    setApprovingKey(key);
+    setApproveSignature('');
+    setApproveDate(cadToday());
+    setApproveNotes('');
+  };
+  /** Approval form: the supervisor signs (typed name), dates it and may add a note. */
+  const renderApproveForm = (kind: 'report' | 'record', id: string, after?: () => void) => {
+    const ready = !!approveSignature.trim() && !!approveDate;
+    return (
+      <div className="mt-3 space-y-3 rounded-lg border border-emerald-500/25 bg-emerald-500/[0.06] p-3" data-approve-form>
+        <div className="grid gap-3 md:grid-cols-[1fr_180px]">
+          <div>
+            <label className="field-label">Supervisor signature</label>
+            <input
+              type="text"
+              value={approveSignature}
+              onChange={(e) => setApproveSignature(e.target.value)}
+              placeholder="Type your full name to sign"
+              className="field font-serif italic"
+              aria-label="Supervisor signature"
+              autoFocus
+            />
+          </div>
+          <div>
+            <label className="field-label">Date</label>
+            <input type="date" value={approveDate} onChange={(e) => setApproveDate(e.target.value)} className="field" aria-label="Approval date" />
+          </div>
+        </div>
+        <div>
+          <label className="field-label">Notes (optional)</label>
+          <textarea
+            value={approveNotes}
+            onChange={(e) => setApproveNotes(e.target.value)}
+            placeholder="Anything to note with the approval"
+            className="field h-16"
+            aria-label="Approval notes"
+          />
+        </div>
+        <div className="flex justify-end gap-2">
+          <button onClick={() => setApprovingKey(null)} className="btn btn-secondary btn-sm">Cancel</button>
+          <button
+            disabled={!ready}
+            onClick={() => { reviewItem(kind, id, 'APPROVED', '', { signature: approveSignature, date: approveDate, notes: approveNotes }); after?.(); }}
+            className="btn btn-success btn-sm disabled:opacity-40"
+            title={ready ? 'Approve' : 'Sign and date to approve'}
+          >
+            <ThumbsUp size={14} /> Sign &amp; Approve
+          </button>
+        </div>
+      </div>
+    );
+  };
+  /** Signature line shown on approved items. */
+  const renderApprovalSignature = (item: any) => (item.approvalSignature ? (
+    <div className="mt-2 rounded-md border border-emerald-500/20 bg-gray-950/40 p-2.5 text-sm" data-approval-signature>
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <span className="text-xs uppercase tracking-wider text-gray-500">Signed</span>
+        <span className="font-serif text-base italic text-emerald-100">{item.approvalSignature}</span>
+        {item.approvalDate && <span className="text-xs text-gray-400">{item.approvalDate}</span>}
+      </div>
+      {item.approvalNotes && <p className="mt-1 whitespace-pre-wrap text-gray-300"><span className="text-gray-500">Notes: </span>{item.approvalNotes}</p>}
+    </div>
+  ) : null);
   /** Status strip at the top of a report/record form: review state, denial reason, supervisor actions. */
   const renderReviewBanner = (kind: 'report' | 'record', editingId: string | null) => {
     if (!editingId) return null;
@@ -606,8 +687,9 @@ const CADSystem = () => {
         {state === 'DENIED' && saved.denialReason && (
           <p className="mt-2 whitespace-pre-wrap rounded-md border border-red-500/20 bg-gray-950/40 p-2.5 text-sm text-red-100"><span className="font-semibold text-red-300">Reason: </span>{saved.denialReason}</p>
         )}
+        {state === 'APPROVED' && renderApprovalSignature(saved)}
         {canReviewItem(saved) && (
-          denyingKey === key ? (
+          approvingKey === key ? renderApproveForm(kind, editingId, close) : denyingKey === key ? (
             <div className="mt-3 space-y-2">
               <textarea
                 value={denyReason}
@@ -626,8 +708,8 @@ const CADSystem = () => {
           ) : (
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <span className="text-xs text-gray-400">Supervisor review:</span>
-              <button onClick={() => { reviewItem(kind, editingId, 'APPROVED'); close(); }} className="btn btn-success btn-sm"><ThumbsUp size={14} /> Approve</button>
-              <button onClick={() => { setDenyingKey(key); setDenyReason(''); }} className="btn btn-danger btn-sm"><ThumbsDown size={14} /> Deny</button>
+              <button onClick={() => startApprove(key)} className="btn btn-success btn-sm"><ThumbsUp size={14} /> Approve</button>
+              <button onClick={() => { setApprovingKey(null); setDenyingKey(key); setDenyReason(''); }} className="btn btn-danger btn-sm"><ThumbsDown size={14} /> Deny</button>
             </div>
           )
         )}
@@ -1237,7 +1319,7 @@ const CADSystem = () => {
     if (activeRecordsPanel) {
       if (activeRecordsPanel === 'lookup') resetLookup();
       if (activeRecordsPanel === 'bolo') setBoloSearch('');
-      if (activeRecordsPanel === 'supervisor') { setDenyingKey(null); setDenyReason(''); }
+      if (activeRecordsPanel === 'supervisor') { setDenyingKey(null); setDenyReason(''); setApprovingKey(null); }
       setShowNewReportDropdown(false);
       setShowNewRecordDropdown(false);
       setActiveRecordsPanel(null);
@@ -12757,6 +12839,7 @@ const CADSystem = () => {
                           {supervisorTab === 'denied' && item.denialReason && (
                             <p className="mt-1 whitespace-pre-wrap text-sm text-red-200">{item.denialReason}</p>
                           )}
+                          {supervisorTab === 'approved' && renderApprovalSignature(item)}
                         </div>
                         <div className="flex flex-wrap gap-2">
                           <button onClick={() => (kind === 'report' ? openExistingReport(item) : openExistingRecord(item))} className="btn btn-secondary btn-sm">
@@ -12764,14 +12847,15 @@ const CADSystem = () => {
                           </button>
                           {supervisorTab === 'pending' && (canReviewItem(item) ? (
                             <>
-                              <button onClick={() => reviewItem(kind, item.id, 'APPROVED')} className="btn btn-success btn-sm"><ThumbsUp size={14} /> Approve</button>
-                              <button onClick={() => { setDenyingKey(key); setDenyReason(''); }} className="btn btn-danger btn-sm"><ThumbsDown size={14} /> Deny</button>
+                              <button onClick={() => startApprove(key)} className="btn btn-success btn-sm"><ThumbsUp size={14} /> Approve</button>
+                              <button onClick={() => { setApprovingKey(null); setDenyingKey(key); setDenyReason(''); }} className="btn btn-danger btn-sm"><ThumbsDown size={14} /> Deny</button>
                             </>
                           ) : (
                             <span className="self-center text-xs text-gray-500">Your own: another supervisor reviews it</span>
                           ))}
                         </div>
                       </div>
+                      {approvingKey === key && supervisorTab === 'pending' && !activeReportForm && !activeRecordForm && renderApproveForm(kind, item.id)}
                       {denyingKey === key && (
                         <div className="mt-3 space-y-2 border-t border-white/[0.06] pt-3">
                           <label className="field-label">Reason for denial (sent to {item.officer || 'the officer'})</label>
@@ -15275,6 +15359,95 @@ const CADSystem = () => {
       </span>
     );
   };
+  // ---- Approved BOLOs for dispatch to call out over the radio ----------------
+  const dispatchBolos = officerRecords
+    .filter(r => r.type === 'BOLO' && isBoloActive(r) && reviewOf(r) === 'APPROVED')
+    .sort((a, b) => (a.broadcastAt ? 1 : 0) - (b.broadcastAt ? 1 : 0)
+      || String(b.reviewedAt || b.createdAt || '').localeCompare(String(a.reviewedAt || a.createdAt || '')));
+  const newBoloCount = dispatchBolos.filter(r => !r.broadcastAt).length;
+  const markBoloBroadcast = (r: any) => {
+    const now = new Date().toISOString();
+    const by = loggedInOfficer?.displayName || 'Dispatch';
+    const newRecords = officerRecords.map(x => (x.id === r.id
+      ? { ...x, broadcastAt: now, broadcastBy: by, broadcastCount: (x.broadcastCount || 0) + 1 }
+      : x));
+    setOfficerRecords(newRecords);
+    saveDataImmediately({ units, calls, civilians, officerReports, officerRecords: newRecords, officerCredentials });
+  };
+  /** What the dispatcher reads out. */
+  const boloRadioScript = (r: any) => {
+    const reasons = BOLO_REASONS.filter(([k]) => r[k]).map(([, label]) => label.toLowerCase());
+    const safety = BOLO_SAFETY.filter(([k]) => r[k]).map(([, label]) => label.toLowerCase());
+    const vehicle = [r.vehicleColor, r.vehicleYear, r.vehicleMake, r.vehicleModel].filter(Boolean).join(' ');
+    return [
+      `Attention all units, BOLO${r.recordNumber ? ` number ${r.recordNumber}` : ''}${reasons.length ? `, ${reasons.join(', ')}` : ''}.`,
+      vehicle || r.vehiclePlate ? `Vehicle: ${vehicle || 'unknown'}${r.vehiclePlate ? `, plate ${String(r.vehiclePlate).split('').join(' ')}` : ''}.` : '',
+      r.subjectName ? `Subject: ${r.subjectName}${r.subjectDescription ? `, ${r.subjectDescription}` : ''}.` : '',
+      r.lastKnownLocation ? `Last seen ${r.lastKnownLocation}.` : '',
+      safety.length ? `Officer safety: ${safety.join(', ')}.` : '',
+      r.briefInformation ? String(r.briefInformation).trim() : '',
+      `Contact ${r.officer || 'the issuing officer'}${r.callsign ? `, ${r.callsign}` : ''}.`,
+    ].filter(Boolean).join(' ');
+  };
+  const renderDispatchBolos = () => (
+    dispatchBolos.length === 0 ? (
+      <div className="rounded-xl border border-dashed border-white/[0.1] bg-white/[0.02] px-8 py-12 text-center">
+        <AlertTriangle size={32} className="mx-auto mb-3 text-gray-600" />
+        <p className="text-white font-medium">No active BOLOs</p>
+        <p className="text-sm text-gray-400 mt-1">BOLOs show here once a supervisor approves them.</p>
+      </div>
+    ) : (
+      <div className="grid gap-2">
+        {dispatchBolos.map(r => {
+          const reasons = BOLO_REASONS.filter(([k]) => r[k]).map(([, label]) => label);
+          const safety = BOLO_SAFETY.filter(([k]) => r[k]).map(([, label]) => label);
+          const vehicle = [r.vehicleColor, r.vehicleYear, r.vehicleMake, r.vehicleModel].filter(Boolean).join(' ');
+          return (
+            <div key={r.id} className={`subcard p-3 ${r.broadcastAt ? '' : '!border-red-500/40'}`} data-dispatch-bolo={r.id}>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-md bg-red-600 px-2 py-0.5 text-xs font-bold text-white">BOLO</span>
+                {r.recordNumber && <span className="font-mono text-xs text-gray-400">#{r.recordNumber}</span>}
+                {!r.broadcastAt && <span className="rounded-md bg-yellow-500/20 px-1.5 py-0.5 text-[10px] font-bold text-yellow-300 animate-pulse">NEW · NOT BROADCAST</span>}
+                {reasons.map(label => <span key={label} className="chip !py-0 text-[10px]">{label}</span>)}
+                <span className="ml-auto text-[11px] text-gray-500">
+                  {r.officer || 'Officer'}{r.callsign ? ` (${r.callsign})` : ''} · approved {r.reviewedAt ? formatPSTTime(r.reviewedAt) : ''}
+                </span>
+              </div>
+              {safety.length > 0 && (
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {safety.map(label => <span key={label} className="rounded bg-red-500/15 px-1.5 py-0.5 text-[11px] font-semibold text-red-300 ring-1 ring-red-500/30">{label}</span>)}
+                </div>
+              )}
+              <div className="mt-2 grid gap-x-4 gap-y-1 text-sm sm:grid-cols-2">
+                {(r.vehiclePlate || vehicle) && (
+                  <div className="flex items-center gap-1.5 text-gray-200"><Car size={13} className="text-gray-500" />
+                    {r.vehiclePlate && <span className="font-mono font-semibold text-white">{r.vehiclePlate}</span>} {vehicle}
+                  </div>
+                )}
+                {r.subjectName && <div className="flex items-center gap-1.5 text-gray-200"><User size={13} className="text-gray-500" />{r.subjectName}</div>}
+                {r.lastKnownLocation && <div className="flex items-center gap-1.5 text-gray-300 sm:col-span-2"><MapPin size={13} className="text-gray-500" />Last seen: {r.lastKnownLocation}</div>}
+              </div>
+              <div className="well mt-2 p-2.5 text-sm text-gray-200" data-radio-script>
+                <div className="eyebrow mb-1 flex items-center gap-1.5"><Radio size={12} /> Radio</div>
+                {boloRadioScript(r)}
+              </div>
+              <div className="mt-2 flex flex-wrap items-center justify-end gap-2">
+                {r.broadcastAt && (
+                  <span className="mr-auto text-xs text-gray-400">
+                    Broadcast {formatPSTTime(r.broadcastAt)}{r.broadcastBy ? ` by ${r.broadcastBy}` : ''}{r.broadcastCount > 1 ? ` · ${r.broadcastCount}×` : ''}
+                  </span>
+                )}
+                <button onClick={() => markBoloBroadcast(r)} className={`btn btn-sm ${r.broadcastAt ? 'btn-secondary' : 'btn-danger'}`}>
+                  <Radio size={14} /> {r.broadcastAt ? 'Broadcast again' : 'Mark broadcast'}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    )
+  );
+
   const renderDispatchBoard = () => (
     <div className="flex h-full flex-col">
       <div
@@ -15282,7 +15455,7 @@ const CADSystem = () => {
         className={isWide ? 'relative -m-1.5 min-h-0 flex-1' : 'flex flex-col gap-3'}
         style={isWide ? ({ '--s1': unitLayout.s1, '--s2': unitLayout.s2, '--s3': unitLayout.s3 ?? 0.67 } as any) : undefined}
       >
-        {renderDashWindow('calls', `Active Calls (${activeCallList.length})`, <Radio size={15} className="text-emerald-400" />, (
+        {renderDashWindow('calls', dispatchCallsTab === 'bolos' ? `BOLOs (${dispatchBolos.length})` : `Active Calls (${activeCallList.length})`, <Radio size={15} className="text-emerald-400" />, dispatchCallsTab === 'bolos' ? renderDispatchBolos() : (
           <>
             {fivem.pending.length > 0 && (
               <div className="panel-card mb-3">
@@ -15387,13 +15560,29 @@ const CADSystem = () => {
           </>
         ), {
           extra: (
-            <button
-              onClick={() => { setNewCallPrefill(null); setShowNewCall(true); }}
-              onDoubleClick={(e) => e.stopPropagation()}
-              className="btn btn-primary btn-sm ml-auto"
-            >
-              <Plus size={14} /> New Call
-            </button>
+            <div className="ml-auto flex items-center gap-2" onDoubleClick={(e) => e.stopPropagation()}>
+              <div className="seg !p-0.5" role="group" aria-label="Calls or BOLOs">
+                <button onClick={() => setDispatchCallsTab('calls')} className={`seg-item !px-2.5 !py-1 !text-xs ${dispatchCallsTab === 'calls' ? 'seg-item-active' : ''}`}>
+                  Calls <span className="font-mono">{activeCallList.length}</span>
+                </button>
+                <button
+                  onClick={() => setDispatchCallsTab('bolos')}
+                  className={`seg-item !px-2.5 !py-1 !text-xs ${dispatchCallsTab === 'bolos' ? 'seg-item-active' : ''}`}
+                  data-bolo-tab
+                  title={newBoloCount ? `${newBoloCount} BOLO(s) not broadcast yet` : 'Active BOLOs'}
+                >
+                  BOLOs
+                  {newBoloCount > 0
+                    ? <span className="rounded-full bg-red-600 px-1.5 font-mono text-[10px] font-bold text-white animate-pulse">{newBoloCount}</span>
+                    : <span className="font-mono">{dispatchBolos.length}</span>}
+                </button>
+              </div>
+              {dispatchCallsTab === 'calls' && (
+                <button onClick={() => { setNewCallPrefill(null); setShowNewCall(true); }} className="btn btn-primary btn-sm">
+                  <Plus size={14} /> New Call
+                </button>
+              )}
+            </div>
           ),
         })}
         {renderDashWindow('le', 'LE Units', <Shield size={15} className="text-blue-400" />, renderUnitRoster('police'), { extra: rosterSummary('police') })}
