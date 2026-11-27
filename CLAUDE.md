@@ -35,6 +35,7 @@ StrataMDT/
 ├── lib/history.ts      # rolesIn / plateHistory: who and which plates are on a report or record (CAD + in-game lookups)
 ├── lib/fivem/          # FiveM bridge: protocol types, in-memory store, API-key auth, character sync, useFiveMBridge hook
 ├── fivem/strata-mdt/   # Sample FiveM resource (Lua) + fivem/README.md protocol docs
+├── desktop/            # Tauri 2 desktop app (launcher + self-updater); see desktop/README.md
 ├── public/             # Static assets (legacy role logos still live here)
 ├── package.json
 ├── tailwind.config.js  # Palette (gray override + accent), radii, shadows, animations
@@ -464,6 +465,16 @@ Basis for connecting a FiveM server. Full protocol and setup: `fivem/README.md`.
 - Bridge state is in memory (`lib/fivem/store.ts`, on `globalThis`), not in `cad-data.json`, so a single server instance is assumed.
 - CAD actions that should reach the game call `fivem.send(...)` (see createCall, assignUnit, closeCall, updateUnitStatus). Game-originated changes are applied locally and saved, never echoed back.
 - GPS: `callForGame` adds the call's `x`/`y` (game position, else postal; `gpsApprox`) to `call_assigned`. `/api/fivem/command` whitelists call fields, so new ones must be added there too. The client sets a waypoint on assignment and clears it on `call_closed` (`Config.Waypoints`, `/callgps`).
+
+## Desktop app (desktop/)
+
+A Tauri 2 shell for Windows (WebView2, not Electron), built by GitHub Actions; there is no local Rust.
+- **Launcher:** `desktop/src` checks GitHub Releases for an update (`latest.json`). If there is one, it installs it and restarts before anything else. It then opens the saved CAD server URL (`localStorage strataServerUrl`, asked for on first run, or `DEFAULT_SERVER` in `config.js`). The CAD itself always comes from the server, so CAD changes need no app update.
+- **Updates:**
+  - They are signed with the updater key at `%USERPROFILE%\.tauri\strata-mdt-updater.key`, which stays outside the repo. Its contents go in the repo secret `TAURI_SIGNING_PRIVATE_KEY`. The public key is in `tauri.conf.json`.
+  - To release: `npm run set-version X.Y.Z` in `desktop/`, commit, and push the tag `desktop-vX.Y.Z` (or run the **Desktop release** workflow).
+- **CI:** **Desktop check** compiles on every `desktop/**` change. Compile errors show as a job annotation, because job logs need a GitHub login.
+- **Windows code signing:** optional `WINDOWS_CERTIFICATE` / `WINDOWS_CERTIFICATE_PASSWORD` secrets (.pfx). Without them, SmartScreen warns on first install.
 
 ## Deployment
 
