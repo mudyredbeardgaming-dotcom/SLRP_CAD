@@ -119,6 +119,26 @@ To add custom settings:
    NEXT_PUBLIC_SERVER_NAME=Your Server Name
    ```
 
+### 4.2.1 Sign in with Discord (optional)
+
+Users can link their Discord account to their CAD login and then sign in with one click. This works on the website and in the desktop app. It stays off until both variables below are set.
+
+1. Go to https://discord.com/developers/applications and click **New Application** (e.g. "StrataMDT").
+2. Open **OAuth2**:
+   - Copy the **Client ID**.
+   - Click **Reset Secret** and copy the **Client Secret**.
+   - Under **Redirects**, add `https://<your-railway-domain>/api/auth/discord/callback` and save. Add one per domain if you use a custom domain too.
+3. In Railway → Variables add:
+   ```
+   DISCORD_CLIENT_ID=<client id>
+   DISCORD_CLIENT_SECRET=<client secret>
+   # optional, only if the redirect must be a fixed URL:
+   # DISCORD_REDIRECT_URI=https://<your-domain>/api/auth/discord/callback
+   ```
+4. Redeploy. The login screen now shows **Sign in with Discord**.
+
+To link an account, the user signs in with their username and password once. On the role screen they click **Link Discord**, confirm their CAD password, then approve on Discord. A Discord account can be linked to only one CAD account, and linking it again moves it. To unlink, they click their Discord name on the role screen. Only Discord's `identify` scope (id, username, avatar) is requested.
+
 ### 4.3 Configure Permissions
 
 To restrict who can access Dispatch and Police roles:
