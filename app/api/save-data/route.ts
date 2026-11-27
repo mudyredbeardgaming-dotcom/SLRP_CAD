@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withDataLock, writeDataFile } from '@/lib/dataStore';
 import { replayGameChanges } from '@/lib/fivem/characters';
 import { replayGameRecords } from '@/lib/fivem/records';
+import { replayDiscordLinks } from '@/lib/auth/discord';
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,6 +12,7 @@ export async function POST(request: NextRequest) {
       // Keep characters/licenses/vehicles the game added since this browser last loaded
       replayGameChanges(data);
       replayGameRecords(data);
+      replayDiscordLinks(data);
       await writeDataFile(data);
     });
 

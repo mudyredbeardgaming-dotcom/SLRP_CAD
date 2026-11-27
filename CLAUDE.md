@@ -31,6 +31,7 @@ StrataMDT/
 ├── lib/dataStore.ts    # Locked, atomic access to data/cad-data.json (server)
 ├── lib/permissions.ts  # SELF_DISPATCH / SUPERVISORS policies; canSelfDispatch, isSupervisor, canGroupUnits, canReviewRecords
 ├── lib/cadDate.ts      # CAD date (Pacific time), +1 year, EXPIRED status helpers (browser + server)
+├── lib/auth/discord.ts # Discord OAuth: link a CAD account, Sign in with Discord (off without DISCORD_CLIENT_ID/SECRET)
 ├── lib/history.ts      # rolesIn / plateHistory: who and which plates are on a report or record (CAD + in-game lookups)
 ├── lib/fivem/          # FiveM bridge: protocol types, in-memory store, API-key auth, character sync, useFiveMBridge hook
 ├── fivem/strata-mdt/   # Sample FiveM resource (Lua) + fivem/README.md protocol docs
@@ -304,6 +305,15 @@ Tow taskbar → **Create Tow Report** (`handleNewTowReport(call?)`, form `towRep
 - **From the tow unit's call:** the form fills the T#### number, location, the requesting LE units, and the traffic stop plate.
 - **Tow screen:** shows the tow unit's active call (`myTowCall`) and **My Tow Reports**.
 - **Kept out of LE:** excluded from LE lists and the Supervisor Panel (`isTowReport` → `leReports`). They do show in plate and owner history (`rolesIn` adds REGISTERED OWNER), and LE opens them read-only.
+
+### Discord sign-in
+`lib/auth/discord.ts` + `app/api/auth/discord/[action]/route.ts`. It is off unless `DISCORD_CLIENT_ID` and `DISCORD_CLIENT_SECRET` are set. Setup is in DEPLOYMENT_GUIDE.md §4.2.1.
+- **Link:** on role selection, **Link Discord** opens `DiscordAccountDialog`, which asks for the CAD password. POST `link-start` returns the Discord URL; `/callback` then stores `officerCredentials[].discord` `{id, username, displayName, avatar, linkedAt}`. One Discord account maps to one CAD account.
+- **Login:** **Sign in with Discord** → `/login` → Discord → `/callback` → `/?discordTicket=…`. The CAD redeems the ticket (POST `redeem`, single use, 2 min) and calls `startSession(officer)`, the same session the password login creates. Errors come back as `/?discordError=…` and are shown as `discordNotice`.
+- **Unlink:** click the Discord chip, then confirm the password (POST `unlink`).
+- **Dialog:** `DiscordAccountDialog` is a module-level component rendered next to `<RoleSelection />`, so FiveM bridge re-renders don't wipe the typed password.
+- **Persistence:** `/api/save-data` calls `replayDiscordLinks` (15 min), so a stale browser save can't undo a link.
+- **Testing:** `DISCORD_OAUTH_BASE` / `DISCORD_API_BASE` point at a mock Discord.
 
 ### Admin accounts
 Admins can open every role. When an admin enters LE or Fire/EMS, a unit is created for their login's `unitId` (e.g. ADMIN-1, `adminUnit: true`) if it doesn't exist. That gives them status buttons, self-dispatch, Open Calls and a callsign on the map. Admins also pass every supervisor, grouping and self-dispatch check (`lib/permissions.ts`).

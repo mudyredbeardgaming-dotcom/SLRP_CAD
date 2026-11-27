@@ -127,6 +127,71 @@ const ChargeAutocompleteInput = ({ value, onChange, onSelect, placeholder = "Typ
   );
 };
 
+const DiscordIcon = ({ size = 16 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M20.317 4.37a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .078-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.1.246.198.373.292a.077.077 0 0 1-.007.128 12.3 12.3 0 0 1-1.873.891.077.077 0 0 0-.041.107c.36.698.772 1.363 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
+  </svg>
+);
+
+/**
+ * Link / unlink Discord on role selection. Module-level so the CAD's re-renders
+ * (FiveM bridge polls) don't remount it and wipe the typed password.
+ */
+const DiscordAccountDialog = ({ mode, username, accountName, onClose, onUnlinked }: {
+  mode: 'link' | 'unlink'; username: string; accountName?: string; onClose: () => void; onUnlinked: () => void;
+}) => {
+  const [pw, setPw] = useState('');
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    if (!pw || busy) return;
+    setBusy(true);
+    setErr('');
+    try {
+      const res = await fetch(`/api/auth/discord/${mode === 'link' ? 'link-start' : 'unlink'}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password: pw }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!d.ok) { setErr(d.error || 'Something went wrong.'); setBusy(false); return; }
+      if (mode === 'link') { window.location.href = d.url; return; }
+      onUnlinked();
+    } catch {
+      setErr('Could not reach the CAD server.');
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="modal-backdrop z-50">
+      <div className="modal-surface w-full max-w-sm p-6" data-discord-dialog>
+        <h3 className="flex items-center gap-2 text-lg font-semibold text-white"><DiscordIcon size={20} /> {mode === 'link' ? 'Link Discord' : 'Unlink Discord'}</h3>
+        <p className="mt-1 text-sm text-gray-400">
+          {mode === 'link'
+            ? 'Confirm your CAD password. Discord will then ask you to approve the link, and you can sign in with Discord from then on.'
+            : `Confirm your CAD password to unlink ${accountName || 'Discord'}.`}
+        </p>
+        <input
+          type="password"
+          value={pw}
+          onChange={(e) => setPw(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') submit(); if (e.key === 'Escape') onClose(); }}
+          placeholder="CAD password"
+          className="field mt-4"
+          aria-label="CAD password"
+          autoFocus
+        />
+        {err && <p className="mt-2 text-sm text-red-300">{err}</p>}
+        <div className="mt-4 flex justify-end gap-2">
+          <button onClick={onClose} className="btn btn-secondary">Cancel</button>
+          <button disabled={!pw || busy} onClick={submit} className={`btn disabled:opacity-50 ${mode === 'link' ? 'text-white' : 'btn-danger'}`} style={mode === 'link' ? { background: '#5865F2' } : undefined}>
+            {mode === 'link' ? 'Continue to Discord' : 'Unlink'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const CADSystem = () => {
   // Helper function to format time in PST
   const formatPSTTime = (isoString: string) => {
@@ -198,6 +263,10 @@ const CADSystem = () => {
   const [showComModal, setShowComModal] = useState(false);
   const [comNumber, setComNumber] = useState('');
   const [loggedInOfficer, setLoggedInOfficer] = useState<any>(null);
+  // Discord sign-in (lib/auth/discord.ts): on when the server has DISCORD_CLIENT_ID/SECRET
+  const [discordEnabled, setDiscordEnabled] = useState(false);
+  const [discordNotice, setDiscordNotice] = useState<{ kind: 'error' | 'success'; text: string } | null>(null);
+  const [discordDialog, setDiscordDialog] = useState<null | 'link' | 'unlink'>(null);
   const [showLogin, setShowLogin] = useState(true);
 
   // Permission settings - can be controlled by admin
@@ -2257,6 +2326,7 @@ const CADSystem = () => {
   };
 
   const RoleSelection = () => {
+    const myDiscord = officerCredentials.find((c: any) => c.username === loggedInOfficer?.username)?.discord || loggedInOfficer?.discord;
     const role = loggedInOfficer?.role;
     const isAdmin = role === 'admin';
     const roleOptions = [
@@ -2329,6 +2399,22 @@ const CADSystem = () => {
                   </div>
                 </div>
               )}
+              {discordEnabled && loggedInOfficer && (
+                myDiscord ? (
+                  <button
+                    onClick={() => setDiscordDialog('unlink')}
+                    className="flex items-center gap-2 rounded-lg border border-[#5865F2]/40 bg-[#5865F2]/15 px-3 py-1.5 text-sm text-indigo-100 hover:bg-[#5865F2]/25"
+                    title="Discord linked (click to unlink)"
+                    data-discord-linked
+                  >
+                    <DiscordIcon size={16} /> {myDiscord.displayName || myDiscord.username}
+                  </button>
+                ) : (
+                  <button onClick={() => setDiscordDialog('link')} className="btn btn-secondary" data-discord-link>
+                    <DiscordIcon size={16} /> Link Discord
+                  </button>
+                )
+              )}
               <button
                 onClick={() => {
                   setLoggedInOfficer(null);
@@ -2344,6 +2430,15 @@ const CADSystem = () => {
             </div>
           </div>
         </header>
+
+        {discordNotice && (
+          <div className={`mx-auto mt-4 w-full max-w-6xl px-6`}>
+            <p className={`rounded-lg border px-3 py-2 text-sm ${discordNotice.kind === 'error' ? 'border-red-500/30 bg-red-500/10 text-red-200' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'}`} data-discord-notice>
+              {discordNotice.text}
+              <button onClick={() => setDiscordNotice(null)} className="ml-3 text-xs underline opacity-70">Dismiss</button>
+            </p>
+          </div>
+        )}
 
         <main className="flex-1 flex items-center">
           <div className="max-w-6xl w-full mx-auto px-6 py-12">
@@ -2408,6 +2503,47 @@ const CADSystem = () => {
       </div>
     );
   };
+
+  // ---- Discord sign-in -------------------------------------------------------
+  /** Same session the password login creates. */
+  const startSession = (officer: any) => {
+    const session = { version: APP_VERSION, officer, unitId: officer.unitId, role: null, loginTime: new Date().toISOString() };
+    localStorage.setItem('cadSession', JSON.stringify(session));
+    setLoggedInOfficer(officer);
+    setSelectedUnit(officer.unitId);
+    setSelectedRole(null);
+    setIsAuthenticated(true);
+    setShowLogin(false);
+  };
+  const DISCORD_ERRORS: Record<string, string> = {
+    'not-linked': 'That Discord account is not linked to a CAD account yet. Sign in with your username and password, then use "Link Discord".',
+    cancelled: 'Discord sign-in was cancelled.',
+    expired: 'The Discord sign-in took too long. Try again.',
+    account: 'Could not link Discord: the CAD account was not found.',
+    failed: 'Discord sign-in failed. Try again.',
+  };
+  useEffect(() => {
+    if (!isClient) return;
+    fetch('/api/auth/discord/status').then(r => r.json()).then(d => setDiscordEnabled(!!d.enabled)).catch(() => {});
+    // Coming back from Discord (/api/auth/discord/callback)
+    const sp = new URLSearchParams(window.location.search);
+    const ticket = sp.get('discordTicket');
+    const err = sp.get('discordError');
+    const linked = sp.get('discord') === 'linked';
+    if (!ticket && !err && !linked) return;
+    window.history.replaceState(null, '', window.location.pathname);
+    if (err) setDiscordNotice({ kind: 'error', text: DISCORD_ERRORS[err] || DISCORD_ERRORS.failed });
+    if (linked) setDiscordNotice({ kind: 'success', text: 'Discord linked. You can now use "Sign in with Discord".' });
+    if (ticket) {
+      fetch('/api/auth/discord/redeem', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ticket }) })
+        .then(r => r.json())
+        .then(d => {
+          if (d.ok && d.officer) { startSession(d.officer); setDiscordNotice(null); }
+          else setDiscordNotice({ kind: 'error', text: d.error || DISCORD_ERRORS.failed });
+        })
+        .catch(() => setDiscordNotice({ kind: 'error', text: DISCORD_ERRORS.failed }));
+    }
+  }, [isClient]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const PoliceLogin = () => {
     const [credentials, setCredentials] = useState({ username: '', password: '' });
@@ -2545,6 +2681,27 @@ const CADSystem = () => {
                 Sign In
                 <ArrowRight size={16} />
               </button>
+
+              {discordEnabled && (
+                <>
+                  <div className="flex items-center gap-3 text-[11px] uppercase tracking-wider text-gray-500">
+                    <span className="h-px flex-1 bg-white/[0.08]" /> or <span className="h-px flex-1 bg-white/[0.08]" />
+                  </div>
+                  <button
+                    onClick={() => { window.location.href = '/api/auth/discord/login'; }}
+                    className="btn w-full py-2.5 text-[15px] text-white"
+                    style={{ background: '#5865F2' }}
+                    data-discord-login
+                  >
+                    <DiscordIcon size={18} /> Sign in with Discord
+                  </button>
+                </>
+              )}
+              {discordNotice && (
+                <p className={`rounded-lg border px-3 py-2 text-sm ${discordNotice.kind === 'error' ? 'border-red-500/30 bg-red-500/10 text-red-200' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'}`} data-discord-notice>
+                  {discordNotice.text}
+                </p>
+              )}
             </div>
           </div>
 
@@ -5507,7 +5664,27 @@ const CADSystem = () => {
   }
 
   if (!selectedRole) {
-    return <RoleSelection />;
+    const myDiscord = officerCredentials.find((c: any) => c.username === loggedInOfficer?.username)?.discord || loggedInOfficer?.discord;
+    return (
+      <>
+        <RoleSelection />
+        {discordDialog && loggedInOfficer && (
+          <DiscordAccountDialog
+            mode={discordDialog}
+            username={loggedInOfficer.username}
+            accountName={myDiscord?.displayName || myDiscord?.username}
+            onClose={() => setDiscordDialog(null)}
+            onUnlinked={async () => {
+              const fresh = await fetch('/api/load-data').then(r => r.json()).catch(() => null);
+              if (fresh?.officerCredentials) setOfficerCredentials(fresh.officerCredentials);
+              setLoggedInOfficer((o: any) => { if (!o) return o; const { discord: _d, ...rest } = o; return rest; });
+              setDiscordNotice({ kind: 'success', text: 'Discord unlinked.' });
+              setDiscordDialog(null);
+            }}
+          />
+        )}
+      </>
+    );
   }
 
   if (selectedRole === 'civilian') {
