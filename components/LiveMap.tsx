@@ -47,6 +47,8 @@ const STYLE_KEY = 'strataMapStyle';
 /** A CAD call to draw on the map. x/y missing = no known location (listed only). */
 export interface MapCall {
   id: string;
+  /** Shown instead of the id, e.g. the viewer's service number "F0004" or "L0012 / F0004". */
+  label?: string;
   code?: string;
   priority?: string;
   address?: string;
@@ -382,7 +384,7 @@ export default function LiveMap({
                   onPointerDown={e => e.stopPropagation()}
                   onClick={() => { setSelectedCall(c.id); setSelected(null); }}
                 >
-                  <title>{`Call #${c.id}${c.code ? ` · ${c.code}` : ''}`}</title>
+                  <title>{`Call #${c.label || c.id}${c.code ? ` · ${c.code}` : ''}`}</title>
                   {c.priority === '1' && <circle r={r * 2.2} fill="none" stroke={color} strokeWidth={px(2)} opacity={0.6} className="animate-pulse" />}
                   {/* diamond marker; dashed outline = placed from the postal (approximate) */}
                   <rect
@@ -406,7 +408,7 @@ export default function LiveMap({
                     paintOrder="stroke"
                     style={{ pointerEvents: 'none', fontFamily: 'var(--font-mono)' }}
                   >
-                    #{c.id}
+                    #{c.label || c.id}
                   </text>
                 </g>
               );
@@ -550,7 +552,7 @@ export default function LiveMap({
             >
               <div className="flex items-center gap-2">
                 <span className="inline-block h-2.5 w-2.5 rotate-45" style={{ background: PRIORITY_COLORS[String(selectedCallInfo.priority)] || '#94a3b8' }} />
-                <span className="font-mono font-semibold text-white">#{selectedCallInfo.id}</span>
+                <span className="font-mono font-semibold text-white">#{selectedCallInfo.label || selectedCallInfo.id}</span>
                 {selectedCallInfo.priority && <span className="text-xs text-gray-400">P{selectedCallInfo.priority}</span>}
                 <span className="font-semibold text-gray-200">{selectedCallInfo.code}</span>
                 <button className="ml-auto text-xs text-gray-500 hover:text-white" onClick={() => setSelectedCall(null)}>Close</button>
@@ -622,7 +624,7 @@ export default function LiveMap({
                   >
                     <div className="flex items-center gap-2">
                       <span className="inline-block h-2 w-2 flex-shrink-0 rotate-45" style={{ background: PRIORITY_COLORS[String(c.priority)] || '#94a3b8' }} />
-                      <span className="font-mono text-xs font-semibold text-white">#{c.id}</span>
+                      <span className="font-mono text-xs font-semibold text-white">#{c.label || c.id}</span>
                       <span className="truncate text-xs text-gray-300">{c.code}</span>
                     </div>
                     <div className="mt-0.5 truncate text-[11px] text-gray-500">
