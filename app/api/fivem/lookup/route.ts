@@ -3,6 +3,7 @@ import { readDataFile } from '@/lib/dataStore';
 import { requireGameServer } from '@/lib/fivem/auth';
 import { markSeen } from '@/lib/fivem/store';
 import { cadToday, liveDmvRecord } from '@/lib/cadDate';
+import { isFireReport, isSubmitted, normPlate, plateHistory, rolesIn } from '@/lib/history';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,6 +49,9 @@ export async function GET(request: NextRequest) {
   const civilians: any[] = data.civilians || [];
   const records: any[] = data.officerRecords || [];
   const today = cadToday();
+  // Everything LEO can see in the CAD's Lookup: no drafts, no Fire/EMS reports
+  const items: any[] = [...(data.officerReports || []).filter((r: any) => !isFireReport(r)), ...records].filter(isSubmitted);
+  const isActiveBolo = (r: any) => r.type === 'BOLO' && r.status !== 'INACTIVE';
 
   if (plate) {
     const vehicles = civilians.flatMap(c =>
@@ -69,6 +73,10 @@ export async function GET(request: NextRequest) {
             owner: fullName(c),
             ownerId: c.id,
             flags: flagsFor(records, c),
+            // Reports / records this plate appears on, and active BOLOs on the plate itself
+            history: plateHistory(items, r.data.plateNumber).length,
+            plateBolos: records.filter(b => isActiveBolo(b) && isSubmitted(b) && normPlate(b.vehiclePlate) === normPlate(r.data.plateNumber))
+              .map(b => ({ id: b.id, recordNumber: b.recordNumber })),
           };
         })
     );
@@ -91,6 +99,9 @@ export async function GET(request: NextRequest) {
           return { type: r.data?.licenseType, number: r.data?.licenseNumber, status: r.data?.status, expires: r.data?.expirationDate || null };
         }),
       citations: records.filter(r => r.type === 'CITATION' && (r.subjectId ? r.subjectId === c.id : normName(r.subjectName) === normName(fullName(c)))).length,
+      arrests: items.filter(x => x.type === 'ARREST' && rolesIn(x, c).includes('ARRESTEE')).length,
+      // Every report / record the person is on (named, or one of their plates)
+      history: items.filter(x => rolesIn(x, c).length > 0).length,
       flags: flagsFor(records, c),
     }));
   return NextResponse.json({ ok: true, query: { name }, results: people });

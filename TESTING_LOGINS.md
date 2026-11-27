@@ -85,6 +85,24 @@ This document contains all test login credentials for testing StrataMDT. Use the
 
 ---
 
+## Test Characters (Civilian portal / Lookup)
+
+These characters are in `data/cad-data.json`. They have no owner, so every account sees them in the Civilian portal, and LEO can run them in Lookup.
+
+| Name | DOB | Plate(s) | Use it to test |
+|------|-----|----------|----------------|
+| John Smith | 1990-05-15 | SMITH01 | Original sample character |
+| Maria Lopez | 1993-07-22 | 4LOP221 | Clean record: valid license, registration and insurance |
+| Tony Vance | 1988-02-11 | 8ABC123 | Suspended license, on probation; owns the plate used in BOLO tests |
+| Darnell Brooks | 1996-11-03 | DBRK770 | License, registration and insurance all show **EXPIRED** |
+| Sarah Chen | 1990-04-09 | SCHEN01, SCHEN02 | Pilot license; two vehicles |
+| Jake Miller | 1985-09-30 | JMIL555 | Out-of-state warrant (Liberty City), shows **WANTED** |
+| Emily Carter | 2001-12-18 | (none) | No license on file, no vehicles |
+
+Write a report or record naming one of them (Involved Persons, arrestee, a Party, BOLO subject...) or listing one of their plates. It then shows on their Lookup history, in plate runs, and under Records & Reports in the Civilian portal.
+
+---
+
 ## Quick Test Scenarios
 
 ### Test Role-Based Access Control

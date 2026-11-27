@@ -4,6 +4,7 @@ import { BRAND, BrandMark, BrandLockup } from './Brand';
 import { useFiveMBridge, formatGameLocation } from '@/lib/fivem/useFiveMBridge';
 import LiveMap, { type MapCall } from './LiveMap';
 import { postalCoords } from '@/lib/fivem/postals';
+import { rolesIn, plateHistory, normPlate, registeredPlates, platesIn } from '@/lib/history';
 import { canSelfDispatch, canGroupUnits, canReviewRecords } from '@/lib/permissions';
 import { cadDatePlusYears, cadToday, isPastCadDate, liveDmvRecord, liveDmvRecords } from '@/lib/cadDate';
 
@@ -250,6 +251,10 @@ const CADSystem = () => {
   const [editingDmvId, setEditingDmvId] = useState<string | null>(null);
   // Active Call window: show the records attached to the call
   const [showAttachments, setShowAttachments] = useState(false);
+  // Lookup: the vehicle whose plate was run (its history shows above the owner)
+  const [selectedLookupVehicle, setSelectedLookupVehicle] = useState<any>(null);
+  // Civilian portal: the history item expanded to show its details
+  const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
   const [editingReportId, setEditingReportId] = useState<string | null>(null);
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
 
@@ -1305,6 +1310,7 @@ const CADSystem = () => {
   // instead of closing everything. Report/record forms keep their own Cancel.
   const resetLookup = () => {
     setSelectedLookupPerson(null);
+    setSelectedLookupVehicle(null);
     setLookupSearchQuery('');
     setLookupSearchResults([]);
     setLookupVehicleQuery('');
@@ -1314,6 +1320,7 @@ const CADSystem = () => {
     if (activeReportForm || activeRecordForm) return false;
     if (activeRecordsPanel === 'lookup' && selectedLookupPerson) {
       setSelectedLookupPerson(null);
+      setSelectedLookupVehicle(null);
       return true;
     }
     if (activeRecordsPanel) {
@@ -1414,10 +1421,13 @@ const CADSystem = () => {
   ];
   // ---- Involved persons (every report) -----------------------------------
   // Anyone added here gets the report listed on their record in Lookup.
-  const INVOLVED_ROLES = ['SUSPECT', 'VICTIM', 'WITNESS', 'REPORTING PARTY', 'OTHER'];
+  const INVOLVED_ROLES = ['SUSPECT', 'PERSON OF INTEREST', 'VICTIM', 'WITNESS', 'REPORTING PARTY', 'OTHER'];
   const roleChip = (role: string) => {
     const r = String(role || '').toUpperCase();
-    const tone = /SUSPECT|ARRESTEE|TRESPASSER/.test(r) ? 'bg-red-500/15 text-red-300 ring-red-500/30'
+    const tone = /PERSON OF INTEREST/.test(r) ? 'bg-amber-500/15 text-amber-300 ring-amber-500/30'
+      : /SUSPECT|ARRESTEE|TRESPASSER|WARRANT|BOLO|CITED/.test(r) ? 'bg-red-500/15 text-red-300 ring-red-500/30'
+      : /^VEHICLE/.test(r) ? 'bg-sky-500/15 text-sky-300 ring-sky-500/30'
+      : /PATIENT/.test(r) ? 'bg-rose-500/15 text-rose-300 ring-rose-500/30'
       : /VICTIM|SUBJECT OF FORCE/.test(r) ? 'bg-blue-500/15 text-blue-300 ring-blue-500/30'
       : /WITNESS/.test(r) ? 'bg-emerald-500/15 text-emerald-300 ring-emerald-500/30'
       : /REPORTING/.test(r) ? 'bg-purple-500/15 text-purple-300 ring-purple-500/30'
@@ -1523,24 +1533,25 @@ const CADSystem = () => {
   };
   const isWarrantActive = (r: any) => (r.warrantStatus || 'ACTIVE') !== 'CLOSED' && !['CLOSED', 'INACTIVE', 'SERVED'].includes(String(r.status || '').toUpperCase());
   /** Roles a person has in a report: the Involved Persons list plus the person fields of each report type. */
-  const reportRolesFor = (rep: any, person: any) => {
-    const roles: string[] = [];
-    const m = (name: any, id?: any) => personMatches(person, name, id);
-    (rep.involvedPersons || []).forEach((x: any) => { if (m(x.name, x.civilianId)) roles.push(x.role); });
-    if (m(rep.arresteeName, rep.arresteeId)) roles.push('ARRESTEE');
-    if (m(rep.trespasserName, rep.trespasserId)) roles.push('TRESPASSER');
-    [1, 2].forEach(n => {
-      const party = rep[`party${n}`];
-      if (!party || !m(party.name, party.personId)) return;
-      const inv = rep[`party${n}Involvement`];
-      roles.push(inv === 'OTHER' ? (rep[`party${n}InvolvementOther`] || 'OTHER')
-        : inv || (rep.type === 'VEHICLE TOW/RELEASE REPORT' ? 'REGISTERED OWNER'
-          : rep.type === 'TRAFFIC COLLISION REPORT' ? `PARTY ${n}` : 'INVOLVED PARTY'));
-    });
-    if (rep.victimOfForce && m(rep.victimOfForce.name, rep.victimOfForce.personId)) roles.push('SUBJECT OF FORCE');
-    if (m(rep.driverInformationName) || m(rep.driverName)) roles.push('DRIVER');
-    if (m(rep.witness1Name) || m(rep.witness2Name)) roles.push('WITNESS');
-    return Array.from(new Set(roles.map(r => String(r).toUpperCase())));
+  /** Roles a person has on a report or record (lib/history.ts, shared with the in-game lookups). */
+  const reportRolesFor = (rep: any, person: any) => rolesIn(rep, person);
+  /** ACTIVE / CLOSED / INACTIVE chip for a record (warrants use warrantStatus). */
+  const recordStateChip = (r: any) => {
+    const st = String(r.type === 'WARRANT' ? (r.warrantStatus || r.status || 'ACTIVE') : (r.status || '')).toUpperCase();
+    if (!st) return null;
+    const on = st === 'ACTIVE';
+    return <span className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ring-1 ${on ? 'bg-red-500/15 text-red-300 ring-red-500/30' : 'bg-white/[0.06] text-gray-400 ring-white/[0.1]'}`}>{st}</span>;
+  };
+  /** Reports and records (not drafts, not Fire/EMS) that mention a plate. */
+  const getPlateHistory = (plate: any) => {
+    const items = [
+      ...officerReports.filter(r => visibleToMe(r) && !isFireReport(r)).map(r => ({ ...r, __kind: 'report' })),
+      ...officerRecords.filter(visibleToMe).map(r => ({ ...r, __kind: 'record' })),
+    ];
+    const hits = plateHistory(items, plate)
+      .sort((a, b) => String(b.item.createdAt || '').localeCompare(String(a.item.createdAt || '')));
+    const bolos = hits.filter(x => x.item.type === 'BOLO' && isBoloActive(x.item)).map(x => x.item);
+    return { hits, bolos };
   };
   const officerRecordsAll = officerRecords;
   const officerReportsAll = officerReports;
@@ -1550,14 +1561,13 @@ const CADSystem = () => {
     const officerRecords = officerRecordsAll.filter(visibleToMe);
     const officerReports = officerReportsAll.filter(r => visibleToMe(r) && !isFireReport(r));
     const dmv = person?.dmvRecords || [];
-    const plates = new Set(dmv.filter((r: any) => r.type === 'VEHICLE REGISTRATION')
-      .map((r: any) => String(r.data?.plateNumber || '').trim().toUpperCase()).filter(Boolean));
+    const plates = registeredPlates(person);
     const byDate = (a: any, b: any) => String(b.createdAt || b.date || '').localeCompare(String(a.createdAt || a.date || ''));
     const bolos = officerRecords
       .filter(r => r.type === 'BOLO' && isBoloActive(r))
       .map(r => ({ record: r, bySubject: m(r.subjectName, r.subjectId)
         || (r.involvedPersons || []).some((x: any) => x.role === 'SUSPECT' && m(x.name, x.civilianId)),
-        plate: String(r.vehiclePlate || '').trim().toUpperCase() }))
+        plate: normPlate(r.vehiclePlate) }))
       .filter(x => x.bySubject || (x.plate && plates.has(x.plate)))
       .sort((a, b) => byDate(a.record, b.record));
     const warrants = officerRecords.filter(r => r.type === 'WARRANT' && isWarrantActive(r) && m(r.subjectName, r.subjectId)).sort(byDate);
@@ -1571,9 +1581,10 @@ const CADSystem = () => {
     const citations = officerRecords.filter(r => r.type === 'CITATION' && m(r.subjectName, r.subjectId)).sort(byDate);
     const reports = [
       ...officerReports.map(r => ({ report: r, kind: 'report', roles: reportRolesFor(r, person) })),
-      // Records list a person through Involved Persons (the subject already shows in the sections above)
+      // Records by any role, including old warrants / BOLOs and their vehicles. Arrestee and
+      // cited roles are left out here because Arrest History and Citations list those.
       ...officerRecords.map(r => ({ report: r, kind: 'record',
-        roles: Array.from(new Set((r.involvedPersons || []).filter((x: any) => m(x.name, x.civilianId)).map((x: any) => String(x.role).toUpperCase()))) as string[] })),
+        roles: rolesIn(r, person).filter(role => !(r.type === 'ARREST' && role === 'ARRESTEE') && !(r.type === 'CITATION' && role === 'CITED')) })),
     ]
       .filter(x => x.roles.length > 0)
       .sort((a, b) => byDate(a.report, b.report));
@@ -2310,6 +2321,8 @@ const CADSystem = () => {
     );
   };
 
+  /** Not a draft: drafts are private to their author. */
+  const isSubmittedItem = (x: any) => reviewOf(x) !== 'DRAFT' && String(x?.status || '').toUpperCase() !== 'DRAFT';
   /** Citations on a character (officer records whose subject is this person). */
   const citationsFor = (person: any) => officerRecords
     .filter(r => r.type === 'CITATION' && personMatches(person, r.subjectName, r.subjectId))
@@ -3612,9 +3625,64 @@ const CADSystem = () => {
             )}
           </div>
 
-          {/* Records/Reports Section */}
+          {/* Records/Reports Section: every report/record this character is on (citations are listed below) */}
+          {(() => {
+            const hist = [
+              ...officerReports.filter(isSubmittedItem).map(r => ({ item: r, roles: rolesIn(r, char) })),
+              ...officerRecords.filter(r => isSubmittedItem(r) && r.type !== 'CITATION').map(r => ({ item: r, roles: rolesIn(r, char), record: true })),
+            ]
+              .filter(x => x.roles.length > 0)
+              .sort((a, b) => String(b.item.createdAt || '').localeCompare(String(a.item.createdAt || '')));
+            const narrative = (x: any) => x.narrative || x.briefInformation || x.incidentNarrative || x.description || x.notes || x.summary || '';
+            const where = (x: any) => x.location || x.locationOfViolation || x.incidentLocation || x.lastKnownLocation || x.locationOfIncident || '';
+            return (
+              <div className="panel p-6" data-section="history">
+                <h3 className="text-xl font-bold text-white mb-1">Records &amp; Reports ({hist.length})</h3>
+                <p className="mb-4 text-xs text-gray-500">Reports and records this character is named on, or that list one of their registered plates.</p>
+                {hist.length === 0 ? (
+                  <div className="text-center py-6 text-gray-500">
+                    <FileText size={40} className="mx-auto mb-3 opacity-50" />
+                    <p>No records or reports on file</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {hist.map(({ item, roles, record }: any) => {
+                      const open = expandedHistoryId === item.id;
+                      const text = narrative(item);
+                      const charges = formatCharges(item.charges || item.arrestCharges);
+                      return (
+                        <div key={item.id} className="panel-card" data-history-item={item.id}>
+                          <button onClick={() => setExpandedHistoryId(open ? null : item.id)} className="flex w-full flex-wrap items-center gap-2 text-left" aria-expanded={open}>
+                            <span className="text-sm font-semibold text-white">{item.type}</span>
+                            {item.recordNumber && <span className="font-mono text-xs text-gray-400">#{item.recordNumber}</span>}
+                            {roles.map((r: string) => roleChip(r))}
+                            {record && recordStateChip(item)}
+                            <span className="ml-auto text-xs text-gray-500">{formatRecordDateTime(item.createdAt || item.date)}</span>
+                            <ChevronRight size={16} className={`text-gray-500 transition-transform ${open ? 'rotate-90' : ''}`} />
+                          </button>
+                          {open && (
+                            <div className="mt-2 space-y-1.5 border-t border-white/[0.06] pt-2 text-sm">
+                              {item.officer && <p className="text-gray-400">Officer: <span className="text-gray-200">{item.officer}{item.callsign ? ` (${item.callsign})` : ''}</span></p>}
+                              {where(item) && <p className="text-gray-400">Location: <span className="text-gray-200">{where(item)}</span></p>}
+                              {platesIn(item).length > 0 && <p className="text-gray-400">Vehicles: <span className="font-mono text-gray-200">{platesIn(item).map(([, pl]) => pl).join(', ')}</span></p>}
+                              {charges && <p className="text-gray-400">Charges: <span className="text-gray-200">{charges}</span></p>}
+                              {text && <p className="whitespace-pre-wrap text-gray-200">{text}</p>}
+                              {!text && !charges && <p className="text-gray-500">No further details.</p>}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* Older notes stored on the character */}
+          {char.records && char.records.length > 0 && (
           <div className="panel p-6">
-            <h3 className="text-xl font-bold text-white mb-4">Records & Reports</h3>
+            <h3 className="text-xl font-bold text-white mb-4">Notes</h3>
             {char.records && char.records.length > 0 ? (
               <div className="space-y-3">
                 {char.records.map((record, idx) => (
@@ -3631,6 +3699,7 @@ const CADSystem = () => {
               </div>
             )}
           </div>
+          )}
 
           {/* Citations written on this character (in the CAD or in game) */}
           {(() => {
@@ -13349,13 +13418,15 @@ const CADSystem = () => {
   };
 
   const selectLookupPerson = (person: any) => {
+    setSelectedLookupVehicle(null);
     setSelectedLookupPerson(person);
     setLookupSearchResults([]);
     setLookupSearchQuery('');
   };
 
   const selectLookupVehicle = (vehicle: any) => {
-    // When selecting a vehicle, show the owner's full profile
+    // Show the plate's own history, then the owner's full profile
+    setSelectedLookupVehicle(vehicle);
     setSelectedLookupPerson(vehicle.ownerData);
     setLookupVehicleResults([]);
     setLookupVehicleQuery('');
@@ -13493,8 +13564,60 @@ const CADSystem = () => {
             );
             const onCall = selectedUnit ? activeCallOf(selectedUnit) : null;
             const alreadyAttached = !!onCall && (onCall.attachments || []).some((a: any) => a.kind === 'person' && (a.civilianId ? a.civilianId === person.id : normName(a.name) === normName(civName(person))));
+            const ranPlate = selectedLookupVehicle && selectedLookupVehicle.ownerId === person.id ? selectedLookupVehicle : null;
+            const ph = ranPlate ? getPlateHistory(ranPlate.plateNumber) : null;
             return (
             <div className="space-y-4">
+              {/* Plate that was run: BOLOs on it and every report/record it appears on */}
+              {ranPlate && ph && (
+                <div className={`rounded-xl border p-4 ${ph.bolos.length ? 'border-red-500/50 bg-red-500/10' : 'border-sky-500/25 bg-sky-500/[0.06]'}`} data-plate-history>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Car size={18} className={ph.bolos.length ? 'text-red-300' : 'text-sky-300'} />
+                    <span className="font-mono text-lg font-bold text-white">{ranPlate.plateNumber}</span>
+                    <span className="text-sm text-gray-300">{[ranPlate.year, ranPlate.color, ranPlate.make, ranPlate.model].filter(Boolean).join(' ')}</span>
+                    {ranPlate.registrationStatus && (
+                      <span className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${ranPlate.registrationStatus === 'VALID' ? 'bg-emerald-500/15 text-emerald-300' : 'bg-red-500/15 text-red-300'}`}>REG {ranPlate.registrationStatus}</span>
+                    )}
+                    {ranPlate.insuranceStatus && (
+                      <span className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${ranPlate.insuranceStatus === 'VALID' ? 'bg-emerald-500/15 text-emerald-300' : 'bg-red-500/15 text-red-300'}`}>INS {ranPlate.insuranceStatus}</span>
+                    )}
+                    <span className="ml-auto text-xs text-gray-400">Registered to {ranPlate.ownerName}</span>
+                  </div>
+                  {ph.bolos.map((b: any) => (
+                    <div key={b.id} className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-red-500/40 bg-gray-950/40 p-2.5" role="alert">
+                      <div className="text-sm">
+                        <span className="mr-2 rounded bg-red-600 px-1.5 py-0.5 text-[11px] font-bold text-white">BOLO ON PLATE</span>
+                        <span className="text-red-100">{BOLO_REASONS.filter(([k]) => b[k]).map(([, l]) => l).join(', ') || b.briefInformation || 'Be on the lookout'}</span>
+                        {BOLO_SAFETY.some(([k]) => b[k]) && <span className="ml-2 font-semibold text-red-300">· {BOLO_SAFETY.filter(([k]) => b[k]).map(([, l]) => l).join(', ')}</span>}
+                      </div>
+                      {viewBtn(() => openExistingRecord(b))}
+                    </div>
+                  ))}
+                  <div className="mt-3">
+                    <div className="eyebrow mb-1.5">Plate history ({ph.hits.length})</div>
+                    {ph.hits.length === 0 ? (
+                      <p className="text-sm text-gray-500">This plate is not on any report or record.</p>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {ph.hits.map(({ item, roles }: any) => (
+                          <div key={item.id} className="subcard flex flex-wrap items-center justify-between gap-2 p-2.5">
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-sm font-semibold text-white">{item.type}</span>
+                                {item.recordNumber && <span className="font-mono text-xs text-gray-400">#{item.recordNumber}</span>}
+                                {roles.map((r: string) => roleChip(r))}
+                                {item.__kind === 'record' && recordStateChip(item)}
+                              </div>
+                              <div className="mt-0.5 text-xs text-gray-500">{formatRecordDateTime(item.createdAt || item.date)}{item.officer ? ` · ${item.officer}` : ''}</div>
+                            </div>
+                            {viewBtn(() => (item.__kind === 'record' ? openExistingRecord(officerRecords.find(r => r.id === item.id)) : openExistingReport(officerReports.find(r => r.id === item.id))))}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
               {/* Share this person with the units on my call */}
               {onCall && (
                 <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-accent-500/25 bg-accent-500/[0.07] px-3 py-2" data-send-to-call>
@@ -13666,6 +13789,7 @@ const CADSystem = () => {
                             {r.recordNumber && <span className="font-mono text-xs text-gray-400">#{r.recordNumber}</span>}
                             {roles.map((role: string) => roleChip(role))}
                             {r.status === 'DRAFT' && <span className="rounded-md bg-yellow-500/15 px-2 py-0.5 text-[10px] font-semibold text-yellow-300">DRAFT</span>}
+                            {kind === 'record' && recordStateChip(r)}
                           </div>
                           <div className="mt-0.5 text-xs text-gray-500">{formatRecordDateTime(r.createdAt || r.date)}{r.officer ? ` · ${r.officer}` : ''}</div>
                         </div>
